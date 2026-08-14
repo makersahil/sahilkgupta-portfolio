@@ -1,0 +1,56 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+coverage/
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Secrets / local environment
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+
+# Keep safe environment template
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editors
+.vscode/
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# Backup/export files
+*.zip
+*.tar
+*.tar.gz
+*.bak
+
+# Local databases
+*.db
+*.db-journal
+
+# Prisma local cache/artifacts
+prisma/dev.db

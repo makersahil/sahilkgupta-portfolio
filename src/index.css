@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    background-color: #0a0a0c;
+    color: #e0e0e0;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply antialiased selection:bg-[#00d4ff]/30 selection:text-[#00d4ff];
+  }
+
+  /* Custom dark terminal scrollbars */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0a0a0c;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #1a1a1e;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #27272e;
+  }
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Markdown styling overrides with Sophisticated Dark palette */
+.markdown-body h1 {
+  @apply text-xl font-bold font-mono text-white mt-6 mb-3;
+}
+.markdown-body h2 {
+  @apply text-lg font-bold font-mono text-[#00d4ff] mt-5 mb-2.5;
+}
+.markdown-body h3 {
+  @apply text-base font-bold font-mono text-[#00ff41] mt-4 mb-2;
+}
+.markdown-body p {
+  @apply text-sm text-white/80 leading-relaxed mb-3;
+}
+.markdown-body ul {
+  @apply list-disc list-inside space-y-1.5 text-sm text-white/80 mb-4 pl-2;
+}
+.markdown-body ol {
+  @apply list-decimal list-inside space-y-1.5 text-sm text-white/80 mb-4 pl-2;
+}
+.markdown-body code:not(pre code) {
+  @apply px-1.5 py-0.5 rounded bg-black text-[#00d4ff] font-mono text-xs border border-white/10;
+}
+.markdown-body pre {
+  @apply p-4 rounded-xl bg-black border border-white/10 text-[#00ff41] font-mono text-xs overflow-x-auto my-4 leading-relaxed;
+}
+.markdown-body blockquote {
+  @apply border-l-2 border-[#00d4ff] pl-4 italic text-white/60 my-4;
+}
+.markdown-body table {
+  @apply w-full text-xs font-mono border-collapse my-4;
+}
+.markdown-body th, .markdown-body td {
+  @apply border border-white/10 p-2 text-left;
+}
+.markdown-body th {
+  @apply bg-[#111114] text-white font-bold;
+}
+
