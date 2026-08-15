@@ -47,20 +47,21 @@ async function main(): Promise<void> {
   for (const path of serviceFiles) {
     const source = await text(path);
     assertNotContains(source, "from 'express'", path);
-    assertNotContains(source, 'Request,', path);
-    assertNotContains(source, 'Response,', path);
     assertNotContains(source, 'PrismaClient', path);
     assertNotContains(source, 'prisma.', path);
   }
 
   const factory = await text('server/repositories/repository.factory.ts');
-  assertContains(factory, "'legacy'", 'repository factory');
-  assertContains(factory, "'prisma'", 'repository factory');
-  assertContains(factory, 'PERSISTENCE_MODE', 'repository factory');
+  assertContains(factory, "mode: 'prisma'", 'repository factory');
+  assertContains(factory, 'DATABASE_URL is required', 'repository factory');
+  assertNotContains(factory, 'Legacy', 'repository factory');
+  assertNotContains(factory, "case 'legacy'", 'repository factory');
+  assertNotContains(factory, 'legacyRepositories', 'repository factory');
 
   const env = await text('server/config/env.ts');
-  assertContains(env, 'PERSISTENCE_MODE', 'environment validation');
   assertContains(env, 'DATABASE_URL', 'environment validation');
+  assertContains(env, 'Legacy persistence has been retired', 'retired persistence guard');
+  assertNotContains(env, "export type PersistenceMode = 'legacy'", 'environment validation');
 
   const server = await text('server.ts');
   assertContains(server, 'contentRepositories.checkHealth()', 'health endpoint');
@@ -68,16 +69,13 @@ async function main(): Promise<void> {
   assertContains(server, "app.use('/api', errorHandler)", 'global API error handler');
 
   const network = await text('server/routes/network.routes.ts');
-  assertContains(
-    network,
-    "router.post('/upload-pkt', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN')",
-    'Packet Tracer upload protection',
-  );
-  assertContains(network, "router.post('/simulate-packet'", 'public packet simulation');
+  assertNotContains(network, 'upload-pkt', 'retired Packet Tracer parser endpoint');
+  assertContains(network, "router.post('/simulate-packet'", 'representative packet simulation');
 
   const apiClient = await text('src/lib/api.ts');
   assertContains(apiClient, 'if (!response.ok)', 'frontend API HTTP failure handling');
   assertContains(apiClient, 'payload.success !== true', 'frontend API envelope validation');
+  assertNotContains(apiClient, 'uploadPktFile', 'retired Packet Tracer parser client');
 
   const context = await text('src/context/PortfolioContext.tsx');
   for (const state of ['loading', 'error', 'empty', 'loaded']) {

@@ -6,33 +6,40 @@ Interactive infrastructure proof-of-work portfolio with three operator workspace
 - Linux — RHEL administration, storage, systemd, SELinux, and systems troubleshooting
 - DevOps — Terraform, Kubernetes, GitOps, Cilium/eBPF, delivery pipelines, and runtime operations
 
-The existing dark cyber-terminal/control-plane visual language is intentional. Representative simulations must never be presented as measured production evidence.
+The dark cyber-terminal/control-plane visual language is intentional. Representative simulations must never be presented as measured production evidence.
 
 ## Current architecture
 
-Phase 2B content persistence and Phase 2C persistent authentication/RBAC are exit-verified. Phase 2D-1 provides the canonical multi-project/multi-lab platform and Lab Manifest v1 API foundation. Phase 2D-1 Canonical Lab Platform and Phase 2D-2 Admin Lab Builder/Persistent Admin Core are COMPLETE and exit-verified. The next implementation target is Phase 2E — safe retirement of remaining `MockDatabaseService` runtime paths.
+Phases 2B, 2C, and 2D are exit-verified. Phase 2E removes the remaining legacy in-memory runtime paths and makes PostgreSQL/Prisma the only supported persistence path.
 
 ```text
 Browser / React
-  ├─ public content → Express routes → content services → repository contracts
-  │                                      ├─ legacy adapters → MockDatabaseService
-  │                                      └─ Prisma adapters → PostgreSQL
-  │
-  ├─ labs → /api/labs/* → LabService / LabManifestService → PrismaLabRepository
-  │                                               → PostgreSQL Lab platform
-  │
-  ├─ admin auth → /api/auth/* → AuthService → PrismaAuthRepository
-  │                               → PostgreSQL User + AuthSession
-  │
-  └─ admin orchestration → Admin CMS → authenticated content/lab APIs
-                         → PostgreSQL content + Lab platform + AuditLog
+  ├─ public content → Express routes → content services → Prisma repositories → PostgreSQL
+  ├─ labs → /api/labs/* → LabService / LabManifestService → PrismaLabRepository → PostgreSQL
+  ├─ auth → /api/auth/* → AuthService → PrismaAuthRepository → User + AuthSession
+  ├─ admin → authenticated content/lab APIs → PostgreSQL + persisted AuditLog
+  ├─ media references → MediaService → PrismaArtifactRepository → Artifact
+  └─ architecture metrics → SystemMetricsService → PrismaSystemRepository → PostgreSQL counts
 ```
 
-Protected requests use a signed HttpOnly cookie whose JWT contains only user/session identity. Authorization reloads the persisted `AuthSession` and current `User` on every protected request, so role changes, revocation, expiration, and account deactivation take effect immediately. Browser auth tokens are not stored in `localStorage`.
+There is no runtime `MockDatabaseService` fallback. Database outages fail closed instead of silently switching to memory.
 
-`MockDatabaseService` still exists for explicitly deferred compatibility paths such as media, architecture metrics, Packet Tracer compatibility behavior, and the legacy content adapter. Full retirement remains Phase 2E.
+The canonical relationship model is:
 
-The Prisma schema now implements the canonical relationship model: one Project may own multiple Labs; each Lab can own standardized LabInputs, normalized state, topology nodes/links, scenarios, LabRunbookSteps, evidence, and artifact references. Domain-specific Networking/Linux/DevOps engines remain later phases.
+```text
+Domain
+  → Project
+    → 0..N Labs
+      → 0..N LabInputs
+      → normalized state
+      → nodes / links
+      → scenarios
+      → runbook
+      → evidence
+      → artifact references
+```
+
+Networking/Linux/DevOps stateful domain engines are later phases. Existing visualizers remain representative until those engines replace them.
 
 ## Repository layout
 
@@ -42,29 +49,27 @@ server.ts                             Express/Vite entry point
 server/routes/                        HTTP routes
 server/services/content/              content application services
 server/services/auth/                 persistent authentication service/bootstrap logic
-server/services/labs/                 canonical lab validation, input registry, and Manifest v1 services
-server/services/admin/                persisted Admin audit application service
-server/repositories/contracts/        content + auth + lab + audit repository contracts
-server/repositories/legacy/           legacy content adapters
-server/repositories/prisma/           PostgreSQL/Prisma content, auth, and lab repositories
+server/services/labs/                 canonical lab validation, input registry, Manifest v1
+server/services/admin/                persisted Admin audit service
+server/services/media/                persisted artifact-reference service
+server/services/system/               truthful runtime metrics service
+server/repositories/contracts/        repository contracts
+server/repositories/prisma/           PostgreSQL/Prisma repositories
 server/middlewares/                   persisted auth, async, and error middleware
 server/security/                      login abuse controls
-server/scripts/                       durable DB/content/auth/lab/admin regression, verification, and maintenance scripts
+server/scripts/                       durable verification/regression/maintenance scripts
 prisma/schema.prisma                  canonical persistence schema
-prisma/migrations/                    immutable versioned migrations
-prisma/seed.ts                        idempotent public portfolio baseline seed; no users
+prisma/migrations/                    immutable migrations
+prisma/seed.ts                        idempotent public baseline seed; no users
 ```
 
 ## Environment
 
 Copy `.env.example` to `.env`. Never commit `.env` or real credentials.
 
-For the current persisted runtime and regression path use Prisma:
-
 ```dotenv
 NODE_ENV=development
 PORT=3000
-PERSISTENCE_MODE=prisma
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
 JWT_SECRET=replace-with-at-least-32-random-characters
 ADMIN_EMAIL=admin@example.com
@@ -72,82 +77,55 @@ ADMIN_PASSWORD=replace-with-a-strong-password-at-least-12-characters
 ADMIN_DISPLAY_NAME=Sahil K Gupta
 ```
 
-`ADMIN_PASSWORD` is consumed only by the explicit bootstrap command. Runtime login validates the persisted bcrypt hash, not the environment password.
+`PERSISTENCE_MODE` is no longer required. If an old local `.env` still contains `PERSISTENCE_MODE=prisma`, it is tolerated for migration compatibility; `legacy` is rejected.
 
-## Build and database setup
+## Setup
 
 ```bash
 npm ci
-npx prisma format
-npx prisma validate
-npx prisma generate
-npm run lint
-npm run build
-
 npm run db:deploy
 npm run db:seed
 npm run db:check
 npm run auth:bootstrap-admin
 ```
 
-The normal portfolio seed intentionally creates no administrator or other user credentials.
+`npm ci` now runs `prisma generate` through the root `postinstall` script, reducing the chance of a missing generated Prisma Client after a clean install.
 
-## Durable verification baseline
+The normal portfolio seed creates no administrator or other user credentials.
 
-Use the consolidated verifier instead of running every regression command manually:
+## Verification
+
+Run the complete regression baseline with one command:
 
 ```bash
 npm run verify
 ```
 
-`verify` validates/generates Prisma, typechecks, builds, checks migration status, validates the database baseline, and runs the durable auth/content/lab/Admin regression suites including restart persistence. It stops on the first failure and prints the failing step.
-
-For faster work:
+For faster development:
 
 ```bash
-npm run verify:quick   # schema + typecheck/build + static/API-client checks; no DB required
-npm run verify:tests   # all regression suites against the configured DB; skips rebuild
+npm run verify:quick
+npm run verify:tests
 ```
 
-Migration deployment and seeding remain explicit one-time operations when a phase changes schema or baseline data; routine verification never mutates migration history automatically.
+The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, and legacy-runtime retirement.
 
-Individual `test:*` scripts remain available for targeted debugging after the consolidated verifier identifies a failing area.
+## Media and Packet Tracer truthfulness
 
-Optional maintenance:
+`POST /api/media/upload` is retained as a compatibility API name, but it **registers metadata for an already-stored media/artifact reference**. It does not claim to upload bytes to S3/Cloudinary/local disk.
 
-```bash
-npm run auth:cleanup-sessions
-```
-
-## Manual auth verification
-
-Run:
-
-```bash
-npm start
-```
-
-Then verify:
-
-1. `/api/health` is healthy with Prisma persistence.
-2. The configured administrator can sign in through the existing Admin CMS UI.
-3. Reloading the page restores the session through the HttpOnly cookie.
-4. `/api/auth/me` returns the current persisted user and never a password hash.
-5. Existing protected Admin content mutations still work.
-6. Logout revokes the persisted session.
-7. A logged-out request to a protected mutation returns 401.
+The old synthetic `/api/network/upload-pkt` parser has been retired. Packet Tracer files/references belong in the canonical Lab Builder using the `PACKET_TRACER` input type. Arbitrary `.pkt` binary parsing is not claimed.
 
 ## Git workflow
 
 Git is the source of truth.
 
 - Never work directly on `main`.
-- Use a bounded phase/sub-phase branch.
-- Preserve the existing cyber-terminal UI unless the phase explicitly changes it.
+- Use a bounded phase branch.
+- Preserve the cyber-terminal UI unless the phase explicitly changes it.
 - Never invent evidence, metrics, hashes, URLs, credentials, or production state.
-- Never edit an already-applied migration casually.
-- Never silently fall back from Prisma to mock persistence in production.
-- Run validation and inspect `git diff` before committing.
+- Never edit already-applied migrations casually.
+- Run `npm run verify` and inspect `git diff` before committing.
 - Read `AGENTS.md` and `docs/DEFERRED_IMPLEMENTATION_REGISTER.md` before every phase.
 
-Phase 2D is COMPLETE and exit-verified. The next implementation target is Phase 2E — safe retirement of the remaining `MockDatabaseService` runtime paths.
+After Phase 2E exit verification, the next implementation target is Phase 3 — Dynamic Networking Lab Engine.

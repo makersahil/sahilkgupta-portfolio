@@ -10,7 +10,6 @@ async function main(): Promise<void> {
     throw new Error('DATABASE_URL is required for the restart-persistence test');
   }
 
-  process.env.PERSISTENCE_MODE = 'prisma';
   const command = process.argv[2];
   if (!['create', 'verify', 'cleanup'].includes(command ?? '')) {
     throw new Error('Usage: npm run test:content:restart -- create|verify|cleanup');
@@ -22,7 +21,7 @@ async function main(): Promise<void> {
     import('../lib/prisma.js'),
   ]);
 
-  const repositories = createRepositories('prisma');
+  const repositories = createRepositories();
   const services = createContentServices(repositories);
 
   async function removeExisting(): Promise<void> {

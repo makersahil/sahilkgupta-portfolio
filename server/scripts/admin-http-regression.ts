@@ -10,7 +10,6 @@ async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for the Admin orchestration HTTP regression suite');
   const suffix = randomUUID().replaceAll('-', '').slice(0, 12);
   process.env.NODE_ENV = 'test';
-  process.env.PERSISTENCE_MODE = 'prisma';
   process.env.JWT_SECRET = `${randomUUID()}${randomUUID()}`;
 
   const adminEmail = `admin-orchestrator-${suffix}@example.invalid`;

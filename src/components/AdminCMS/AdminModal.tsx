@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Lock,
@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   Mail,
   Activity,
-  Upload,
   RefreshCw,
   LogOut,
   Sparkles,
@@ -71,7 +70,6 @@ export const AdminModal: React.FC = () => {
   const [editingBlog, setEditingBlog] = useState<Partial<BlogPost> | null>(null);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
 
-  const pktUploadRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (user && isAdminModalOpen) {
@@ -156,28 +154,6 @@ export const AdminModal: React.FC = () => {
       } catch (err: any) {
         showToast(err.message || 'Failed to delete project', 'error');
       }
-    }
-  };
-
-  const handlePktUploadInModal = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const text = await file.text().catch(() => '');
-      const res = await api.uploadPktFile(file.name, text, file.size, editingProject?.id);
-      if (res.success && editingProject) {
-        setEditingProject({
-          ...editingProject,
-          packetTracerFile: file.name,
-          formatType: 'cisco_pkt_lab',
-          ciscoLabData: res.data,
-        });
-        showToast(`Parsed and attached ${file.name} successfully!`, 'success');
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to parse Packet Tracer file';
-      showToast(message, 'error');
     }
   };
 
@@ -814,16 +790,9 @@ export const AdminModal: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <label className="text-white/60 uppercase tracking-wider text-[10px]">Packet Tracer File (.pkt)</label>
-                        <button
-                          type="button"
-                          onClick={() => pktUploadRef.current?.click()}
-                          className="text-[10px] text-[#00d4ff] hover:underline flex items-center gap-1"
-                        >
-                          <Upload className="w-3 h-3" />
-                          <span>Parse .PKT</span>
-                        </button>
+                      <div className="mb-1">
+                        <label className="text-white/60 uppercase tracking-wider text-[10px]">Packet Tracer Reference</label>
+                        <div className="text-[9px] text-white/35 mt-0.5">Use Lab Builder → Inputs → PACKET_TRACER for canonical artifact/reference metadata. No arbitrary .pkt binary parsing is claimed.</div>
                       </div>
                       <input
                         type="text"
@@ -833,13 +802,6 @@ export const AdminModal: React.FC = () => {
                         }
                         placeholder="enterprise_wan_dual_isp.pkt"
                         className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
-                      />
-                      <input
-                        type="file"
-                        ref={pktUploadRef}
-                        accept=".pkt,.xml,.txt"
-                        onChange={handlePktUploadInModal}
-                        className="hidden"
                       />
                     </div>
                     <div>

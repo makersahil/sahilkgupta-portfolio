@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Network,
@@ -9,14 +9,12 @@ import {
   Laptop,
   CheckCircle2,
   AlertCircle,
-  Download,
   Terminal,
   Activity,
   Layers,
   Sparkles,
   Info,
   Cpu,
-  Upload,
   FileCode,
   Table,
   Check,
@@ -26,7 +24,7 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { api } from '../lib/api.js';
-import { TopologyData, TopologyNode, CiscoLabData, Project } from '../types.js';
+import { TopologyData, TopologyNode } from '../types.js';
 
 export const CiscoTopologyVisualizer: React.FC = () => {
   const [topology, setTopology] = useState<TopologyData | null>(null);
@@ -37,14 +35,12 @@ export const CiscoTopologyVisualizer: React.FC = () => {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<any>(null);
   const [activeHopIndex, setActiveHopIndex] = useState<number>(-1);
-  const [activeTab, setActiveTab] = useState<'topology' | 'routing_table' | 'acls' | 'verification' | 'upload_pkt'>('topology');
+  const [activeTab, setActiveTab] = useState<'topology' | 'routing_table' | 'acls' | 'verification'>('topology');
   const [copiedConfig, setCopiedConfig] = useState(false);
-  const [isUploadingPkt, setIsUploadingPkt] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState(false);
   const [isRunbookOpen, setIsRunbookOpen] = useState(false);
   const [isSpecsOpen, setIsSpecsOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api
@@ -85,34 +81,6 @@ export const CiscoTopologyVisualizer: React.FC = () => {
       setUploadStatus(`Simulation failed: ${message}`);
     } finally {
       setIsSimulating(false);
-    }
-  };
-
-  const handlePktFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploadingPkt(true);
-    setUploadError(false);
-    setUploadStatus(`Parsing Cisco Packet Tracer structure from '${file.name}'...`);
-
-    try {
-      const text = await file.text().catch(() => '');
-      const res = await api.uploadPktFile(file.name, text, file.size);
-      if (res.success) {
-        setUploadStatus(`Successfully parsed '${file.name}'! Extracted ${res.data.devices.length} devices, routing table & VLANs.`);
-        setTimeout(() => {
-          setUploadStatus(null);
-          setActiveTab('topology');
-        }, 3000);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Packet Tracer upload failed';
-      setUploadError(true);
-      setUploadStatus(`Upload failed: ${message}`);
-      setTimeout(() => setUploadStatus(null), 3000);
-    } finally {
-      setIsUploadingPkt(false);
     }
   };
 
@@ -283,7 +251,7 @@ Gateway: 10.10.0.1 (HSRP Virtual IP)`;
           </div>
         </div>
 
-        {/* Upload Status Toast Banner */}
+        {/* Operation status banner */}
         {uploadStatus && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
@@ -298,7 +266,6 @@ Gateway: 10.10.0.1 (HSRP Virtual IP)`;
               {uploadError ? <X className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
               <span>{uploadStatus}</span>
             </div>
-            {isUploadingPkt && <div className="w-4 h-4 border-2 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />}
           </motion.div>
         )}
 

@@ -18,7 +18,6 @@
     "db:studio": "prisma studio",
     "db:check": "tsx server/scripts/db-check.ts",
     "test:content:static": "tsx server/scripts/content-persistence-static-audit.ts",
-    "test:content:legacy": "tsx server/scripts/content-legacy-regression.ts",
     "test:api-client": "tsx server/scripts/api-client-regression.ts",
     "test:content:http": "tsx server/scripts/content-http-regression.ts",
     "test:content:prisma": "tsx server/scripts/content-prisma-regression.ts",
@@ -36,7 +35,10 @@
     "test:admin:http": "tsx server/scripts/admin-http-regression.ts",
     "verify": "tsx server/scripts/verify.ts full",
     "verify:tests": "tsx server/scripts/verify.ts tests",
-    "verify:quick": "tsx server/scripts/verify.ts quick"
+    "verify:quick": "tsx server/scripts/verify.ts quick",
+    "test:runtime:static": "tsx server/scripts/runtime-persistence-static-audit.ts",
+    "test:runtime:http": "tsx server/scripts/runtime-persistence-http-regression.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

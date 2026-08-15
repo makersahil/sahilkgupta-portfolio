@@ -238,17 +238,6 @@ export interface AuthUser {
   lastLoginAt?: string;
 }
 
-export interface SystemAuditLog {
-  id: string;
-  action: string;
-  entity: string;
-  entityId?: string;
-  adminEmail: string;
-  ipAddress?: string;
-  userAgent?: string;
-  details?: any;
-  timestamp: string;
-}
 
 export interface ContactInquiry {
   id: string;

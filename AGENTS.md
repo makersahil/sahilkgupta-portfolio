@@ -36,7 +36,7 @@ Never invent:
 ## Database
 PostgreSQL + Prisma is the persistence architecture.
 
-Never silently fall back from Prisma to mock persistence in production.
+Prisma/PostgreSQL is the only supported runtime persistence path. Never reintroduce mock/in-memory fallback behavior.
 
 Never edit an already-applied migration without determining migration state.
 
@@ -68,7 +68,7 @@ For a fast DB-free check use `npm run verify:quick`; for DB-backed regressions w
 
 When a change introduces a new migration or changes baseline seed data, apply/review those explicitly before `npm run verify`; the verifier must not auto-deploy migrations or mutate migration history.
 
-Keep durable regression scripts phase-neutral when they remain useful after a phase (for example `test:content:*`, `test:api-client`, `test:auth*`, `test:labs*`, and `test:admin*`). Do not rename or rewrite applied Prisma migration directories merely to remove phase-specific names.
+Keep durable regression scripts phase-neutral when they remain useful after a phase (for example `test:content:*`, `test:api-client`, `test:auth*`, `test:labs*`, `test:admin*`, and `test:runtime:*`). Do not rename or rewrite applied Prisma migration directories merely to remove phase-specific names.
 
 ## Regression rule
 After backend changes verify:

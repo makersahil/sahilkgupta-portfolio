@@ -21,7 +21,6 @@ async function main(): Promise<void> {
   const testEditorEmail = `content-editor-${suffix}@example.invalid`;
 
   process.env.NODE_ENV = 'test';
-  process.env.PERSISTENCE_MODE = 'legacy';
   process.env.JWT_SECRET = testSecret;
 
   const [
@@ -326,22 +325,6 @@ async function main(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceId: 'pc_devops', targetId: 'srv_k8s' }),
     });
-    await expectStatus('/api/network/upload-pkt', 401, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: 'unauthorized.pkt' }),
-    });
-    await expectStatus('/api/network/upload-pkt', 403, {
-      method: 'POST',
-      headers: editorHeaders,
-      body: JSON.stringify({ fileName: 'forbidden.pkt' }),
-    });
-    const authorizedUpload = await expectStatus('/api/network/upload-pkt', 200, {
-      method: 'POST',
-      headers: adminHeaders,
-      body: JSON.stringify({ fileName: `content-${suffix}.pkt` }),
-    });
-    assert.equal(authorizedUpload.payload.success, true);
 
     await expectStatus(`/api/certifications/${created.certification}`, 200, {
       method: 'DELETE',

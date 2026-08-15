@@ -50,3 +50,10 @@ export type {
 export type * from './lab.repository.js';
 
 export type { AuditActorSummary, AuditLogQuery, AuditLogRecord, AuditRepository, CreateAuditLogInput } from './audit.repository.js';
+export type {
+  ArtifactListQuery,
+  ArtifactRecord,
+  ArtifactRepository,
+  CreateArtifactInput,
+} from './artifact.repository.js';
+export type { PortfolioRuntimeMetrics, SystemRepository } from './system.repository.js';

@@ -1,4 +1,4 @@
-import { env, type PersistenceMode } from '../config/env.js';
+import { env } from '../config/env.js';
 import { ConfigurationError } from '../lib/errors.js';
 import { prisma } from '../lib/prisma.js';
 import type {
@@ -9,14 +9,6 @@ import type {
   ProjectRepository,
   SkillRepository,
 } from './contracts/index.js';
-import {
-  LegacyBlogRepository,
-  LegacyCategoryRepository,
-  LegacyCertificationRepository,
-  LegacyInquiryRepository,
-  LegacyProjectRepository,
-  LegacySkillRepository,
-} from './legacy/index.js';
 import { PrismaBlogRepository } from './prisma/blog.repository.js';
 import { PrismaCategoryRepository } from './prisma/category.repository.js';
 import { PrismaCertificationRepository } from './prisma/certification.repository.js';
@@ -25,13 +17,13 @@ import { PrismaProjectRepository } from './prisma/project.repository.js';
 import { PrismaSkillRepository } from './prisma/skill.repository.js';
 
 export interface PersistenceHealth {
-  mode: PersistenceMode;
+  mode: 'prisma';
   ready: boolean;
-  databaseConnected: boolean | null;
+  databaseConnected: boolean;
 }
 
 export interface ContentRepositories {
-  mode: PersistenceMode;
+  mode: 'prisma';
   categories: CategoryRepository;
   projects: ProjectRepository;
   blogs: BlogRepository;
@@ -41,24 +33,9 @@ export interface ContentRepositories {
   checkHealth(): Promise<PersistenceHealth>;
 }
 
-function legacyRepositories(): ContentRepositories {
-  return {
-    mode: 'legacy',
-    categories: new LegacyCategoryRepository(),
-    projects: new LegacyProjectRepository(),
-    blogs: new LegacyBlogRepository(),
-    skills: new LegacySkillRepository(),
-    certifications: new LegacyCertificationRepository(),
-    inquiries: new LegacyInquiryRepository(),
-    async checkHealth() {
-      return { mode: 'legacy', ready: true, databaseConnected: null };
-    },
-  };
-}
-
-function prismaRepositories(): ContentRepositories {
+export function createRepositories(): ContentRepositories {
   if (!env.DATABASE_URL?.trim()) {
-    throw new ConfigurationError('DATABASE_URL is required when PERSISTENCE_MODE=prisma');
+    throw new ConfigurationError('DATABASE_URL is required. PostgreSQL is the only supported runtime persistence provider.');
   }
 
   return {
@@ -78,18 +55,6 @@ function prismaRepositories(): ContentRepositories {
       }
     },
   };
-}
-
-export function createRepositories(mode: PersistenceMode = env.PERSISTENCE_MODE): ContentRepositories {
-  switch (mode) {
-    case 'legacy':
-      if (env.NODE_ENV === 'production') {
-        throw new ConfigurationError('Legacy persistence is disabled in production');
-      }
-      return legacyRepositories();
-    case 'prisma':
-      return prismaRepositories();
-  }
 }
 
 export const contentRepositories = createRepositories();

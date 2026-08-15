@@ -98,10 +98,11 @@ Status: OPEN
 ### [PH2A-FIX-002]
 Origin Phase: Phase 2A-Fix
 Item: Retire MockDatabaseService only after PostgreSQL API parity is verified.
-Reason Deferred: Content and authentication parity are complete and the persistent Admin core is implemented, but remaining media/network/architecture compatibility paths still use legacy runtime behavior before safe retirement in Phase 2E.
+Reason Deferred: Content, authentication, and Admin persistence parity were prerequisites for removing the final compatibility runtime paths.
 Target Phase: Phase 2E
 Priority: P1
-Verification: Content, authentication, and Admin persistence parity are complete; no runtime route imports legacy persistence; no production fallback selects in-memory persistence; and the full regression baseline passes using PostgreSQL.
+Verification: Content, authentication, and Admin persistence parity are complete; no runtime route imports legacy persistence; no fallback selects in-memory persistence; persistent media/system replacements are active; and the full regression baseline passes using PostgreSQL.
+Implementation State: IMPLEMENTED / AWAITING EXIT VALIDATION. `MockDatabaseService`, legacy repositories, legacy regression mode, synthetic Packet Tracer parser attachment, and fake architecture telemetry are removed. Media reference metadata uses `Artifact`, system metrics use PostgreSQL counts, and a dedicated persistent-runtime regression suite is included.
 Status: OPEN
 
 ### [PH2A-FIX-003]

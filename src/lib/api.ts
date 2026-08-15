@@ -8,7 +8,6 @@ import {
   AuthUser,
   ContactInquiry,
   TopologyData,
-  CiscoLabData,
   LabAggregate,
   LabRecord,
   LabInputRecord,
@@ -377,26 +376,6 @@ class ApiClient {
     return true;
   }
 
-  // Cisco Packet Tracer (.PKT) Upload and Parser
-  async uploadPktFile(fileName: string, rawXml?: string, fileSize?: number, projectId?: string): Promise<{ success: boolean; data: CiscoLabData; message: string }> {
-    const endpoint = '/api/network/upload-pkt';
-    const { payload, status } = await this.requestEnvelopeWithMeta<CiscoLabData>(endpoint, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: JSON.stringify({ fileName, rawXml, fileSize, projectId }),
-    });
-    if (!payload.data) {
-      return this.invalidPayload(
-        endpoint,
-        payload,
-        'The Packet Tracer response did not include parsed lab data.',
-        'POST',
-        status,
-      );
-    }
-    return payload as { success: boolean; data: CiscoLabData; message: string };
-  }
-
   // Blogs
   async getBlogs(categoryId?: string, tag?: string): Promise<BlogPost[]> {
     const params = new URLSearchParams();
@@ -496,7 +475,7 @@ class ApiClient {
     return this.requestArray<MediaAsset>('/api/media');
   }
 
-  async uploadMedia(data: Partial<MediaAsset>): Promise<MediaAsset> {
+  async registerMediaReference(data: Partial<MediaAsset>): Promise<MediaAsset> {
     return this.requestData<MediaAsset>('/api/media/upload', {
       method: 'POST',
       headers: this.getHeaders(),
