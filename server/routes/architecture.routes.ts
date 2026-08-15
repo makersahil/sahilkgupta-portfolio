@@ -12,20 +12,20 @@ router.get('/blueprint', asyncHandler(async (_request, response) => {
     success: true,
     data: {
       systemName: 'Sahil K Gupta Infrastructure Portfolio & Enterprise CMS',
-      runtimeStage: 'Phase 2E Prisma-only runtime cutover',
+      runtimeStage: 'Phase 3A dynamic Networking Engine',
       stack: {
         frontend: 'React 19, TypeScript, Tailwind CSS, Motion, Lucide Icons',
         backend: 'Node.js, Express 4, TypeScript/tsx, esbuild',
         database: 'PostgreSQL with Prisma ORM 7.x',
         authentication: 'Signed session JWT in HttpOnly SameSite=Lax cookie with revocable PostgreSQL AuthSession validation; Bearer fallback for non-browser clients',
-        networking: 'Representative Cisco topology and packet-flow visualization; dynamic stateful networking engine is planned for Phase 3',
+        networking: 'Persisted multi-project Networking Lab engine with canonical topology, device/interface/configuration inspection, control-plane snapshots, and deterministic topology reachability; protocol-aware operations follow in Phase 3B',
         sysadmin: 'Representative RHEL systems workspace; dynamic Linux systems engine is planned for Phase 4',
         devops: 'Representative GitOps/Kubernetes/Terraform workspace; dynamic DevOps engine is planned for Phase 5',
       },
       layers: [
         {
           name: 'Presentation Layer',
-          description: 'React SPA with domain workspaces, restricted Admin CMS, canonical Lab Builder, and explicit representative-vs-persisted UX boundaries.',
+          description: 'React SPA with domain workspaces, restricted Admin CMS, canonical Lab Builder, a persisted dynamic Networking Control Plane, and explicit representative-vs-persisted UX boundaries.',
         },
         {
           name: 'Security & Gateway Layer',
@@ -37,7 +37,7 @@ router.get('/blueprint', asyncHandler(async (_request, response) => {
         },
         {
           name: 'Domain Service Layer',
-          description: 'Content, authentication, canonical Lab Manifest v1, Admin orchestration, media-reference validation, and truthful runtime-metrics services.',
+          description: 'Content, authentication, canonical Lab Manifest v1, dynamic Networking Lab adaptation/inspection, Admin orchestration, media-reference validation, and truthful runtime-metrics services.',
         },
         {
           name: 'Persistence Layer',

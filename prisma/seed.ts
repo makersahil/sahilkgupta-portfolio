@@ -75,7 +75,7 @@ const seedSnapshot = {
       "id": "proj-cisco-wan-pkt",
       "title": "Enterprise Multi-Homed WAN with Dual ISP BGP, OSPF Area 0 & HSRP Gateway Redundancy",
       "slug": "cisco-enterprise-wan-bgp-hsrp",
-      "summary": "Interactive Cisco .PKT sandbox lab with real-time XML topology parser, dual-homed eBGP uplink failover, OSPF Area 0 backbone, and HSRP gateway redundancy.",
+      "summary": "Interactive Networking lab backed by persisted topology, device configuration, routing, VLAN, ACL, and Packet Tracer reference metadata.",
       "descriptionMarkdown": "### Enterprise WAN Infrastructure Design\nThis project demonstrates an enterprise-style lab architecture built and validated in **Cisco Packet Tracer** and verified against Cisco IOS-XE standards.\n\n#### Core Architectural Achievements:\n1. **Multi-Homed BGP Routing**: Implemented eBGP peering to ISP-1 (AS 100) and ISP-2 (AS 200) with autonomous system prepending and BGP Local Preference to control inbound and outbound traffic flows.\n2. **First Hop Redundancy (HSRP)**: Configured HSRP Group 1 providing virtual IP `10.10.0.1` with interface tracking on WAN links to automatically demote primary priority from 110 to 85 on link failure.\n3. **Core Inter-VLAN Routing**: Catalyst 9500 Multi-Layer Switch with SVIs for Engineering (`VLAN 10`), Servers (`VLAN 20`), and DMZ (`VLAN 30`).\n4. **Security ACLs**: Extended Access Control Lists blocking inter-VLAN lateral movement while permitting encrypted HTTPS egress.",
       "categoryId": "cat-networking",
       "status": "COMPLETED",
@@ -282,7 +282,7 @@ const seedSnapshot = {
               "Inter-VLAN SVI Routing",
               "LACP EtherChannel"
             ],
-            "runningConfigSnippet": "ip routing\n!\ninterface Vlan10\n description Engineering Department\n ip address 10.10.10.1 255.255.255.0\n!\ninterface Vlan20\n description Production Kubernetes & Linux Servers\n ip address 10.10.20.1 255.255.255.0\n!\ninterface Vlan30\n description Demilitarized Zone (DMZ)\n ip address 10.10.30.1 255.255.255.0"
+            "runningConfigSnippet": "ip routing\n!\ninterface Vlan10\n description Engineering Department\n ip address 10.10.10.1 255.255.255.0\n!\ninterface Vlan20\n description Platform Services Lab Segment\n ip address 10.10.20.1 255.255.255.0\n!\ninterface Vlan30\n description Demilitarized Zone (DMZ)\n ip address 10.10.30.1 255.255.255.0"
           },
           {
             "id": "fw_asa",
@@ -376,7 +376,7 @@ const seedSnapshot = {
           },
           {
             "vlanId": 20,
-            "name": "Production_Servers",
+            "name": "Platform_Services",
             "ports": [
               "Gi1/0/13-24"
             ],
@@ -447,7 +447,7 @@ const seedSnapshot = {
           {
             "task": "End-to-End Ping Through Simulated WAN",
             "testCommand": "ping 198.51.100.1 repeat 5",
-            "expectedResult": "Success rate is 100 percent (5/5), round-trip min/avg/max = 1/2/4 ms",
+            "expectedResult": "Expected lab observation: ICMP reachability across the recorded topology path.",
             "passed": true
           }
         ]
@@ -1250,7 +1250,7 @@ const projectStories: Record<
 > = {
   'cisco-enterprise-wan-bgp-hsrp': {
     mission:
-      'Engineer and validate an enterprise-style, dual-homed WAN edge topology connecting headquarters to redundant Tier-1 transit providers (AS 100 / AS 200). Guarantee deterministic inbound/outbound path selection, gateway tracking, and zero lateral pivot between segmented departmental VLANs.',
+      'Engineer and inspect an enterprise-style, dual-homed WAN edge topology connecting headquarters to redundant transit providers (AS 100 / AS 200), with explicit routing policy, gateway redundancy, and segmented departmental VLANs.',
     architectureSummary: 'Dual-homed BGP Edge, OSPF Core, Multi-VLAN distribution.',
     whatIBuilt: 'Built an enterprise-style lab architecture in Cisco Packet Tracer.',
   },
@@ -1279,7 +1279,7 @@ const labIdentities: Partial<
     slug: 'cisco-wan-topology',
     title: 'Cisco WAN Topology',
     kind: LabKind.NETWORK_TOPOLOGY,
-    summary: 'Interactive network topology simulation.',
+    summary: 'Data-driven enterprise WAN topology explorer backed by the canonical Networking Lab state.',
   },
   rhcsa_matrix: {
     slug: 'rhel9-hardening-environment',
@@ -1297,7 +1297,7 @@ const labIdentities: Partial<
 
 
 const labCapabilities: Partial<Record<NonNullable<ApiProject['formatType']>, string[]>> = {
-  cisco_pkt_lab: ['topology', 'device-config', 'routing-state', 'packet-flow'],
+  cisco_pkt_lab: ['topology', 'device-inventory', 'interfaces', 'device-config', 'routing-state', 'vlans', 'acls', 'packet-path'],
   rhcsa_matrix: ['host-state', 'storage', 'systemd', 'selinux'],
   devops_pipeline: ['pipeline', 'iac', 'gitops', 'kubernetes', 'observability'],
 };
@@ -1310,6 +1310,7 @@ const primaryLabInputs: Partial<
   devops_pipeline: { inputKey: 'baseline-ci-pipeline', inputType: 'CI_PIPELINE', label: 'Baseline Delivery Pipeline' },
 };
 
+
 const runbooks: Record<
   string,
   Array<{ order: number; title: string; description: string }>
@@ -1317,8 +1318,8 @@ const runbooks: Record<
   'cisco-enterprise-wan-bgp-hsrp': [
     { order: 1, title: 'Inspect topology', description: 'Review the dual-homed WAN edge topology connecting headquarters.' },
     { order: 2, title: 'Select edge router', description: 'Identify the active AS 100 edge router.' },
-    { order: 3, title: 'Review routing state', description: 'Verify OSPF Area 0 and BGP peering.' },
-    { order: 4, title: 'Trace packet flow', description: 'Test deterministic inbound and outbound path selection.' },
+    { order: 3, title: 'Review routing state', description: 'Inspect the recorded OSPF Area 0 and BGP peering snapshot.' },
+    { order: 4, title: 'Trace packet flow', description: 'Preview reachability through the persisted topology; protocol-aware forwarding follows in Phase 3B.' },
   ],
   'rhel-9-rhcsa-hardening-storage-selinux': [
     { order: 1, title: 'Inspect host', description: 'Examine the RHEL 9.4 compute node baseline.' },
@@ -1391,6 +1392,323 @@ function projectFormat(format: ApiProject['formatType']): ProjectFormatType {
 
 function jsonValue(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+type SeedNetworkStatus = 'UP' | 'DOWN' | 'STANDBY' | 'DEGRADED' | 'UNKNOWN';
+
+interface NetworkDeviceState {
+  key: string;
+  name: string;
+  kind: 'isp' | 'router' | 'multilayer_switch' | 'switch' | 'firewall' | 'server' | 'workstation' | 'endpoint' | 'unknown';
+  vendor: string | null;
+  model: string | null;
+  role: string | null;
+  managementIp: string | null;
+  status: SeedNetworkStatus;
+  position: { x: number; y: number };
+  interfaces: Array<{
+    name: string;
+    type: string;
+    ipAddress: string | null;
+    subnet: string | null;
+    vlan: string | null;
+    status: SeedNetworkStatus;
+    description: string | null;
+  }>;
+  routingProtocols: string[];
+  configurationText: string | null;
+  metadata: Record<string, unknown>;
+}
+
+interface NetworkLinkState {
+  key: string;
+  source: string;
+  target: string;
+  label: string | null;
+  kind: string | null;
+  protocol: string | null;
+  speed: string | null;
+  status: SeedNetworkStatus;
+  sourceInterface: string | null;
+  targetInterface: string | null;
+  metadata: Record<string, unknown>;
+}
+
+interface NetworkingNormalizedStateV1 {
+  schemaVersion: 'networking.v1';
+  overview: string | null;
+  routingTable: Array<{
+    network: string;
+    nextHop: string;
+    interfaceName: string;
+    protocolCode: string;
+    protocolName: string;
+    metric: string | null;
+    administrativeDistance: number | null;
+  }>;
+  vlans: Array<{ vlanId: number; name: string; ports: string[]; status: SeedNetworkStatus }>;
+  accessControlLists: Array<{ id: string; name: string; action: 'permit' | 'deny'; protocol: string; source: string; destination: string }>;
+  verificationChecks: Array<{ id: string; title: string; command: string; expectedObservation: string; status: 'EXPECTED' }>;
+  specifications: { environment: string | null; protocols: string[]; addressing: string[] };
+  provenance: {
+    sourceType: 'NORMALIZED_PROJECT_FIXTURE';
+    packetTracerReference: { fileName: string; sizeBytes: number | null; recordedAt: string | null; referenceOnly: true };
+    notes: string[];
+  };
+}
+
+interface SeedNetworkingFixture {
+  controlPlane: NetworkingNormalizedStateV1;
+  devices: NetworkDeviceState[];
+  links: NetworkLinkState[];
+}
+
+function networkingFixture(project: ApiProject): SeedNetworkingFixture | null {
+  const data = project.ciscoLabData;
+  if (!data) return null;
+
+  const positions: Record<string, { x: number; y: number }> = {
+    isp1: { x: 150, y: 70 },
+    isp2: { x: 850, y: 70 },
+    r1: { x: 310, y: 190 },
+    r2: { x: 690, y: 190 },
+    sw_core: { x: 500, y: 320 },
+    fw_asa: { x: 210, y: 450 },
+    srv_k8s: { x: 500, y: 500 },
+    pc_devops: { x: 790, y: 450 },
+  };
+
+  const devices: NetworkDeviceState[] = data.devices.map((device, index) => ({
+    key: device.id,
+    name: device.name,
+    kind: device.type === 'pc' ? 'workstation' : device.type,
+    vendor: device.type === 'isp' ? null : 'Cisco',
+    model: device.model,
+    role: device.role,
+    managementIp: device.mgmtIp,
+    status: device.status === 'ONLINE' ? 'UP' : device.status,
+    position: positions[device.id] ?? { x: 120 + (index % 4) * 240, y: 120 + Math.floor(index / 4) * 180 },
+    interfaces: device.interfaces.map((entry) => ({
+      name: entry.name,
+      type: entry.type,
+      ipAddress: entry.ip,
+      subnet: entry.subnet,
+      vlan: entry.vlan ?? null,
+      status: entry.status === 'UP' ? 'UP' : 'DOWN',
+      description: null,
+    })),
+    routingProtocols: [...device.routingProtocols],
+    configurationText: device.runningConfigSnippet,
+    metadata: { source: 'seeded-project-fixture' },
+  }));
+
+  if (!devices.some((device) => device.key === 'srv_k8s')) {
+    devices.push({
+      key: 'srv_k8s',
+      name: 'Platform Workload Node',
+      kind: 'server',
+      vendor: null,
+      model: 'RHEL 9 workload representation',
+      role: 'Server VLAN application endpoint',
+      managementIp: '10.10.20.50',
+      status: 'UP',
+      position: positions.srv_k8s,
+      interfaces: [{
+        name: 'eth0', type: 'Ethernet', ipAddress: '10.10.20.50', subnet: '255.255.255.0', vlan: '20', status: 'UP', description: 'Server VLAN access interface',
+      }],
+      routingProtocols: [],
+      configurationText: `hostname platform-workload-01
+ip address 10.10.20.50/24
+default gateway 10.10.20.1`,
+      metadata: { source: 'seeded-project-fixture' },
+    });
+  }
+
+  if (!devices.some((device) => device.key === 'pc_devops')) {
+    devices.push({
+      key: 'pc_devops',
+      name: 'Operations Workstation',
+      kind: 'workstation',
+      vendor: null,
+      model: 'Engineering client representation',
+      role: 'Engineering VLAN test endpoint',
+      managementIp: '10.10.10.105',
+      status: 'UP',
+      position: positions.pc_devops,
+      interfaces: [{
+        name: 'eth0', type: 'Ethernet', ipAddress: '10.10.10.105', subnet: '255.255.255.0', vlan: '10', status: 'UP', description: 'Engineering VLAN access interface',
+      }],
+      routingProtocols: [],
+      configurationText: `hostname operations-workstation
+ip address 10.10.10.105/24
+default gateway 10.10.10.1`,
+      metadata: { source: 'seeded-project-fixture' },
+    });
+  }
+
+  const linkDefinitions: Array<Omit<NetworkLinkState, 'metadata'>> = [
+    { key: 'isp1-r1', source: 'isp1', target: 'r1', label: 'Primary carrier uplink', kind: 'wan', protocol: 'eBGP', speed: '10 Gbps', status: 'UP', sourceInterface: 'Gi0/0/0', targetInterface: 'Gi0/0/0' },
+    { key: 'isp2-r2', source: 'isp2', target: 'r2', label: 'Secondary carrier uplink', kind: 'wan', protocol: 'eBGP', speed: '10 Gbps', status: 'UP', sourceInterface: 'Gi0/0/0', targetInterface: 'Gi0/0/0' },
+    { key: 'r1-r2', source: 'r1', target: 'r2', label: 'Edge peer and gateway heartbeat', kind: 'peer', protocol: 'iBGP / HSRP', speed: '40 Gbps', status: 'UP', sourceInterface: null, targetInterface: null },
+    { key: 'r1-sw-core', source: 'r1', target: 'sw_core', label: 'Core routed trunk', kind: 'trunk', protocol: 'OSPF / 802.1Q', speed: '20 Gbps', status: 'UP', sourceInterface: 'Gi0/0/1', targetInterface: 'Te1/0/1' },
+    { key: 'r2-sw-core', source: 'r2', target: 'sw_core', label: 'Redundant core trunk', kind: 'trunk', protocol: 'OSPF / 802.1Q', speed: '20 Gbps', status: 'UP', sourceInterface: 'Gi0/0/1', targetInterface: 'Te1/0/2' },
+    { key: 'sw-core-fw', source: 'sw_core', target: 'fw_asa', label: 'DMZ security segment', kind: 'access', protocol: 'VLAN 30', speed: '10 Gbps', status: 'UP', sourceInterface: null, targetInterface: 'Gi1/1' },
+    { key: 'sw-core-server', source: 'sw_core', target: 'srv_k8s', label: 'Server VLAN access', kind: 'access', protocol: 'VLAN 20', speed: '10 Gbps', status: 'UP', sourceInterface: null, targetInterface: 'eth0' },
+    { key: 'sw-core-workstation', source: 'sw_core', target: 'pc_devops', label: 'Engineering VLAN access', kind: 'access', protocol: 'VLAN 10', speed: '1 Gbps', status: 'UP', sourceInterface: null, targetInterface: 'eth0' },
+  ];
+  const keys = new Set(devices.map((device) => device.key));
+  const links: NetworkLinkState[] = linkDefinitions
+    .filter((link) => keys.has(link.source) && keys.has(link.target))
+    .map((link) => ({ ...link, metadata: { source: 'seeded-project-fixture' } }));
+
+  const protocols = [...new Set(devices.flatMap((device) => device.routingProtocols))].sort();
+  const addressing = [...new Set(devices.flatMap((device) => device.interfaces)
+    .filter((entry) => entry.ipAddress)
+    .map((entry) => `${entry.ipAddress}${entry.subnet ? ` / ${entry.subnet}` : ''}`))];
+
+  return {
+    devices,
+    links,
+    controlPlane: {
+      schemaVersion: 'networking.v1',
+      overview: data.overviewSummary,
+      routingTable: data.routingTable.map((route) => ({
+        network: route.network,
+        nextHop: route.nextHop,
+        interfaceName: route.interface,
+        protocolCode: route.protocol,
+        protocolName: route.protocolName,
+        metric: route.metric,
+        administrativeDistance: route.ad,
+      })),
+      vlans: data.vlanDatabase.map((vlan) => ({
+        vlanId: vlan.vlanId,
+        name: vlan.name,
+        ports: [...vlan.ports],
+        status: vlan.status === 'ACTIVE' ? 'UP' : 'UNKNOWN',
+      })),
+      accessControlLists: data.aclRules.map((rule) => ({ ...rule })),
+      verificationChecks: data.verificationTasks.map((check, index) => ({
+        id: `network-check-${index + 1}`,
+        title: check.task,
+        command: check.testCommand,
+        expectedObservation: check.expectedResult,
+        status: 'EXPECTED',
+      })),
+      specifications: {
+        environment: 'Cisco Packet Tracer reference topology with normalized IOS-style configuration snapshots',
+        protocols,
+        addressing,
+      },
+      provenance: {
+        sourceType: 'NORMALIZED_PROJECT_FIXTURE',
+        packetTracerReference: {
+          fileName: data.pktFileName,
+          sizeBytes: data.pktFileSizeBytes ?? null,
+          recordedAt: data.uploadedAt ?? null,
+          referenceOnly: true,
+        },
+        notes: [
+          'The interactive explorer is generated from persisted normalized Lab records.',
+          'The Packet Tracer filename is reference metadata; arbitrary .pkt binary parsing is not claimed.',
+        ],
+      },
+    },
+  };
+}
+
+async function reconcileNetworkingTopology(labId: string, fixture: SeedNetworkingFixture): Promise<void> {
+  const nodeKeys = fixture.devices.map((device) => device.key);
+  const linkKeys = fixture.links.map((link) => link.key);
+  await prisma.$transaction(async (tx) => {
+    for (const device of fixture.devices) {
+      await tx.labNode.upsert({
+        where: { labId_nodeKey: { labId, nodeKey: device.key } },
+        update: {
+          label: device.name,
+          kind: device.kind,
+          description: device.role,
+          position: jsonValue(device.position),
+          configuration: jsonValue({
+            device: {
+              vendor: device.vendor,
+              model: device.model,
+              role: device.role,
+              managementIp: device.managementIp,
+              status: device.status,
+              interfaces: device.interfaces,
+              routingProtocols: device.routingProtocols,
+              configurationText: device.configurationText,
+            },
+          }),
+          metadata: jsonValue(device.metadata),
+        },
+        create: {
+          labId,
+          nodeKey: device.key,
+          label: device.name,
+          kind: device.kind,
+          description: device.role,
+          position: jsonValue(device.position),
+          configuration: jsonValue({
+            device: {
+              vendor: device.vendor,
+              model: device.model,
+              role: device.role,
+              managementIp: device.managementIp,
+              status: device.status,
+              interfaces: device.interfaces,
+              routingProtocols: device.routingProtocols,
+              configurationText: device.configurationText,
+            },
+          }),
+          metadata: jsonValue(device.metadata),
+        },
+      });
+    }
+
+    for (const link of fixture.links) {
+      await tx.labLink.upsert({
+        where: { labId_linkKey: { labId, linkKey: link.key } },
+        update: {
+          sourceNodeKey: link.source,
+          targetNodeKey: link.target,
+          label: link.label,
+          kind: link.kind,
+          configuration: jsonValue({
+            protocol: link.protocol,
+            speed: link.speed,
+            status: link.status,
+            sourceInterface: link.sourceInterface,
+            targetInterface: link.targetInterface,
+          }),
+          metadata: jsonValue(link.metadata),
+        },
+        create: {
+          labId,
+          linkKey: link.key,
+          sourceNodeKey: link.source,
+          targetNodeKey: link.target,
+          label: link.label,
+          kind: link.kind,
+          configuration: jsonValue({
+            protocol: link.protocol,
+            speed: link.speed,
+            status: link.status,
+            sourceInterface: link.sourceInterface,
+            targetInterface: link.targetInterface,
+          }),
+          metadata: jsonValue(link.metadata),
+        },
+      });
+    }
+
+    await tx.labLink.deleteMany({ where: { labId, linkKey: { notIn: linkKeys } } });
+    await tx.labNode.deleteMany({ where: { labId, nodeKey: { notIn: nodeKeys } } });
+  }, {
+    maxWait: 10_000,
+    timeout: 30_000,
+  });
 }
 
 function projectMetadata(project: ApiProject): Prisma.InputJsonValue | undefined {
@@ -1511,6 +1829,17 @@ async function upsertCompatibilityLab(
   const metadata = projectMetadata(project);
   if (!metadata) throw new Error(`Missing specialized payload for seed project: ${project.slug}`);
 
+  const networkFixture = format === 'cisco_pkt_lab' ? networkingFixture(project) : null;
+  const normalizedState = networkFixture ? jsonValue(networkFixture.controlPlane) : metadata;
+  const primaryPayload = networkFixture
+    ? jsonValue({
+        schemaVersion: 'networking.input.v1',
+        devices: networkFixture.devices,
+        links: networkFixture.links,
+        controlPlane: networkFixture.controlPlane,
+      })
+    : normalizedState;
+
   const capabilities = labCapabilities[format] ?? [];
   const primaryInput = primaryLabInputs[format];
   if (!primaryInput) throw new Error(`Missing canonical input fixture for seed project: ${project.slug}`);
@@ -1527,7 +1856,7 @@ async function upsertCompatibilityLab(
       isInteractive: true,
       manifestVersion: '1.0',
       capabilities,
-      normalizedState: metadata,
+      normalizedState,
       metadata,
     },
     create: {
@@ -1541,7 +1870,7 @@ async function upsertCompatibilityLab(
       isInteractive: true,
       manifestVersion: '1.0',
       capabilities,
-      normalizedState: metadata,
+      normalizedState,
       metadata,
     },
   });
@@ -1551,10 +1880,12 @@ async function upsertCompatibilityLab(
     update: {
       inputType: primaryInput.inputType,
       label: primaryInput.label,
-      description: 'Normalized compatibility snapshot derived from the established project fixture. It does not imply arbitrary binary artifact parsing.',
+      description: networkFixture
+        ? 'Canonical Networking input generated from persisted normalized topology, device, interface, configuration, and control-plane records.'
+        : 'Normalized compatibility snapshot derived from the established project fixture.',
       sourceKind: LabInputSourceKind.INLINE,
-      schemaVersion: '1.0',
-      payload: metadata,
+      schemaVersion: networkFixture ? 'networking.input.v1' : '1.0',
+      payload: primaryPayload,
       externalUrl: null,
       artifactId: null,
       isPrimary: true,
@@ -1565,14 +1896,58 @@ async function upsertCompatibilityLab(
       inputKey: primaryInput.inputKey,
       inputType: primaryInput.inputType,
       label: primaryInput.label,
-      description: 'Normalized compatibility snapshot derived from the established project fixture. It does not imply arbitrary binary artifact parsing.',
+      description: networkFixture
+        ? 'Canonical Networking input generated from persisted normalized topology, device, interface, configuration, and control-plane records.'
+        : 'Normalized compatibility snapshot derived from the established project fixture.',
       sourceKind: LabInputSourceKind.INLINE,
-      schemaVersion: '1.0',
-      payload: metadata,
+      schemaVersion: networkFixture ? 'networking.input.v1' : '1.0',
+      payload: primaryPayload,
       isPrimary: true,
       sortOrder: 0,
     },
   });
+
+  if (networkFixture && project.ciscoLabData) {
+    await reconcileNetworkingTopology(lab.id, networkFixture);
+
+    await prisma.labInput.upsert({
+      where: { labId_inputKey: { labId: lab.id, inputKey: 'packet-tracer-reference' } },
+      update: {
+        inputType: 'PACKET_TRACER',
+        label: 'Packet Tracer Lab Reference',
+        description: 'Reference metadata for the original Packet Tracer lab. The portfolio does not claim arbitrary .pkt binary parsing.',
+        sourceKind: LabInputSourceKind.INLINE,
+        schemaVersion: 'networking.reference.v1',
+        payload: jsonValue({
+          fileName: project.ciscoLabData.pktFileName,
+          sizeBytes: project.ciscoLabData.pktFileSizeBytes ?? null,
+          recordedAt: project.ciscoLabData.uploadedAt ?? null,
+          referenceOnly: true,
+        }),
+        externalUrl: null,
+        artifactId: null,
+        isPrimary: false,
+        sortOrder: 10,
+      },
+      create: {
+        labId: lab.id,
+        inputKey: 'packet-tracer-reference',
+        inputType: 'PACKET_TRACER',
+        label: 'Packet Tracer Lab Reference',
+        description: 'Reference metadata for the original Packet Tracer lab. The portfolio does not claim arbitrary .pkt binary parsing.',
+        sourceKind: LabInputSourceKind.INLINE,
+        schemaVersion: 'networking.reference.v1',
+        payload: jsonValue({
+          fileName: project.ciscoLabData.pktFileName,
+          sizeBytes: project.ciscoLabData.pktFileSizeBytes ?? null,
+          recordedAt: project.ciscoLabData.uploadedAt ?? null,
+          referenceOnly: true,
+        }),
+        isPrimary: false,
+        sortOrder: 10,
+      },
+    });
+  }
 
   for (const step of runbooks[project.slug] ?? []) {
     await prisma.labRunbookStep.upsert({

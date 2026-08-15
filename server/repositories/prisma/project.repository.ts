@@ -37,7 +37,7 @@ interface CompatibilityLabDefaults {
 function compatibilityLabDefaults(kind: LabKind): CompatibilityLabDefaults {
   switch (kind) {
     case 'NETWORK_TOPOLOGY':
-      return { capabilities: ['topology', 'device-config', 'routing-state', 'packet-flow'], inputKey: 'baseline-network-topology', inputType: 'NETWORK_TOPOLOGY', inputLabel: 'Baseline Network Topology' };
+      return { capabilities: ['topology', 'device-inventory', 'interfaces', 'device-config', 'routing-state', 'vlans', 'acls', 'packet-path'], inputKey: 'baseline-network-topology', inputType: 'NETWORK_TOPOLOGY', inputLabel: 'Baseline Network Topology' };
     case 'LINUX_SYSTEM':
       return { capabilities: ['host-state', 'storage', 'systemd', 'selinux'], inputKey: 'baseline-system-snapshot', inputType: 'SYSTEM_SNAPSHOT', inputLabel: 'Baseline System Snapshot' };
     case 'DEVOPS_PIPELINE':

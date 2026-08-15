@@ -262,3 +262,23 @@ export type {
   LabScenarioRecord,
   LabStatus,
 } from './lab-platform.js';
+
+export type {
+  CompatibilityTopologyData,
+  CompatibilityTopologyLink,
+  CompatibilityTopologyNode,
+  NetworkingAclRuleState,
+  NetworkingDeviceKind,
+  NetworkingDeviceState,
+  NetworkingInterfaceState,
+  NetworkingLabState,
+  NetworkingLabSummary,
+  NetworkingLinkState,
+  NetworkingOperationalStatus,
+  NetworkingPathTrace,
+  NetworkingPosition,
+  NetworkingRouteState,
+  NetworkingStateProvenance,
+  NetworkingVerificationRecord,
+  NetworkingVlanState,
+} from './networking.js';
