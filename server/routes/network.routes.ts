@@ -161,7 +161,7 @@ router.post('/simulate-packet', async (req, res) => {
 });
 
 // POST /api/network/upload-pkt (Cisco Packet Tracer File Parser Pipeline)
-router.post('/upload-pkt', async (req, res) => {
+router.post('/upload-pkt', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
   const { fileName, rawXml, fileSize, projectId } = req.body;
 
   if (!fileName) {

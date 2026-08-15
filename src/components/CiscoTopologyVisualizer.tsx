@@ -41,24 +41,32 @@ export const CiscoTopologyVisualizer: React.FC = () => {
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [isUploadingPkt, setIsUploadingPkt] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState(false);
   const [isRunbookOpen, setIsRunbookOpen] = useState(false);
   const [isSpecsOpen, setIsSpecsOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    api.getTopology().then((data) => {
-      if (data) {
+    api
+      .getTopology()
+      .then((data) => {
         setTopology(data);
         const r1 = data.nodes.find((n) => n.id === 'r1') || data.nodes[0];
         setSelectedNode(r1);
-      }
-    });
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : 'Failed to load network topology';
+        setUploadError(true);
+        setUploadStatus(`Topology unavailable: ${message}`);
+      });
   }, []);
 
   const handleSimulate = async () => {
     setIsSimulating(true);
     setSimulationResult(null);
     setActiveHopIndex(0);
+    setUploadError(false);
+    setUploadStatus(null);
 
     try {
       const res = await api.simulatePacket(sourceNodeId, targetNodeId, protocol);
@@ -72,6 +80,9 @@ export const CiscoTopologyVisualizer: React.FC = () => {
       }
     } catch (err) {
       console.error('Simulation error:', err);
+      const message = err instanceof Error ? err.message : 'Packet simulation failed';
+      setUploadError(true);
+      setUploadStatus(`Simulation failed: ${message}`);
     } finally {
       setIsSimulating(false);
     }
@@ -82,6 +93,7 @@ export const CiscoTopologyVisualizer: React.FC = () => {
     if (!file) return;
 
     setIsUploadingPkt(true);
+    setUploadError(false);
     setUploadStatus(`Parsing Cisco Packet Tracer structure from '${file.name}'...`);
 
     try {
@@ -95,7 +107,9 @@ export const CiscoTopologyVisualizer: React.FC = () => {
         }, 3000);
       }
     } catch (err) {
-      setUploadStatus(`Uploaded and parsed Packet Tracer topology.`);
+      const message = err instanceof Error ? err.message : 'Packet Tracer upload failed';
+      setUploadError(true);
+      setUploadStatus(`Upload failed: ${message}`);
       setTimeout(() => setUploadStatus(null), 3000);
     } finally {
       setIsUploadingPkt(false);
@@ -274,10 +288,14 @@ Gateway: 10.10.0.1 (HSRP Virtual IP)`;
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-3 rounded-lg bg-[#00d4ff]/10 border border-[#00d4ff]/40 text-xs font-mono text-[#00d4ff] flex items-center justify-between"
+            className={`mb-4 p-3 rounded-lg text-xs font-mono flex items-center justify-between ${
+              uploadError
+                ? 'bg-[#ff4100]/10 border border-[#ff4100]/40 text-[#ff7950]'
+                : 'bg-[#00d4ff]/10 border border-[#00d4ff]/40 text-[#00d4ff]'
+            }`}
           >
             <div className="flex items-center space-x-2">
-              <CheckCircle2 className="w-4 h-4" />
+              {uploadError ? <X className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
               <span>{uploadStatus}</span>
             </div>
             {isUploadingPkt && <div className="w-4 h-4 border-2 border-[#00d4ff] border-t-transparent rounded-full animate-spin" />}

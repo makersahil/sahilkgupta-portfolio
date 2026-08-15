@@ -1,80 +1,57 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import type { NextFunction, Request, RequestHandler, Response } from 'express';
 
-export function getJwtSecret(): string {
-  if (process.env.JWT_SECRET) {
-    return process.env.JWT_SECRET;
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    return 'dev-portfolio-jwt-secret-not-for-prod';
-  }
-
-  throw new Error('JWT_SECRET must be configured for authentication in production');
-}
+import { AUTH_COOKIE_NAME, verifySessionToken } from '../lib/auth-token.js';
+import { ForbiddenError, UnauthorizedError } from '../lib/errors.js';
+import type { AuthRole } from '../repositories/contracts/auth.repository.js';
+import { authService, type SafeAuthUser } from '../services/auth/auth.service.js';
 
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-    fullName: string;
-  };
+  user?: SafeAuthUser;
+  authSessionId?: string;
 }
 
-export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  // Check authorization header or HttpOnly cookie
-  const authHeader = req.headers['authorization'];
-  const tokenFromHeader = authHeader && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
-  const tokenFromCookie = req.cookies ? req.cookies['infra_auth_token'] : null;
-  const token = tokenFromHeader || tokenFromCookie;
+export function extractAuthToken(req: Request): string | null {
+  const authorization = req.headers.authorization;
+  const bearerToken = authorization?.startsWith('Bearer ')
+    ? authorization.slice('Bearer '.length).trim()
+    : '';
+  if (bearerToken) return bearerToken;
 
-  if (!token) {
-    res.status(401).json({
-      success: false,
-      message: 'Access denied. No authentication token provided.',
-    });
-    return;
-  }
+  const cookieToken = req.cookies?.[AUTH_COOKIE_NAME];
+  return typeof cookieToken === 'string' && cookieToken ? cookieToken : null;
+}
 
-  try {
-    const secret = getJwtSecret();
-    const decoded = jwt.verify(token, secret) as {
-      id: string;
-      email: string;
-      role: string;
-      fullName: string;
-    };
-    req.user = decoded;
-    next();
-  } catch (error: any) {
-    if (error.message?.includes('JWT_SECRET is required in production')) {
-      res.status(500).json({
-        success: false,
-        message: 'Authentication is not configured in this production environment.',
-      });
-      return;
+export const authenticateToken: RequestHandler = (request, _response, next) => {
+  const req = request as AuthenticatedRequest;
+
+  void (async () => {
+    const token = extractAuthToken(req);
+    if (!token) {
+      throw new UnauthorizedError('Authentication required');
     }
-    res.status(403).json({
-      success: false,
-      message: 'Invalid or expired authentication token.',
-    });
-    return;
-  }
-}
 
-export function requireRole(...roles: string[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    const tokenPayload = verifySessionToken(token);
+    const authenticated = await authService.authenticateSession(
+      tokenPayload.userId,
+      tokenPayload.sessionId,
+    );
+
+    req.user = authenticated.user;
+    req.authSessionId = authenticated.sessionId;
+    next();
+  })().catch(next);
+};
+
+export function requireRole(...roles: AuthRole[]): RequestHandler {
+  return (request: Request, _response: Response, next: NextFunction): void => {
+    const req = request as AuthenticatedRequest;
     if (!req.user) {
-      res.status(401).json({ success: false, message: 'Authentication required' });
+      next(new UnauthorizedError('Authentication required'));
       return;
     }
 
     if (!roles.includes(req.user.role)) {
-      res.status(403).json({
-        success: false,
-        message: `Forbidden: Requires one of roles [${roles.join(', ')}]`,
-      });
+      next(new ForbiddenError(`Forbidden: Requires one of roles [${roles.join(', ')}]`));
       return;
     }
 

@@ -28,9 +28,15 @@ export const ArchitectureBlueprintModal: React.FC = () => {
 
   useEffect(() => {
     if (isArchitectureModalOpen && !blueprintData) {
-      api.getBlueprint().then((data) => setBlueprintData(data));
+      api
+        .getBlueprint()
+        .then((data) => setBlueprintData(data))
+        .catch((err) => {
+          const message = err instanceof Error ? err.message : 'Failed to load architecture blueprint';
+          showToast(message, 'error');
+        });
     }
-  }, [isArchitectureModalOpen, blueprintData]);
+  }, [isArchitectureModalOpen, blueprintData, showToast]);
 
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -51,11 +57,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
+enum UserRole {
   SUPER_ADMIN
   ADMIN
   EDITOR
-  VIEWER
 }
 
 enum ProjectStatus {
@@ -302,7 +307,7 @@ model ContactInquiry {
 │   │   ├── TerminalEmulator.tsx      # Interactive Linux RHCSA terminal emulator
 │   │   └── ToastContainer.tsx        # Floating notification stack
 │   ├── context/
-│   │   └── PortfolioContext.tsx      # Central reactive state & JWT auth provider
+│   │   └── PortfolioContext.tsx      # Central reactive state & cookie-session auth provider
 │   ├── lib/
 │   │   └── api.ts                    # Centralized client-side fetch client
 │   ├── types.ts                      # Client TypeScript interfaces
@@ -314,55 +319,17 @@ model ContactInquiry {
 ├── tsconfig.json
 └── vite.config.ts`;
 
-  const jwtMiddlewareCode = `// server/middlewares/auth.middleware.ts
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+  const jwtMiddlewareCode = `// Current authentication flow (abridged)
+Browser HttpOnly cookie
+  -> verify signed session JWT (user id + session id only)
+  -> load AuthSession from PostgreSQL
+  -> load current persisted User
+  -> reject revoked/expired sessions or inactive users
+  -> populate request role from the database
+  -> requireRole('SUPER_ADMIN', 'ADMIN')
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error('FATAL: JWT_SECRET environment variable is required');
-}
-
-export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: string;
-    fullName: string;
-  };
-}
-
-export function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  // Extract token from HttpOnly cookie first, with Bearer header fallback
-  const tokenFromHeader = req.headers['authorization']?.startsWith('Bearer ')
-    ? req.headers['authorization'].split(' ')[1]
-    : null;
-  const tokenFromCookie = req.cookies?.['nexus_auth_token'];
-  const token = tokenFromCookie || tokenFromHeader;
-
-  if (!token) {
-    res.status(401).json({ success: false, message: 'Access denied: No token provided' });
-    return;
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthenticatedRequest['user'];
-    req.user = decoded;
-    next();
-  } catch (error) {
-    res.status(403).json({ success: false, message: 'Invalid or expired token' });
-  }
-}
-
-export function requireRole(...roles: string[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      res.status(403).json({ success: false, message: 'Forbidden: Insufficient privileges' });
-      return;
-    }
-    next();
-  };
-}`;
+The browser does not persist the auth token in localStorage.
+Role changes and account deactivation take effect on the next protected request.`;
 
   return (
     <AnimatePresence>
@@ -445,7 +412,7 @@ export function requireRole(...roles: string[]) {
               }`}
             >
               <Lock className="w-4 h-4" />
-              <span>JWT &amp; RBAC Security</span>
+              <span>Session &amp; RBAC Security</span>
             </button>
             <button
               onClick={() => setActiveTab('deploy')}
@@ -479,7 +446,7 @@ export function requireRole(...roles: string[]) {
                       API Gateway &amp; Middleware Layer
                     </span>
                     <p className="text-white/70 text-xs font-sans leading-relaxed">
-                      Stateless JWT verification via HttpOnly SameSite cookies, RBAC route guards, JSON body parsers, audit log interceptor, and global error boundaries.
+                      Signed session-JWT validation via HttpOnly SameSite cookies, persisted AuthSession/user checks, RBAC route guards, JSON body parsing, and global API error handling.
                     </p>
                   </div>
                   <div className="p-4 rounded-xl bg-black border border-white/10 space-y-2">
@@ -495,7 +462,7 @@ export function requireRole(...roles: string[]) {
                       Persistence &amp; PostgreSQL Layer
                     </span>
                     <p className="text-white/70 text-xs font-sans leading-relaxed">
-                      PostgreSQL 16 with Prisma ORM 5.x ensuring strict relational foreign key cascades, unique slug constraints, JSON payload storage, and index optimization.
+                      PostgreSQL with Prisma ORM 7.x providing relational constraints, unique slug enforcement, JSON-backed compatibility fields, and indexed persistence.
                     </p>
                   </div>
                 </div>
@@ -550,7 +517,7 @@ export function requireRole(...roles: string[]) {
               </div>
             )}
 
-            {/* Tab 4: JWT Security */}
+            {/* Tab 4: Session Security */}
             {activeTab === 'jwt' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -572,10 +539,10 @@ export function requireRole(...roles: string[]) {
                     Security Defense in Depth Features:
                   </span>
                   <ul className="list-disc list-inside space-y-1 text-white/60">
-                    <li><strong className="text-white">HttpOnly &amp; SameSite=Lax Cookies</strong>: Neutralizes client-side XSS token theft.</li>
-                    <li><strong className="text-white">Bcrypt Password Hashing</strong>: 10 salt rounds with constant-time verification.</li>
-                    <li><strong className="text-white">Role-Based Access Control (RBAC)</strong>: Multi-tier authorization (SUPER_ADMIN, ADMIN, EDITOR, VIEWER).</li>
-                    <li><strong className="text-white">Structured System Audit Logs</strong>: Captures IP, User-Agent, entity mutations, and timestamps.</li>
+                    <li><strong className="text-white">HttpOnly &amp; SameSite=Lax Cookies</strong>: Keeps the session token out of browser JavaScript and reduces cross-site request exposure.</li>
+                    <li><strong className="text-white">Bcrypt Password Hashing</strong>: Persistent password hashes with 12 work-factor rounds.</li>
+                    <li><strong className="text-white">Role-Based Access Control (RBAC)</strong>: Persisted authorization roles (SUPER_ADMIN, ADMIN, EDITOR).</li>
+                    <li><strong className="text-white">Revocable Database Sessions</strong>: Each protected request validates the persisted session and current user state.</li>
                   </ul>
                 </div>
               </div>
@@ -593,7 +560,7 @@ export function requireRole(...roles: string[]) {
                       <strong className="text-white">Database Migration</strong>: Execute <code className="text-[#00ff41]">npx prisma migrate deploy</code> to apply all PostgreSQL indexes and foreign keys.
                     </li>
                     <li>
-                      <strong className="text-white">Admin User Seeding</strong>: Run <code className="text-[#00ff41]">npx prisma db seed</code> to create default Super Admin credentials with bcrypt salt.
+                      <strong className="text-white">Admin Bootstrap</strong>: Run <code className="text-[#00ff41]">npm run auth:bootstrap-admin</code> with explicit environment credentials. Normal portfolio seed data does not create users.
                     </li>
                     <li>
                       <strong className="text-white">Production Build</strong>: Run <code className="text-[#00ff41]">npm run build</code> to compile the React 19 frontend into static assets and bundle the Express server into <code className="text-[#00ff41]">dist/server.cjs</code>.

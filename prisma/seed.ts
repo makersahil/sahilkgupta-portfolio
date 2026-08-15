@@ -1,6 +1,1580 @@
+import {
+  ContentStatus,
+  Domain,
+  LabKind,
+  LabStatus,
+  Prisma,
+  ProjectFormatType,
+  ProjectLifecycleStatus,
+} from '@prisma/client';
 import { prisma } from '../server/lib/prisma';
-import { Domain, ContentStatus, LabKind, LabStatus, EvidenceKind } from '@prisma/client';
+import type {
+  BlogPost as ApiBlogPost,
+  Category as ApiCategory,
+  Certification as ApiCertification,
+  Project as ApiProject,
+  Skill as ApiSkill,
+} from '../server/types/index.js';
 
+interface SeedSnapshot {
+  categories: ApiCategory[];
+  projects: ApiProject[];
+  blogs: ApiBlogPost[];
+  certifications: ApiCertification[];
+  skills: ApiSkill[];
+}
+
+const seedSnapshot = {
+  "categories": [
+    {
+      "id": "cat-networking",
+      "slug": "networking",
+      "name": "Networking",
+      "tagline": "Enterprise Routing, Switching, Cisco Packet Tracer Labs & WAN Topologies",
+      "description": "Interactive Cisco Packet Tracer sandbox workspaces, BGP/OSPF dual-homed WAN topologies, EtherChannel trunks, HSRP failover, and ACL security.",
+      "icon": "Network",
+      "accentColor": "#00d4ff",
+      "terminalTheme": "cyan",
+      "sortOrder": 1,
+      "isPublished": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:30.902Z"
+    },
+    {
+      "id": "cat-linux",
+      "slug": "linux",
+      "name": "Linux",
+      "tagline": "Enterprise Linux Administration, Storage Systems, Systemd & Kernel Hardening",
+      "description": "Enterprise Linux administration, storage architecture (LVM/Stratis), systemd unit tuning, SELinux enforcement, and automated bash auditing.",
+      "icon": "Terminal",
+      "accentColor": "#00ff41",
+      "terminalTheme": "green",
+      "sortOrder": 2,
+      "isPublished": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:30.902Z"
+    },
+    {
+      "id": "cat-devops",
+      "slug": "devops",
+      "name": "DevOps",
+      "tagline": "Kubernetes Orchestration, CI/CD GitOps Automation & Terraform IaC",
+      "description": "GitOps multi-stage deployment pipelines, automated ArgoCD synchronizations, Cilium eBPF network overlays, and modular Terraform infrastructure.",
+      "icon": "ServerCog",
+      "accentColor": "#06b6d4",
+      "terminalTheme": "cyan",
+      "sortOrder": 3,
+      "isPublished": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:30.902Z"
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj-cisco-wan-pkt",
+      "title": "Enterprise Multi-Homed WAN with Dual ISP BGP, OSPF Area 0 & HSRP Gateway Redundancy",
+      "slug": "cisco-enterprise-wan-bgp-hsrp",
+      "summary": "Interactive Cisco .PKT sandbox lab with real-time XML topology parser, dual-homed eBGP uplink failover, OSPF Area 0 backbone, and HSRP gateway redundancy.",
+      "descriptionMarkdown": "### Enterprise WAN Infrastructure Design\nThis project demonstrates an enterprise-style lab architecture built and validated in **Cisco Packet Tracer** and verified against Cisco IOS-XE standards.\n\n#### Core Architectural Achievements:\n1. **Multi-Homed BGP Routing**: Implemented eBGP peering to ISP-1 (AS 100) and ISP-2 (AS 200) with autonomous system prepending and BGP Local Preference to control inbound and outbound traffic flows.\n2. **First Hop Redundancy (HSRP)**: Configured HSRP Group 1 providing virtual IP `10.10.0.1` with interface tracking on WAN links to automatically demote primary priority from 110 to 85 on link failure.\n3. **Core Inter-VLAN Routing**: Catalyst 9500 Multi-Layer Switch with SVIs for Engineering (`VLAN 10`), Servers (`VLAN 20`), and DMZ (`VLAN 30`).\n4. **Security ACLs**: Extended Access Control Lists blocking inter-VLAN lateral movement while permitting encrypted HTTPS egress.",
+      "categoryId": "cat-networking",
+      "status": "COMPLETED",
+      "formatType": "cisco_pkt_lab",
+      "isFeatured": true,
+      "sortOrder": 1,
+      "coverImageUrl": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1000&q=80",
+      "devopsStack": [
+        "Cisco IOS-XE",
+        "Packet Tracer 8.2",
+        "BGP AS 65001",
+        "OSPF Area 0",
+        "HSRP",
+        "802.1Q VLANs"
+      ],
+      "tags": [
+        "Cisco",
+        "CCNA",
+        "BGP",
+        "OSPF",
+        "HSRP",
+        "Packet-Tracer"
+      ],
+      "metrics": {
+        "Lab Topology": "Dual-Homed WAN",
+        "WAN Uplinks": "Dual 10G",
+        "VLANs Segmented": 4,
+        "Test Suite": "Lab Checks Completed"
+      },
+      "ciscoLabData": {
+        "labTitle": "Enterprise Multi-Homed WAN with Dual ISP BGP, OSPF Area 0 & HSRP Gateway Redundancy",
+        "pktFileName": "enterprise_wan_dual_isp_bgp_hsrp.pkt",
+        "pktFileSizeBytes": 184520,
+        "uploadedAt": "2025-02-15T00:00:00.000Z",
+        "xmlStructureVersion": "PacketTracer-XML-v8.2.1",
+        "overviewSummary": "Complete Cisco enterprise infrastructure integrating eBGP uplinks to redundant service providers (AS 100 & AS 200), iBGP core routing, OSPF Area 0 backbone, HSRP virtual IP 10.10.0.1 for high-availability default gateway failover, and 802.1Q VLAN trunking.",
+        "topologyXmlSnippet": "<PacketTracerTopology version=\"8.2.1\">\n  <NetworkWorkspace name=\"Enterprise_HQ_WAN\">\n    <Device type=\"Router\" name=\"R1-HQ-Edge\" model=\"Cisco ISR 4451-X\">\n      <Interface name=\"GigabitEthernet0/0/0\" ip=\"198.51.100.2\" mask=\"255.255.255.252\" status=\"UP\" />\n      <Interface name=\"GigabitEthernet0/0/1\" ip=\"10.10.0.2\" mask=\"255.255.255.0\" status=\"UP\" hsrpGroup=\"1\" hsrpIp=\"10.10.0.1\" priority=\"110\" />\n      <BGP as=\"65001\" neighbor=\"198.51.100.1\" remoteAs=\"100\" />\n      <OSPF process=\"1\" area=\"0.0.0.0\" routerId=\"1.1.1.1\" />\n    </Device>\n    <Device type=\"Router\" name=\"R2-Backup-Edge\" model=\"Cisco ISR 4451-X\">\n      <Interface name=\"GigabitEthernet0/0/0\" ip=\"203.0.113.2\" mask=\"255.255.255.252\" status=\"UP\" />\n      <Interface name=\"GigabitEthernet0/0/1\" ip=\"10.10.0.3\" mask=\"255.255.255.0\" status=\"UP\" hsrpGroup=\"1\" hsrpIp=\"10.10.0.1\" priority=\"90\" />\n      <BGP as=\"65001\" neighbor=\"203.0.113.1\" remoteAs=\"200\" />\n      <OSPF process=\"1\" area=\"0.0.0.0\" routerId=\"2.2.2.2\" />\n    </Device>\n    <Device type=\"MultilayerSwitch\" name=\"SW-Core-MLS\" model=\"Cisco Catalyst 9500\">\n      <SVI vlan=\"10\" ip=\"10.10.10.1\" mask=\"255.255.255.0\" name=\"VLAN_Engineering\" />\n      <SVI vlan=\"20\" ip=\"10.10.20.1\" mask=\"255.255.255.0\" name=\"VLAN_Servers\" />\n      <SVI vlan=\"30\" ip=\"10.10.30.1\" mask=\"255.255.255.0\" name=\"VLAN_DMZ\" />\n      <Trunk ports=\"Te1/0/1-2\" allowedVlans=\"10,20,30,99\" native=\"99\" />\n    </Device>\n  </NetworkWorkspace>\n</PacketTracerTopology>",
+        "devices": [
+          {
+            "id": "isp1",
+            "name": "ISP-1 Primary Uplink (AS 100)",
+            "type": "isp",
+            "model": "Carrier Edge Gateway",
+            "mgmtIp": "198.51.100.1",
+            "role": "External Tier-1 Carrier",
+            "status": "ONLINE",
+            "interfaces": [
+              {
+                "name": "Gi0/0/0",
+                "ip": "198.51.100.1",
+                "subnet": "255.255.255.252",
+                "status": "UP",
+                "type": "GigabitEthernet"
+              }
+            ],
+            "routingProtocols": [
+              "eBGP AS 100"
+            ],
+            "runningConfigSnippet": "router bgp 100\n bgp router-id 198.51.100.1\n neighbor 198.51.100.2 remote-as 65001\n neighbor 198.51.100.2 description HQ-Edge-Primary\n network 0.0.0.0"
+          },
+          {
+            "id": "isp2",
+            "name": "ISP-2 Secondary Uplink (AS 200)",
+            "type": "isp",
+            "model": "Carrier Edge Gateway",
+            "mgmtIp": "203.0.113.1",
+            "role": "External Secondary Carrier",
+            "status": "ONLINE",
+            "interfaces": [
+              {
+                "name": "Gi0/0/0",
+                "ip": "203.0.113.1",
+                "subnet": "255.255.255.252",
+                "status": "UP",
+                "type": "GigabitEthernet"
+              }
+            ],
+            "routingProtocols": [
+              "eBGP AS 200"
+            ],
+            "runningConfigSnippet": "router bgp 200\n bgp router-id 203.0.113.1\n neighbor 203.0.113.2 remote-as 65001\n neighbor 203.0.113.2 description HQ-Edge-Backup\n network 0.0.0.0"
+          },
+          {
+            "id": "r1",
+            "name": "R1-HQ-Edge-Router (Active HSRP)",
+            "type": "router",
+            "model": "Cisco ISR 4451-X",
+            "mgmtIp": "10.10.0.2",
+            "role": "Primary BGP Edge & HSRP Active Gateway",
+            "status": "ONLINE",
+            "interfaces": [
+              {
+                "name": "Gi0/0/0 (WAN)",
+                "ip": "198.51.100.2",
+                "subnet": "255.255.255.252",
+                "status": "UP",
+                "type": "GigabitEthernet"
+              },
+              {
+                "name": "Gi0/0/1 (LAN)",
+                "ip": "10.10.0.2",
+                "subnet": "255.255.255.0",
+                "status": "UP",
+                "type": "GigabitEthernet"
+              },
+              {
+                "name": "Loopback0",
+                "ip": "1.1.1.1",
+                "subnet": "255.255.255.255",
+                "status": "UP",
+                "type": "Loopback"
+              }
+            ],
+            "routingProtocols": [
+              "eBGP (AS 65001 <-> 100)",
+              "iBGP (R1 <-> R2)",
+              "OSPF Area 0",
+              "HSRP Group 1"
+            ],
+            "runningConfigSnippet": "interface GigabitEthernet0/0/0\n description Primary WAN to ISP-1\n ip address 198.51.100.2 255.255.255.252\n no shutdown\n!\ninterface GigabitEthernet0/0/1\n description HQ Core LAN Gateway\n ip address 10.10.0.2 255.255.255.0\n standby 1 ip 10.10.0.1\n standby 1 priority 110\n standby 1 preempt\n standby 1 track GigabitEthernet0/0/0 25\n no shutdown\n!\nrouter bgp 65001\n bgp log-neighbor-changes\n neighbor 198.51.100.1 remote-as 100\n neighbor 10.10.0.3 remote-as 65001\n neighbor 10.10.0.3 next-hop-self\n!\nrouter ospf 1\n router-id 1.1.1.1\n network 10.10.0.0 0.0.0.255 area 0"
+          },
+          {
+            "id": "r2",
+            "name": "R2-Backup-Edge-Router (Standby HSRP)",
+            "type": "router",
+            "model": "Cisco ISR 4451-X",
+            "mgmtIp": "10.10.0.3",
+            "role": "Secondary BGP Edge & HSRP Standby Gateway",
+            "status": "STANDBY",
+            "interfaces": [
+              {
+                "name": "Gi0/0/0 (WAN)",
+                "ip": "203.0.113.2",
+                "subnet": "255.255.255.252",
+                "status": "UP",
+                "type": "GigabitEthernet"
+              },
+              {
+                "name": "Gi0/0/1 (LAN)",
+                "ip": "10.10.0.3",
+                "subnet": "255.255.255.0",
+                "status": "UP",
+                "type": "GigabitEthernet"
+              },
+              {
+                "name": "Loopback0",
+                "ip": "2.2.2.2",
+                "subnet": "255.255.255.255",
+                "status": "UP",
+                "type": "Loopback"
+              }
+            ],
+            "routingProtocols": [
+              "eBGP (AS 65001 <-> 200)",
+              "iBGP (R2 <-> R1)",
+              "OSPF Area 0",
+              "HSRP Group 1"
+            ],
+            "runningConfigSnippet": "interface GigabitEthernet0/0/0\n description Backup WAN to ISP-2\n ip address 203.0.113.2 255.255.255.252\n no shutdown\n!\ninterface GigabitEthernet0/0/1\n description HQ Core LAN Gateway\n ip address 10.10.0.3 255.255.255.0\n standby 1 ip 10.10.0.1\n standby 1 priority 90\n no shutdown\n!\nrouter bgp 65001\n neighbor 203.0.113.1 remote-as 200\n neighbor 10.10.0.2 remote-as 65001"
+          },
+          {
+            "id": "sw_core",
+            "name": "Core-MLS-Catalyst9500",
+            "type": "multilayer_switch",
+            "model": "Cisco Catalyst 9500 48-Port 25G",
+            "mgmtIp": "10.10.0.10",
+            "role": "Core Routing & Inter-VLAN Gateway",
+            "status": "ONLINE",
+            "interfaces": [
+              {
+                "name": "Vlan10 (SVI)",
+                "ip": "10.10.10.1",
+                "subnet": "255.255.255.0",
+                "status": "UP",
+                "vlan": "10",
+                "type": "VLAN_SVI"
+              },
+              {
+                "name": "Vlan20 (SVI)",
+                "ip": "10.10.20.1",
+                "subnet": "255.255.255.0",
+                "status": "UP",
+                "vlan": "20",
+                "type": "VLAN_SVI"
+              },
+              {
+                "name": "Vlan30 (SVI)",
+                "ip": "10.10.30.1",
+                "subnet": "255.255.255.0",
+                "status": "UP",
+                "vlan": "30",
+                "type": "VLAN_SVI"
+              },
+              {
+                "name": "Te1/0/1 (Trunk)",
+                "ip": "N/A",
+                "subnet": "802.1Q Tagged",
+                "status": "UP",
+                "type": "GigabitEthernet"
+              }
+            ],
+            "routingProtocols": [
+              "OSPF Area 0",
+              "Inter-VLAN SVI Routing",
+              "LACP EtherChannel"
+            ],
+            "runningConfigSnippet": "ip routing\n!\ninterface Vlan10\n description Engineering Department\n ip address 10.10.10.1 255.255.255.0\n!\ninterface Vlan20\n description Production Kubernetes & Linux Servers\n ip address 10.10.20.1 255.255.255.0\n!\ninterface Vlan30\n description Demilitarized Zone (DMZ)\n ip address 10.10.30.1 255.255.255.0"
+          },
+          {
+            "id": "fw_asa",
+            "name": "ASA-5506-X-Firepower",
+            "type": "firewall",
+            "model": "Cisco ASA 5506-X Firepower",
+            "mgmtIp": "10.10.30.2",
+            "role": "DMZ Stateful Inspection & VPN Gateway",
+            "status": "ONLINE",
+            "interfaces": [
+              {
+                "name": "GigabitEthernet1/1 (Inside)",
+                "ip": "10.10.30.2",
+                "subnet": "255.255.255.0",
+                "status": "UP",
+                "vlan": "30",
+                "type": "GigabitEthernet"
+              }
+            ],
+            "routingProtocols": [
+              "Static Routing",
+              "Stateful Packet Inspection"
+            ],
+            "runningConfigSnippet": "interface GigabitEthernet1/1\n nameif inside_dmz\n security-level 50\n ip address 10.10.30.2 255.255.255.0\n!\naccess-list DMZ_IN extended permit tcp any host 10.10.30.50 eq 443\naccess-group DMZ_IN in interface inside_dmz"
+          }
+        ],
+        "routingTable": [
+          {
+            "network": "0.0.0.0/0",
+            "nextHop": "198.51.100.1",
+            "interface": "Gi0/0/0",
+            "protocol": "B",
+            "protocolName": "eBGP",
+            "metric": "0",
+            "ad": 20
+          },
+          {
+            "network": "10.10.0.0/24",
+            "nextHop": "Directly Connected",
+            "interface": "Gi0/0/1",
+            "protocol": "C",
+            "protocolName": "Connected",
+            "metric": "0",
+            "ad": 0
+          },
+          {
+            "network": "10.10.10.0/24",
+            "nextHop": "10.10.0.10",
+            "interface": "Gi0/0/1",
+            "protocol": "O",
+            "protocolName": "OSPF",
+            "metric": "2",
+            "ad": 110
+          },
+          {
+            "network": "10.10.20.0/24",
+            "nextHop": "10.10.0.10",
+            "interface": "Gi0/0/1",
+            "protocol": "O",
+            "protocolName": "OSPF",
+            "metric": "2",
+            "ad": 110
+          },
+          {
+            "network": "10.10.30.0/24",
+            "nextHop": "10.10.0.10",
+            "interface": "Gi0/0/1",
+            "protocol": "O",
+            "protocolName": "OSPF",
+            "metric": "2",
+            "ad": 110
+          },
+          {
+            "network": "2.2.2.2/32",
+            "nextHop": "10.10.0.3",
+            "interface": "Gi0/0/1",
+            "protocol": "i",
+            "protocolName": "iBGP",
+            "metric": "0",
+            "ad": 200
+          }
+        ],
+        "vlanDatabase": [
+          {
+            "vlanId": 10,
+            "name": "Engineering_Dev",
+            "ports": [
+              "Gi1/0/1-12"
+            ],
+            "status": "ACTIVE"
+          },
+          {
+            "vlanId": 20,
+            "name": "Production_Servers",
+            "ports": [
+              "Gi1/0/13-24"
+            ],
+            "status": "ACTIVE"
+          },
+          {
+            "vlanId": 30,
+            "name": "Security_DMZ",
+            "ports": [
+              "Gi1/0/25-32"
+            ],
+            "status": "ACTIVE"
+          },
+          {
+            "vlanId": 99,
+            "name": "Native_Management",
+            "ports": [
+              "Te1/0/1-4"
+            ],
+            "status": "ACTIVE"
+          }
+        ],
+        "aclRules": [
+          {
+            "id": "acl-101",
+            "name": "EXT_SECURITY_FILTER",
+            "action": "permit",
+            "protocol": "tcp",
+            "source": "10.10.10.0/24",
+            "destination": "any eq 443"
+          },
+          {
+            "id": "acl-102",
+            "name": "EXT_SECURITY_FILTER",
+            "action": "permit",
+            "protocol": "tcp",
+            "source": "10.10.20.0/24",
+            "destination": "any eq 443"
+          },
+          {
+            "id": "acl-103",
+            "name": "EXT_SECURITY_FILTER",
+            "action": "deny",
+            "protocol": "ip",
+            "source": "10.10.10.0/24",
+            "destination": "10.10.30.0/24"
+          }
+        ],
+        "verificationTasks": [
+          {
+            "task": "BGP Neighbor Adjacency Verification",
+            "testCommand": "show ip bgp summary",
+            "expectedResult": "State/PfxRcd: 1 (Established with 198.51.100.1)",
+            "passed": true
+          },
+          {
+            "task": "HSRP Active Gateway Failover",
+            "testCommand": "show standby brief",
+            "expectedResult": "Active: local (10.10.0.2), Standby: 10.10.0.3, Virtual IP: 10.10.0.1",
+            "passed": true
+          },
+          {
+            "task": "OSPF Area 0 Neighbor Convergence",
+            "testCommand": "show ip ospf neighbor",
+            "expectedResult": "Neighbor ID 2.2.2.2 State FULL/BDR",
+            "passed": true
+          },
+          {
+            "task": "End-to-End Ping Through Simulated WAN",
+            "testCommand": "ping 198.51.100.1 repeat 5",
+            "expectedResult": "Success rate is 100 percent (5/5), round-trip min/avg/max = 1/2/4 ms",
+            "passed": true
+          }
+        ]
+      },
+      "createdAt": "2025-02-15T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:32.847Z"
+    },
+    {
+      "id": "proj-rhel-rhcsa-matrix",
+      "title": "Enterprise RHEL 9 Infrastructure Hardening, Stratis/LVM Storage & SELinux Compliance Matrix",
+      "slug": "rhel-9-rhcsa-hardening-storage-selinux",
+      "summary": "Structural competency-based audit matrix matching official RHCSA EX200 objectives: LVM thin pools, SELinux enforcement, systemd sandbox units, and persistent UUID mounts.",
+      "descriptionMarkdown": "### Enterprise Linux Infrastructure & RHCSA Competency Matrix\nEngineered as a security-hardening lab covering SELinux, firewalld, permissions, and benchmark-oriented configuration practices.\n\n#### Key Highlights:\n- **Storage Engineering**: Thin-provisioned LVM storage volumes formatted with XFS and secured via UUID mounts in `/etc/fstab` with `nodev,noexec` audit protections.\n- **SELinux Mandatory Access Control**: Zero permissive escapes; full targeted SELinux policy enforcement, custom port bindings (`semanage port`), and boolean configurations.\n- **Automated Verification**: Self-auditing bash harnesses validating Chrony NTP sync, sysctl kernel limits, and rootless Podman Quadlet containers.",
+      "categoryId": "cat-linux",
+      "status": "COMPLETED",
+      "formatType": "rhcsa_matrix",
+      "isFeatured": true,
+      "sortOrder": 2,
+      "coverImageUrl": "https://images.unsplash.com/photo-1629654297299-c8506221ca97?auto=format&fit=crop&w=1000&q=80",
+      "devopsStack": [
+        "RHEL 9",
+        "SELinux",
+        "LVM / XFS Storage",
+        "Systemd",
+        "Podman Containers",
+        "Firewalld",
+        "Chrony NTP"
+      ],
+      "tags": [
+        "Linux",
+        "Storage",
+        "Systemd",
+        "SELinux",
+        "Automation"
+      ],
+      "metrics": {
+        "Storage Pools": "Thin LVM / XFS",
+        "SELinux Mode": "Enforcing",
+        "Host Compliance": "Verified Active",
+        "Service Health": "Nominal"
+      },
+      "rhcsaMatrixData": {
+        "rhelVersion": "Red Hat Enterprise Linux 9.4",
+        "kernelVersion": "5.14.0-427.13.1.el9_4.x86_64",
+        "selinuxMode": "Enforcing",
+        "fipsMode": true,
+        "totalCompetencies": 10,
+        "verifiedCount": 10,
+        "objectives": [
+          {
+            "id": "rhcsa-obj-01",
+            "domainCode": "RHCSA-01",
+            "domainTitle": "Understand and use essential tools",
+            "competency": "Process Management, SSH Keyring Auth & Advanced Grep/Awk Filtering",
+            "examWeight": "10% Exam Coverage",
+            "testedCommands": [
+              "grep -E",
+              "awk '{print $1,$3}'",
+              "tar -czvf backup.tar.gz",
+              "ssh-copy-id -i ~/.ssh/id_ed25519"
+            ],
+            "configFiles": [
+              {
+                "path": "/etc/ssh/sshd_config.d/01-hardening.conf",
+                "language": "bash",
+                "content": "# RHEL 9 SSH Hardening Baseline\nPermitRootLogin prohibit-password\nPasswordAuthentication no\nPubkeyAuthentication yes\nX11Forwarding no\nMaxAuthTries 3\nClientAliveInterval 300\nClientAliveCountMax 2",
+                "description": "Zero-trust SSH daemon configuration disallowing password authentication in favor of ed25519 keys."
+              }
+            ],
+            "verificationCommand": "sshd -t && echo \"SSHD syntax verified valid\"",
+            "verificationOutput": "SSHD syntax verified valid (Exit Code 0)",
+            "auditStatus": "VERIFIED"
+          },
+          {
+            "id": "rhcsa-obj-02",
+            "domainCode": "RHCSA-02",
+            "domainTitle": "Create simple shell scripts",
+            "competency": "Automated Log Parsing, Exit Code Trapping & System Health Checks",
+            "examWeight": "8% Exam Coverage",
+            "testedCommands": [
+              "bash -n check_health.sh",
+              "chmod +x /usr/local/bin/sysaudit",
+              "logger -p local0.warn"
+            ],
+            "configFiles": [
+              {
+                "path": "/usr/local/bin/cluster-health.sh",
+                "language": "bash",
+                "content": "#!/usr/bin/env bash\nset -euo pipefail\nIFS=$'\\n\\t'\n\n# Memory threshold check (Alert if free < 15%)\nMEM_FREE_PCT=$(free | awk '/Mem:/ {printf(\"%.0f\", $4/$2 * 100)}')\nif [ \"$MEM_FREE_PCT\" -lt 15 ]; then\n  logger -t SYS_AUDIT \"CRITICAL: Low Memory Alert ($MEM_FREE_PCT% free)\"\n  exit 1\nfi\necho \"[OK] System metrics nominal. Free Memory: $MEM_FREE_PCT%\"\nexit 0",
+                "description": "Production bash health check with strict error handling and systemd syslog reporting."
+              }
+            ],
+            "verificationCommand": "/usr/local/bin/cluster-health.sh",
+            "verificationOutput": "[OK] System metrics nominal. Free Memory: 64%",
+            "auditStatus": "HARDENED"
+          },
+          {
+            "id": "rhcsa-obj-03",
+            "domainCode": "RHCSA-03",
+            "domainTitle": "Operate running systems",
+            "competency": "Boot Targets (multi-user vs graphical), systemd Service Tuning & Journald Auditing",
+            "examWeight": "12% Exam Coverage",
+            "testedCommands": [
+              "systemctl isolate multi-user.target",
+              "systemctl edit --full custom-node.service",
+              "journalctl -u custom-node -p err"
+            ],
+            "configFiles": [
+              {
+                "path": "/etc/systemd/system/node-exporter.service",
+                "language": "systemd",
+                "content": "[Unit]\nDescription=Prometheus Node Exporter\nWants=network-online.target\nAfter=network-online.target\n\n[Service]\nUser=node_exporter\nGroup=node_exporter\nType=simple\nExecStart=/usr/local/bin/node_exporter --collector.systemd --collector.processes\nRestart=on-failure\nRestartSec=5s\nLimitNOFILE=65536\nProtectSystem=strict\nProtectHome=yes\nNoNewPrivileges=yes\n\n[Install]\nWantedBy=multi-user.target",
+                "description": "Hardened systemd unit file with sandboxed privilege restrictions and systemd resource limits."
+              }
+            ],
+            "verificationCommand": "systemctl is-active node-exporter.service",
+            "verificationOutput": "active (running) since Fri 2025-02-14 08:30:12 UTC; 2 days ago",
+            "auditStatus": "VERIFIED"
+          },
+          {
+            "id": "rhcsa-obj-04",
+            "domainCode": "RHCSA-04",
+            "domainTitle": "Configure local storage & block devices",
+            "competency": "LVM Volume Groups, Thin Provisioning, Stratis Pools & VDO Deduplication",
+            "examWeight": "15% Exam Coverage",
+            "testedCommands": [
+              "pvcreate /dev/sdb1",
+              "vgcreate -s 16M vg_prod /dev/sdb1",
+              "lvcreate -L 50G -n lv_data vg_prod",
+              "stratis pool create pool_app /dev/sdc"
+            ],
+            "configFiles": [
+              {
+                "path": "/etc/fstab",
+                "language": "fstab",
+                "content": "# /etc/fstab: static file system information.\nUUID=3f92b704-58a1-41db-8c70-ea8d3b519001  /                   xfs     defaults,noatime        0 0\nUUID=84ce9139-2b02-4fd9-8733-1b9195b6c8a2  /boot               xfs     defaults                0 0\nUUID=02a98f12-9c10-43f1-a89b-ec0419df8217  /var/log/audit      xfs     defaults,nodev,noexec   0 0\n/dev/vg_prod/lv_data                        /data/db            xfs     defaults,prjquota       0 0\nUUID=ea789f21-bc01-4411-9a10-2189fbca0012  none                swap    defaults                0 0",
+                "description": "FSTAB partition mounts mapped exclusively via persistent UUIDs with security mount options (nodev, noexec) for audit partitions."
+              }
+            ],
+            "verificationCommand": "lsblk -f && vgs && lvs",
+            "verificationOutput": "VG      #PV #LV #SN Attr   VSize   VFree\nvg_prod   1   1   0 wz--n- 100.00g 50.00g\nLV      VG      Attr       LSize  Pool Origin Data%\nlv_data vg_prod -wi-ao---- 50.00g",
+            "auditStatus": "COMPLIANT"
+          },
+          {
+            "id": "rhcsa-obj-05",
+            "domainCode": "RHCSA-05",
+            "domainTitle": "Create and configure file systems",
+            "competency": "XFS File System Resizing, Persistent UUID Mounts, NFS v4 Exports & AutoFS",
+            "examWeight": "12% Exam Coverage",
+            "testedCommands": [
+              "xfs_growfs /data/db",
+              "mount -a",
+              "exportfs -avr",
+              "showmount -e nfs-server.internal"
+            ],
+            "configFiles": [
+              {
+                "path": "/etc/auto.master.d/direct.autofs",
+                "language": "bash",
+                "content": "/-  /etc/auto.direct --timeout=60",
+                "description": "AutoFS master direct map file configuring on-demand network mounts."
+              },
+              {
+                "path": "/etc/auto.direct",
+                "language": "bash",
+                "content": "/mnt/nfs/shared  -rw,soft,sec=krb5p,proto=tcp  storage.internal:/srv/nfs/shared",
+                "description": "AutoFS direct map binding Kerberized NFS v4 shares with automatic unmount after 60s idle."
+              }
+            ],
+            "verificationCommand": "systemctl is-active autofs && findmnt -t nfs4",
+            "verificationOutput": "active (running) /mnt/nfs/shared storage.internal:/srv/nfs/shared nfs4 rw,relatime",
+            "auditStatus": "VERIFIED"
+          },
+          {
+            "id": "rhcsa-obj-06",
+            "domainCode": "RHCSA-06",
+            "domainTitle": "Deploy, configure, and maintain systems",
+            "competency": "DNF Repository Management, Chrony NTP Synchronization & Sysctl Kernel Tuning",
+            "examWeight": "10% Exam Coverage",
+            "testedCommands": [
+              "dnf config-manager --add-repo",
+              "chronyc sources -v",
+              "sysctl -p /etc/sysctl.d/99-kubernetes.conf"
+            ],
+            "configFiles": [
+              {
+                "path": "/etc/sysctl.d/99-kubernetes-security.conf",
+                "language": "ini",
+                "content": "# Kernel Hardening and Container Forwarding\nnet.ipv4.ip_forward = 1\nnet.bridge.bridge-nf-call-iptables = 1\nnet.bridge.bridge-nf-call-ip6tables = 1\nfs.inotify.max_user_watches = 524288\nfs.file-max = 2097152\nkernel.pid_max = 4194304\nvm.max_map_count = 262144",
+                "description": "Production kernel parameters for high-throughput container clusters and memory optimization."
+              }
+            ],
+            "verificationCommand": "sysctl net.ipv4.ip_forward && chronyc tracking",
+            "verificationOutput": "net.ipv4.ip_forward = 1\nReference ID    : 192.168.1.1 (time.google.com)\nStratum         : 2\nOffset          : +0.000012891 seconds",
+            "auditStatus": "COMPLIANT"
+          },
+          {
+            "id": "rhcsa-obj-07",
+            "domainCode": "RHCSA-07",
+            "domainTitle": "Manage basic networking & firewalls",
+            "competency": "NetworkManager nmcli bonding, Firewalld Zones & Rich Rules",
+            "examWeight": "11% Exam Coverage",
+            "testedCommands": [
+              "nmcli con add type bond con-name bond0",
+              "firewall-cmd --permanent --zone=internal --add-source=10.10.0.0/24",
+              "firewall-cmd --reload"
+            ],
+            "configFiles": [
+              {
+                "path": "/etc/firewalld/zones/dmz.xml",
+                "language": "yaml",
+                "content": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<zone>\n  <short>DMZ</short>\n  <description>Hardened DMZ perimeter for ingress controllers.</description>\n  <service name=\"https\"/>\n  <service name=\"http\"/>\n  <rule family=\"ipv4\">\n    <source address=\"10.10.10.0/24\"/>\n    <service name=\"ssh\"/>\n    <accept/>\n  </rule>\n</zone>",
+                "description": "Firewalld XML zone definition with scoped SSH access only from engineering subnet."
+              }
+            ],
+            "verificationCommand": "firewall-cmd --list-all --zone=dmz",
+            "verificationOutput": "dmz (active)\n  target: default\n  services: http https\n  rules: rule family=\"ipv4\" source address=\"10.10.10.0/24\" service name=\"ssh\" accept",
+            "auditStatus": "HARDENED"
+          },
+          {
+            "id": "rhcsa-obj-08",
+            "domainCode": "RHCSA-08",
+            "domainTitle": "Manage users and groups",
+            "competency": "Sudoers Privilege Delegation, Password Aging Policies & PAM Security",
+            "examWeight": "7% Exam Coverage",
+            "testedCommands": [
+              "useradd -G wheel,devops sgupta",
+              "visudo -cf /etc/sudoers.d/99-devops",
+              "chage -M 90 -W 7 -I 14 sgupta"
+            ],
+            "configFiles": [
+              {
+                "path": "/etc/sudoers.d/99-devops-engineers",
+                "language": "bash",
+                "content": "# Passwordless sudo delegation for DevOps Automation\n%devops ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart k8s-*, /usr/bin/podman\nDefaults:%devops log_year, logfile=/var/log/sudo.log",
+                "description": "Scoped sudoers configuration with audit logging to /var/log/sudo.log."
+              }
+            ],
+            "verificationCommand": "visudo -cf /etc/sudoers.d/99-devops-engineers",
+            "verificationOutput": "/etc/sudoers.d/99-devops-engineers: parsed OK",
+            "auditStatus": "VERIFIED"
+          },
+          {
+            "id": "rhcsa-obj-09",
+            "domainCode": "RHCSA-09",
+            "domainTitle": "Manage security (SELinux)",
+            "competency": "SELinux Modes, Context Restores (restorecon), Port Labels & Booleans",
+            "examWeight": "15% Exam Coverage",
+            "testedCommands": [
+              "getenforce",
+              "semanage fcontext -a -t httpd_sys_content_t \"/srv/web(/.*)?\"",
+              "restorecon -Rv /srv/web",
+              "setsebool -P httpd_can_network_connect 1"
+            ],
+            "configFiles": [
+              {
+                "path": "/etc/selinux/config",
+                "language": "bash",
+                "content": "# This file controls the state of SELinux on the system.\nSELINUX=enforcing\nSELINUXTYPE=targeted",
+                "description": "RHEL 9 targeted SELinux mode enforcing mandatory access controls across all daemon processes."
+              }
+            ],
+            "verificationCommand": "sestatus && getsebool httpd_can_network_connect",
+            "verificationOutput": "SELinux status:                 enabled\nSELinuxfs mount:                /sys/fs/selinux\nCurrent mode:                   enforcing\nMode from config file:          enforcing\nhttpd_can_network_connect --> on",
+            "auditStatus": "HARDENED"
+          },
+          {
+            "id": "rhcsa-obj-10",
+            "domainCode": "RHCSA-10",
+            "domainTitle": "Manage containers (Podman)",
+            "competency": "Rootless Containers, Quadlet Systemd Units & Secret Mounting",
+            "examWeight": "10% Exam Coverage",
+            "testedCommands": [
+              "podman run -d --name nginx -p 8080:80 ubi9/nginx-120",
+              "podman generate systemd --name nginx --files",
+              "podman secret create db_pass secret.txt"
+            ],
+            "configFiles": [
+              {
+                "path": "~/.config/containers/systemd/web-gateway.container",
+                "language": "systemd",
+                "content": "[Unit]\nDescription=Rootless Podman Nginx Gateway (Quadlet)\n\n[Container]\nImage=registry.access.redhat.com/ubi9/nginx-120:latest\nPublishPort=8443:8443\nVolume=/srv/certs:/etc/nginx/certs:ro,Z\nAutoUpdate=registry\n\n[Service]\nRestart=always\n\n[Install]\nWantedBy=default.target",
+                "description": "RHEL 9 native Quadlet container definition integrated directly into rootless systemd user session."
+              }
+            ],
+            "verificationCommand": "podman ps --format \"table {{.ID}} {{.Image}} {{.Status}} {{.Ports}}\"",
+            "verificationOutput": "CONTAINER ID  IMAGE                                      STATUS            PORTS\na8f12c904e12  registry.access.redhat.com/ubi9/nginx-120  Up 44 hours ago   0.0.0.0:8443->8443/tcp",
+            "auditStatus": "VERIFIED"
+          }
+        ]
+      },
+      "createdAt": "2025-02-10T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:35.587Z"
+    },
+    {
+      "id": "proj-k8s-cilium-gitops",
+      "title": "Cloud-Native GitOps Kubernetes Infrastructure with Cilium eBPF & Terraform",
+      "slug": "cloud-native-gitops-k8s-cilium-terraform",
+      "summary": "Multi-pipeline GitOps continuous deployment matrix featuring automated ArgoCD reconciliation, Cilium eBPF network overlays, and modular Terraform IaC workspace.",
+      "descriptionMarkdown": "### Production GitOps & Cloud-Native Architecture\nA resilient hybrid Kubernetes platform engineered for high-throughput enterprise workloads and declarative zero-trust network policies.\n\n#### Core Platform Modules:\n- **Cilium eBPF CNI**: eBPF-based network observability, kernel-level L7 network policy enforcement, and WireGuard mesh encryption.\n- **Declarative GitOps (ArgoCD)**: Automated reconciliation loops with Prometheus canary deployments powered by Flagger.\n- **Infrastructure as Code**: Production Terraform repository provisioning multi-AZ VPCs, IAM OIDC roles, and secure S3 state locking.",
+      "categoryId": "cat-devops",
+      "status": "COMPLETED",
+      "formatType": "devops_pipeline",
+      "isFeatured": true,
+      "sortOrder": 3,
+      "coverImageUrl": "https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?auto=format&fit=crop&w=1000&q=80",
+      "devopsStack": [
+        "Kubernetes",
+        "Cilium eBPF",
+        "Terraform",
+        "ArgoCD",
+        "Helm",
+        "HashiCorp Vault",
+        "Prometheus"
+      ],
+      "tags": [
+        "DevOps",
+        "Kubernetes",
+        "GitOps",
+        "Terraform",
+        "eBPF",
+        "CI/CD"
+      ],
+      "metrics": {
+        "Pipeline Engine": "ArgoCD",
+        "Deployment Style": "GitOps",
+        "Deployment Strategy": "Automated Canary",
+        "Cluster Health": "Nominal (Kubernetes)"
+      },
+      "devopsPipelineData": {
+        "framework": "GitOps (ArgoCD + Cilium + Helm)",
+        "gitCommitSha": "a49f82c",
+        "branch": "main [Lab-Release-v2.8]",
+        "pipelineStages": [
+          {
+            "id": "stage-1",
+            "name": "Static Code & IaC Linting",
+            "icon": "CheckCircle2",
+            "tool": "TFLint & Yamllint",
+            "durationSeconds": 14,
+            "status": "SUCCESS",
+            "stdoutSnippet": "[INFO] Validating 18 Terraform modules...\n[PASS] No syntax or deprecation errors in ./terraform/\n[PASS] Kubernetes manifest lint: 0 warnings, 0 fatal errors.",
+            "artifactsProduced": [
+              "lint-report.json"
+            ]
+          },
+          {
+            "id": "stage-2",
+            "name": "Security & CVE Scanning",
+            "icon": "ShieldCheck",
+            "tool": "Trivy & Checkov",
+            "durationSeconds": 28,
+            "status": "SUCCESS",
+            "stdoutSnippet": "[INFO] Scanning container base images (UBI 9 Minimal)...\n[REPORT] Critical: 0, High: 0, Medium: 0, Low: 2\n[PASS] Security audit stage completed. No critical vulnerabilities found.",
+            "artifactsProduced": [
+              "trivy-sarif-report.sarif"
+            ]
+          },
+          {
+            "id": "stage-3",
+            "name": "Multi-Arch Container Build",
+            "icon": "Boxes",
+            "tool": "Buildah / Docker Buildx",
+            "durationSeconds": 42,
+            "status": "SUCCESS",
+            "stdoutSnippet": "[INFO] Building image: registry.infra.lan/core/gateway:v2.8\n[INFO] Pushing OCI manifest to AWS ECR (linux/amd64, linux/arm64)\n[PASS] OCI Image Artifact produced.",
+            "artifactsProduced": [
+              "oci-image.tar"
+            ]
+          },
+          {
+            "id": "stage-4",
+            "name": "Helm Chart Packaging & Signing",
+            "icon": "Package",
+            "tool": "Helm 3 & Cosign",
+            "durationSeconds": 19,
+            "status": "SUCCESS",
+            "stdoutSnippet": "[INFO] Packaging chart platform-v2.8.0.tgz\n[INFO] Signing with Cosign KMS key (aws-kms://arn:aws:kms:us-east-1:...)\n[PASS] Signature verified.",
+            "artifactsProduced": [
+              "platform-v2.8.0.tgz.sig"
+            ]
+          },
+          {
+            "id": "stage-5",
+            "name": "ArgoCD GitOps Sync Loop",
+            "icon": "GitPullRequest",
+            "tool": "ArgoCD Controller",
+            "durationSeconds": 31,
+            "status": "SUCCESS",
+            "stdoutSnippet": "[SYNC] Reconciling desired state against Kubernetes cluster 'us-east-1-prod'...\n[UPDATE] Ingress Controller -> Synchronized\n[UPDATE] Deployment/core-api -> 6/6 Replicas Ready\n[UPDATE] Cilium NetworkPolicies -> Enforced\n[PASS] Sync status: Synced | Health: Healthy",
+            "artifactsProduced": [
+              "argocd-sync-receipt.json"
+            ]
+          },
+          {
+            "id": "stage-6",
+            "name": "Canary Traffic Verification",
+            "icon": "Activity",
+            "tool": "Prometheus & Flagger",
+            "durationSeconds": 60,
+            "status": "SUCCESS",
+            "stdoutSnippet": "[CANARY] Shifting 10% traffic to v2.8... Success Rate: OK\n[CANARY] Shifting 50% traffic to v2.8... Success Rate: OK\n[CANARY] Shifting traffic to v2.8... Rollout complete.\n[PASS] Canary promotion successful."
+          }
+        ],
+        "iacTree": [
+          {
+            "name": "terraform-infrastructure",
+            "path": "terraform/",
+            "type": "directory",
+            "children": [
+              {
+                "name": "main.tf",
+                "path": "terraform/main.tf",
+                "type": "file",
+                "size": "4.2 KB",
+                "content": "# Terraform Production Infrastructure Blueprint\nterraform {\n  required_version = \">= 1.7.0\"\n  required_providers {\n    aws = {\n      source  = \"hashicorp/aws\"\n      version = \"~> 5.40\"\n    }\n    helm = {\n      source  = \"hashicorp/helm\"\n      version = \"~> 2.12\"\n    }\n  }\n  backend \"s3\" {\n    bucket         = \"infra-tf-state-us-east-1\"\n    key            = \"prod/k8s-mesh.tfstate\"\n    region         = \"us-east-1\"\n    dynamodb_table = \"terraform-locks\"\n    encrypt        = true\n  }\n}\n\nmodule \"vpc\" {\n  source  = \"terraform-aws-modules/vpc/aws\"\n  version = \"5.5.1\"\n\n  name = \"infra-prod-vpc\"\n  cidr = \"10.100.0.0/16\"\n\n  azs             = [\"us-east-1a\", \"us-east-1b\", \"us-east-1c\"]\n  private_subnets = [\"10.100.1.0/24\", \"10.100.2.0/24\", \"10.100.3.0/24\"]\n  public_subnets  = [\"10.100.101.0/24\", \"10.100.102.0/24\", \"10.100.103.0/24\"]\n\n  enable_nat_gateway = true\n  single_nat_gateway = false\n  enable_vpn_gateway = false\n\n  tags = {\n    Environment = \"Production\"\n    Owner       = \"Sahil K Gupta\"\n    ManagedBy   = \"Terraform\"\n  }\n}"
+              },
+              {
+                "name": "variables.tf",
+                "path": "terraform/variables.tf",
+                "type": "file",
+                "size": "1.8 KB",
+                "content": "variable \"aws_region\" {\n  type        = string\n  default     = \"us-east-1\"\n  description = \"Target AWS Cloud Region\"\n}\n\nvariable \"cluster_version\" {\n  type        = string\n  default     = \"1.29\"\n  description = \"Target Kubernetes Core Version\"\n}\n\nvariable \"node_instance_types\" {\n  type        = list(string)\n  default     = [\"m6i.2xlarge\", \"m6i.4xlarge\"]\n  description = \"EC2 Worker Node Compute SKU Array\"\n}"
+              },
+              {
+                "name": "cilium-ebpf.tf",
+                "path": "terraform/cilium-ebpf.tf",
+                "type": "file",
+                "size": "2.5 KB",
+                "content": "resource \"helm_release\" \"cilium\" {\n  name       = \"cilium\"\n  repository = \"https://helm.cilium.io/\"\n  chart      = \"cilium\"\n  version    = \"1.15.2\"\n  namespace  = \"kube-system\"\n\n  set {\n    name  = \"kubeProxyReplacement\"\n    value = \"strict\"\n  }\n  set {\n    name  = \"k8sServiceHost\"\n    value = module.eks.cluster_endpoint\n  }\n  set {\n    name  = \"encryption.enabled\"\n    value = \"true\"\n  }\n  set {\n    name  = \"encryption.type\"\n    value = \"wireguard\"\n  }\n}"
+              }
+            ]
+          }
+        ],
+        "architectureLayers": [
+          {
+            "tier": "Edge Ingress & Global Routing",
+            "description": "Cloudflare Magic WAN & AWS Route 53 with BGP Anycast routing and automated DDoS mitigation.",
+            "technologies": [
+              "AWS Route 53",
+              "Cloudflare WAF",
+              "Envoy Gateway",
+              "BGP Anycast"
+            ],
+            "slaMetrics": "High-Availability Ingress Routing"
+          },
+          {
+            "tier": "Container Orchestration & eBPF Mesh",
+            "description": "Multi-zone EKS clusters utilizing Cilium eBPF for robust packet forwarding and WireGuard encryption.",
+            "technologies": [
+              "Kubernetes 1.29",
+              "Cilium eBPF",
+              "ArgoCD",
+              "Prometheus Operator"
+            ],
+            "slaMetrics": "64 Managed Nodes | 1200 Pods"
+          },
+          {
+            "tier": "Distributed Data Storage & Cache",
+            "description": "High-availability PostgreSQL cluster with streaming replication, Redis Sentinel cache, and HashiCorp Vault secrets.",
+            "technologies": [
+              "PostgreSQL 16",
+              "Redis Sentinel",
+              "HashiCorp Vault",
+              "MinIO S3"
+            ],
+            "slaMetrics": "Distributed State Persistence"
+          },
+          {
+            "tier": "Observability & Continuous GitOps",
+            "description": "End-to-end distributed tracing, OpenTelemetry collectors, and automated canary deployments via Flagger.",
+            "technologies": [
+              "OpenTelemetry",
+              "Grafana Tempo",
+              "Prometheus",
+              "Flagger"
+            ],
+            "slaMetrics": "End-to-End Distributed Tracing"
+          }
+        ]
+      },
+      "createdAt": "2025-01-20T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:36.501Z"
+    }
+  ],
+  "blogs": [
+    {
+      "id": "blog-01",
+      "title": "Enterprise BGP EVPN & Packet Tracer Simulation Architecture",
+      "slug": "enterprise-bgp-evpn-packet-tracer-architecture",
+      "excerpt": "How to design scalable multi-tenant enterprise data center overlays using BGP EVPN control plane and Cisco IOS-XE topologies.",
+      "contentMarkdown": "### Why BGP EVPN for Modern Data Centers?\nTraditional spanning-tree protocols (STP) leave 50% of switch uplinks idle to prevent switching loops. **BGP EVPN with VxLAN encapsulation** enables active-active multi-homing across all leaf-spine fabrics.\n\n```cisco\nrouter bgp 65001\n template peer-session LEAF_FABRIC\n  remote-as 65001\n  update-source Loopback0\n neighbor 10.255.0.1 inherit peer-session LEAF_FABRIC\n address-family l2vpn evpn\n  neighbor 10.255.0.1 activate\n  neighbor 10.255.0.1 send-community both\n```\n\n#### Key Takeaways:\n- Elimination of Spanning Tree blocking ports using equal-cost multi-pathing (ECMP).\n- Integrated routing and bridging (IRB) directly at the leaf switch.\n- Consistent MAC address learning in the control plane rather than flood-and-learn data plane.",
+      "categoryId": "cat-networking",
+      "coverImageUrl": "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=1000&q=80",
+      "readTimeMinutes": 7,
+      "tags": [
+        "Networking",
+        "Cisco",
+        "BGP",
+        "Packet-Tracer",
+        "Routing"
+      ],
+      "isPublished": true,
+      "publishedAt": "2025-02-01T00:00:00.000Z",
+      "viewCount": 1420,
+      "createdAt": "2025-02-01T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:36.501Z"
+    },
+    {
+      "id": "blog-02",
+      "title": "Mastering Enterprise Linux: Storage Management, Systemd Units & SELinux",
+      "slug": "mastering-enterprise-linux-storage-systemd-selinux",
+      "excerpt": "A comprehensive engineering guide to architecting hardened Linux servers and storage pools in mission-critical environments.",
+      "contentMarkdown": "### Enterprise Linux Storage Architecture\nIn modern Linux systems administration, predictable persistent storage mounting is critical. Always rely on filesystem UUIDs:\n\n```bash\n# 1. Identify partition UUID\nblkid /dev/vg_prod/lv_data\n\n# 2. Add hardened mount options in /etc/fstab\nUUID=3f92b704-58a1-41db-8c70-ea8d3b519001 /data/db xfs defaults,nodev,noexec 0 0\n\n# 3. Verify mount without rebooting\nmount -a\n```\n\n#### SELinux Policy Hardening:\nNever disable SELinux in production. Use `audit2allow` and `semanage` to craft precise access rules.",
+      "categoryId": "cat-linux",
+      "coverImageUrl": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1000&q=80",
+      "readTimeMinutes": 9,
+      "tags": [
+        "Linux",
+        "Storage",
+        "Systemd",
+        "SELinux",
+        "Sysadmin"
+      ],
+      "isPublished": true,
+      "publishedAt": "2025-01-25T00:00:00.000Z",
+      "viewCount": 2180,
+      "createdAt": "2025-01-25T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:37.519Z"
+    },
+    {
+      "id": "blog-03",
+      "title": "Zero-Trust Kubernetes: Replacing kube-proxy with Cilium eBPF & WireGuard",
+      "slug": "zero-trust-k8s-cilium-ebpf-wireguard",
+      "excerpt": "Exploring how eBPF-based networking can reduce proxy overhead and improve observability in Kubernetes environments.",
+      "contentMarkdown": "### Eliminating iptables Overhead with eBPF\nTraditional Kubernetes `kube-proxy` uses linear `iptables` rule lookups, resulting in $O(N)$ packet processing overhead at scale.\n\n**Cilium eBPF** replaces this with $O(1)$ BPF hash map lookups directly in the Linux kernel network stack, bypassing conntrack tables.",
+      "categoryId": "cat-devops",
+      "coverImageUrl": "https://images.unsplash.com/photo-1618401471353-b98afee0b2eb?auto=format&fit=crop&w=1000&q=80",
+      "readTimeMinutes": 8,
+      "tags": [
+        "DevOps",
+        "Kubernetes",
+        "Cilium",
+        "eBPF",
+        "Terraform"
+      ],
+      "isPublished": true,
+      "publishedAt": "2025-01-10T00:00:00.000Z",
+      "viewCount": 3840,
+      "createdAt": "2025-01-10T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:37.519Z"
+    }
+  ],
+  "certifications": [
+    {
+      "id": "cert-networking",
+      "title": "CCNA 200-301 Preparation Track",
+      "code": "CCNA Study Roadmap",
+      "issuer": "Cisco Networking Systems",
+      "credentialId": "CCNA COMPLETION: 70%",
+      "verificationUrl": "https://www.cisco.com",
+      "badgeIcon": "Network",
+      "issueDate": "2025-01-01",
+      "expiryDate": "2026-12-31",
+      "categoryId": "cat-networking",
+      "skillsValidated": [
+        "Enterprise IPv4/IPv6 Subnetting (Completed)",
+        "OSPF & Static Routing Protocols (Completed)",
+        "802.1Q VLANs & Multi-Layer Inter-VLAN Routing (Completed)",
+        "HSRP / VRRP Gateway High-Availability Failover (Completed)",
+        "Cisco IOS CLI & Packet Tracer Topology Simulations (Completed)",
+        "Access Control Lists (ACLs) & Port Security (In Progress)"
+      ],
+      "syllabusBreakdown": [
+        {
+          "domain": "Network Fundamentals & IP Subnetting",
+          "percentage": 90,
+          "score": "Completed (90%)"
+        },
+        {
+          "domain": "Network Access & VLAN Trunking",
+          "percentage": 85,
+          "score": "Completed (85%)"
+        },
+        {
+          "domain": "IP Connectivity (OSPF Area 0 & Static Routing)",
+          "percentage": 80,
+          "score": "Completed (80%)"
+        },
+        {
+          "domain": "IP Services & Gateway Redundancy (HSRP/DHCP)",
+          "percentage": 65,
+          "score": "In Progress (65%)"
+        },
+        {
+          "domain": "Security Fundamentals & Automation",
+          "percentage": 40,
+          "score": "In Progress (40%)"
+        }
+      ],
+      "isFeatured": true,
+      "sortOrder": 1,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:37.519Z"
+    },
+    {
+      "id": "cert-linux",
+      "title": "RHCSA EX200 Preparation Track",
+      "code": "RHCSA Study Roadmap",
+      "issuer": "Red Hat Enterprise Linux",
+      "credentialId": "RHCSA COMPLETION: 50%",
+      "verificationUrl": "https://access.redhat.com",
+      "badgeIcon": "Terminal",
+      "issueDate": "2025-01-01",
+      "expiryDate": "2026-12-31",
+      "categoryId": "cat-linux",
+      "skillsValidated": [
+        "Essential Linux Commands & Bash Scripting (Completed)",
+        "User & Group Management with Sudo Privileges (Completed)",
+        "Systemd Unit Management & Boot Targets (Completed)",
+        "LVM Storage Provisioning, XFS & /etc/fstab (In Progress)",
+        "SELinux Contexts & Enforcing Modes (In Progress)",
+        "Firewalld Network Zones & Rich Rules (In Progress)"
+      ],
+      "syllabusBreakdown": [
+        {
+          "domain": "Understand & Use Essential Linux Tools",
+          "percentage": 85,
+          "score": "Completed (85%)"
+        },
+        {
+          "domain": "Operate Running Systems & Services",
+          "percentage": 70,
+          "score": "Completed (70%)"
+        },
+        {
+          "domain": "Configure Local Storage & LVM Filesystems",
+          "percentage": 50,
+          "score": "In Progress (50%)"
+        },
+        {
+          "domain": "Manage Host Security & SELinux Enforcement",
+          "percentage": 40,
+          "score": "In Progress (40%)"
+        },
+        {
+          "domain": "Basic Container Management (Podman)",
+          "percentage": 30,
+          "score": "In Progress (30%)"
+        }
+      ],
+      "isFeatured": true,
+      "sortOrder": 2,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:37.519Z"
+    },
+    {
+      "id": "cert-devops",
+      "title": "Cloud-Native Kubernetes & DevOps Track",
+      "code": "DevOps & GitOps Roadmap",
+      "issuer": "Cloud-Native Learning Foundation",
+      "credentialId": "DevOps Roadmap: Active Labs",
+      "verificationUrl": "https://www.cncf.io",
+      "badgeIcon": "Boxes",
+      "issueDate": "2025-01-01",
+      "expiryDate": "2026-12-31",
+      "categoryId": "cat-devops",
+      "skillsValidated": [
+        "Docker & Podman Containerization (Completed)",
+        "Kubernetes Manifests & Pod Orchestration (In Progress)",
+        "Cilium eBPF CNI & Mesh Networking (In Progress)",
+        "ArgoCD GitOps Declarative Delivery Pipelines (In Progress)",
+        "Terraform Infrastructure-as-Code Basics (In Progress)"
+      ],
+      "syllabusBreakdown": [
+        {
+          "domain": "OCI Containers & Dockerfile Optimization",
+          "percentage": 80,
+          "score": "Completed (80%)"
+        },
+        {
+          "domain": "Kubernetes Workloads & Services",
+          "percentage": 60,
+          "score": "In Progress (60%)"
+        },
+        {
+          "domain": "ArgoCD GitOps Continuous Delivery",
+          "percentage": 55,
+          "score": "In Progress (55%)"
+        },
+        {
+          "domain": "Terraform IaC & Cloud State Provisioning",
+          "percentage": 50,
+          "score": "In Progress (50%)"
+        }
+      ],
+      "isFeatured": true,
+      "sortOrder": 3,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2026-08-14T18:34:38.428Z"
+    }
+  ],
+  "skills": [
+    {
+      "id": "sk-1",
+      "name": "Enterprise Linux Administration",
+      "level": "Expert",
+      "proficiencyPercent": 96,
+      "yearsOfExperience": 4,
+      "categoryId": "cat-linux",
+      "terminalSnippet": "systemctl status custom.service && journalctl -xe",
+      "sortOrder": 1,
+      "createdAt": "2026-08-14T18:34:38.428Z",
+      "updatedAt": "2026-08-14T18:34:38.428Z"
+    },
+    {
+      "id": "sk-2",
+      "name": "Cisco Routing & Packet Tracer Labs",
+      "level": "Expert",
+      "proficiencyPercent": 95,
+      "yearsOfExperience": 4,
+      "categoryId": "cat-networking",
+      "terminalSnippet": "show ip bgp summary && show standby brief",
+      "sortOrder": 2,
+      "createdAt": "2026-08-14T18:34:38.428Z",
+      "updatedAt": "2026-08-14T18:34:38.428Z"
+    },
+    {
+      "id": "sk-3",
+      "name": "LVM Storage & SELinux Hardening",
+      "level": "Expert",
+      "proficiencyPercent": 94,
+      "yearsOfExperience": 4,
+      "categoryId": "cat-linux",
+      "terminalSnippet": "semanage fcontext -a -t httpd_sys_content_t \"/srv(/.*)?\"",
+      "sortOrder": 3,
+      "createdAt": "2026-08-14T18:34:38.428Z",
+      "updatedAt": "2026-08-14T18:34:38.428Z"
+    },
+    {
+      "id": "sk-4",
+      "name": "BGP & OSPF Dynamic Routing",
+      "level": "Expert",
+      "proficiencyPercent": 95,
+      "yearsOfExperience": 4,
+      "categoryId": "cat-networking",
+      "terminalSnippet": "router ospf 1 -> network 10.10.0.0 0.0.0.255 area 0",
+      "sortOrder": 4,
+      "createdAt": "2026-08-14T18:34:38.428Z",
+      "updatedAt": "2026-08-14T18:34:38.428Z"
+    },
+    {
+      "id": "sk-5",
+      "name": "Kubernetes & Cilium eBPF Mesh",
+      "level": "Expert",
+      "proficiencyPercent": 93,
+      "yearsOfExperience": 3,
+      "categoryId": "cat-devops",
+      "terminalSnippet": "cilium status --wait && kubectl get pods -A",
+      "sortOrder": 5,
+      "createdAt": "2026-08-14T18:34:38.428Z",
+      "updatedAt": "2026-08-14T18:34:38.428Z"
+    },
+    {
+      "id": "sk-6",
+      "name": "Terraform & Infrastructure-as-Code",
+      "level": "Advanced",
+      "proficiencyPercent": 92,
+      "yearsOfExperience": 3,
+      "categoryId": "cat-devops",
+      "terminalSnippet": "terraform plan -out=tfplan && terraform apply tfplan",
+      "sortOrder": 6,
+      "createdAt": "2026-08-14T18:34:38.428Z",
+      "updatedAt": "2026-08-14T18:34:38.428Z"
+    },
+    {
+      "id": "sk-7",
+      "name": "ArgoCD & GitOps CI/CD Pipelines",
+      "level": "Advanced",
+      "proficiencyPercent": 90,
+      "yearsOfExperience": 3,
+      "categoryId": "cat-devops",
+      "terminalSnippet": "argocd app sync platform-lab --prune",
+      "sortOrder": 7,
+      "createdAt": "2026-08-14T18:34:38.428Z",
+      "updatedAt": "2026-08-14T18:34:38.428Z"
+    }
+  ]
+} as SeedSnapshot;
+
+const legacyProjectSlugs: Record<string, string> = {
+  'cisco-enterprise-wan-bgp-hsrp': 'enterprise-wan-routing-lab',
+  'rhel-9-rhcsa-hardening-storage-selinux': 'rhel9-systems-lab',
+  'cloud-native-gitops-k8s-cilium-terraform': 'cloud-native-gitops-lab',
+};
+
+const projectStories: Record<
+  string,
+  { mission: string; architectureSummary: string; whatIBuilt: string }
+> = {
+  'cisco-enterprise-wan-bgp-hsrp': {
+    mission:
+      'Engineer and validate an enterprise-style, dual-homed WAN edge topology connecting headquarters to redundant Tier-1 transit providers (AS 100 / AS 200). Guarantee deterministic inbound/outbound path selection, gateway tracking, and zero lateral pivot between segmented departmental VLANs.',
+    architectureSummary: 'Dual-homed BGP Edge, OSPF Core, Multi-VLAN distribution.',
+    whatIBuilt: 'Built an enterprise-style lab architecture in Cisco Packet Tracer.',
+  },
+  'rhel-9-rhcsa-hardening-storage-selinux': {
+    mission:
+      'Deploy, harden, and audit an enterprise Red Hat Enterprise Linux 9.4 compute node in a security-hardening lab covering SELinux, firewalld, permissions, and benchmark-oriented configuration practices. Deliver immutable storage volumes via thin LVM, full targeted SELinux policy confinement, and automated rootless container lifecycle via systemd Quadlets.',
+    architectureSummary: 'Hardened Linux environment with LVM, systemd, and SELinux.',
+    whatIBuilt:
+      'Engineered a security-hardening lab covering SELinux, firewalld, permissions, and benchmark-oriented configuration practices.',
+  },
+  'cloud-native-gitops-k8s-cilium-terraform': {
+    mission:
+      'Architect a self-healing GitOps delivery workflow and cloud-native Kubernetes cluster with Cilium eBPF network security and modular Terraform IaC. Eliminate manual cluster drift, enforce kernel-level L7 security policies, and achieve automated canary rollouts.',
+    architectureSummary: 'Kubernetes cluster with ArgoCD and Cilium.',
+    whatIBuilt: 'Provisioned a GitOps pipeline and Kubernetes environment.',
+  },
+};
+
+const labIdentities: Partial<
+  Record<
+    NonNullable<ApiProject['formatType']>,
+    { slug: string; title: string; kind: LabKind; summary: string }
+  >
+> = {
+  cisco_pkt_lab: {
+    slug: 'cisco-wan-topology',
+    title: 'Cisco WAN Topology',
+    kind: LabKind.NETWORK_TOPOLOGY,
+    summary: 'Interactive network topology simulation.',
+  },
+  rhcsa_matrix: {
+    slug: 'rhel9-hardening-environment',
+    title: 'RHEL9 Hardening Environment',
+    kind: LabKind.LINUX_SYSTEM,
+    summary: 'Linux system hardening and auditing.',
+  },
+  devops_pipeline: {
+    slug: 'gitops-k8s-cluster',
+    title: 'GitOps K8s Cluster',
+    kind: LabKind.DEVOPS_PIPELINE,
+    summary: 'ArgoCD and Kubernetes pipeline visualization.',
+  },
+};
+
+const runbooks: Record<
+  string,
+  Array<{ order: number; title: string; description: string }>
+> = {
+  'cisco-enterprise-wan-bgp-hsrp': [
+    { order: 1, title: 'Inspect topology', description: 'Review the dual-homed WAN edge topology connecting headquarters.' },
+    { order: 2, title: 'Select edge router', description: 'Identify the active AS 100 edge router.' },
+    { order: 3, title: 'Review routing state', description: 'Verify OSPF Area 0 and BGP peering.' },
+    { order: 4, title: 'Trace packet flow', description: 'Test deterministic inbound and outbound path selection.' },
+  ],
+  'rhel-9-rhcsa-hardening-storage-selinux': [
+    { order: 1, title: 'Inspect host', description: 'Examine the RHEL 9.4 compute node baseline.' },
+    { order: 2, title: 'Select system area', description: 'Review LVM thin pools and storage volumes.' },
+    { order: 3, title: 'Review configuration', description: 'Check SELinux enforcement and firewalld rules.' },
+    { order: 4, title: 'Verify lab state', description: 'Ensure systemd sandboxed units are healthy.' },
+  ],
+  'cloud-native-gitops-k8s-cilium-terraform': [
+    { order: 1, title: 'Follow pipeline', description: 'Trace the self-healing GitOps delivery workflow.' },
+    { order: 2, title: 'Inspect stage', description: 'Review ArgoCD deployment metrics.' },
+    { order: 3, title: 'Review artifact/state', description: 'Examine Cilium eBPF network security policies.' },
+    { order: 4, title: 'Verify runtime representation', description: 'Ensure automated canary rollouts succeeded.' },
+  ],
+};
+
+function categoryDomain(slug: string): Domain {
+  switch (slug) {
+    case 'networking':
+      return Domain.NETWORKING;
+    case 'linux':
+      return Domain.LINUX;
+    case 'devops':
+      return Domain.DEVOPS;
+    default:
+      throw new Error(`Unsupported seed category slug: ${slug}`);
+  }
+}
+
+function lifecycleStatus(status: ApiProject['status']): ProjectLifecycleStatus {
+  switch (status) {
+    case 'COMPLETED':
+      return ProjectLifecycleStatus.COMPLETED;
+    case 'IN_PROGRESS':
+      return ProjectLifecycleStatus.IN_PROGRESS;
+    case 'ARCHIVED':
+      return ProjectLifecycleStatus.ARCHIVED;
+    case 'PLANNED':
+      return ProjectLifecycleStatus.PLANNED;
+    default:
+      throw new Error(`Unsupported seed project status: ${String(status)}`);
+  }
+}
+
+function publicationStatus(status: ProjectLifecycleStatus): ContentStatus {
+  switch (status) {
+    case ProjectLifecycleStatus.COMPLETED:
+      return ContentStatus.PUBLISHED;
+    case ProjectLifecycleStatus.IN_PROGRESS:
+    case ProjectLifecycleStatus.PLANNED:
+      return ContentStatus.DRAFT;
+    case ProjectLifecycleStatus.ARCHIVED:
+      return ContentStatus.ARCHIVED;
+  }
+}
+
+function projectFormat(format: ApiProject['formatType']): ProjectFormatType {
+  switch (format ?? 'standard') {
+    case 'cisco_pkt_lab':
+      return ProjectFormatType.CISCO_PKT_LAB;
+    case 'rhcsa_matrix':
+      return ProjectFormatType.RHCSA_MATRIX;
+    case 'devops_pipeline':
+      return ProjectFormatType.DEVOPS_PIPELINE;
+    case 'standard':
+      return ProjectFormatType.STANDARD;
+    default:
+      throw new Error(`Unsupported seed project format: ${String(format)}`);
+  }
+}
+
+function jsonValue(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+}
+
+function projectMetadata(project: ApiProject): Prisma.InputJsonValue | undefined {
+  const metadata =
+    project.formatType === 'cisco_pkt_lab'
+      ? project.ciscoLabData
+      : project.formatType === 'rhcsa_matrix'
+        ? project.rhcsaMatrixData
+        : project.formatType === 'devops_pipeline'
+          ? project.devopsPipelineData
+          : undefined;
+  return metadata === undefined ? undefined : jsonValue(metadata);
+}
+
+async function upsertCategory(seed: ApiCategory) {
+  const domain = categoryDomain(seed.slug);
+  return prisma.category.upsert({
+    where: { slug: seed.slug },
+    update: {
+      name: seed.name,
+      tagline: seed.tagline,
+      description: seed.description,
+      icon: seed.icon,
+      accentColor: seed.accentColor,
+      terminalTheme: seed.terminalTheme,
+      sortOrder: seed.sortOrder,
+      domain,
+      status: seed.isPublished ? ContentStatus.PUBLISHED : ContentStatus.DRAFT,
+    },
+    create: {
+      id: seed.id,
+      slug: seed.slug,
+      name: seed.name,
+      tagline: seed.tagline,
+      description: seed.description,
+      icon: seed.icon,
+      accentColor: seed.accentColor,
+      terminalTheme: seed.terminalTheme,
+      sortOrder: seed.sortOrder,
+      domain,
+      status: seed.isPublished ? ContentStatus.PUBLISHED : ContentStatus.DRAFT,
+      createdAt: new Date(seed.createdAt),
+    },
+  });
+}
+
+async function findProjectForReconciliation(slug: string) {
+  const canonical = await prisma.project.findUnique({ where: { slug } });
+  const legacySlug = legacyProjectSlugs[slug];
+  const legacy = legacySlug
+    ? await prisma.project.findUnique({ where: { slug: legacySlug } })
+    : null;
+
+  if (canonical && legacy && canonical.id !== legacy.id) {
+    throw new Error(
+      `Both canonical and legacy project slugs exist for ${slug}; refusing to delete or merge data`,
+    );
+  }
+
+  return canonical ?? legacy;
+}
+
+async function upsertProject(seed: ApiProject, categoryId: string, domain: Domain) {
+  const story = projectStories[seed.slug];
+  if (!story) throw new Error(`Missing story fields for seed project: ${seed.slug}`);
+
+  const lifecycle = lifecycleStatus(seed.status);
+  const publication = publicationStatus(lifecycle);
+  const data: Prisma.ProjectUncheckedUpdateInput = {
+    slug: seed.slug,
+    title: seed.title,
+    domain,
+    summary: seed.summary,
+    descriptionMarkdown: seed.descriptionMarkdown,
+    mission: story.mission,
+    architectureSummary: story.architectureSummary,
+    whatIBuilt: story.whatIBuilt,
+    status: publication,
+    lifecycleStatus: lifecycle,
+    formatType: projectFormat(seed.formatType),
+    featured: seed.isFeatured,
+    sortOrder: seed.sortOrder,
+    coverImageUrl: seed.coverImageUrl,
+    architectureSvg: seed.architectureSvg,
+    liveUrl: seed.liveUrl,
+    githubUrl: seed.githubUrl,
+    packetTracerFile: seed.packetTracerFile,
+    topologyConfigJson: seed.topologyConfigJson,
+    metrics: seed.metrics ? jsonValue(seed.metrics) : Prisma.DbNull,
+    technologies: seed.devopsStack,
+    tags: seed.tags,
+    categoryId,
+    publishedAt: publication === ContentStatus.PUBLISHED ? new Date(seed.createdAt) : null,
+  };
+
+  const existing = await findProjectForReconciliation(seed.slug);
+  if (existing) {
+    return prisma.project.update({ where: { id: existing.id }, data });
+  }
+
+  return prisma.project.create({
+    data: {
+      id: seed.id,
+      ...(data as Prisma.ProjectUncheckedCreateInput),
+      createdAt: new Date(seed.createdAt),
+    },
+  });
+}
+
+async function upsertCompatibilityLab(
+  project: ApiProject,
+  persisted: { id: string; domain: Domain },
+) {
+  const format = project.formatType ?? 'standard';
+  const identity = labIdentities[format];
+  if (!identity) return;
+
+  const metadata = projectMetadata(project);
+  if (!metadata) throw new Error(`Missing specialized payload for seed project: ${project.slug}`);
+
+  await prisma.lab.upsert({
+    where: { slug: identity.slug },
+    update: {
+      title: identity.title,
+      summary: identity.summary,
+      domain: persisted.domain,
+      kind: identity.kind,
+      status: LabStatus.READY,
+      projectId: persisted.id,
+      isInteractive: true,
+      metadata,
+    },
+    create: {
+      slug: identity.slug,
+      title: identity.title,
+      summary: identity.summary,
+      domain: persisted.domain,
+      kind: identity.kind,
+      status: LabStatus.READY,
+      projectId: persisted.id,
+      isInteractive: true,
+      metadata,
+    },
+  });
+}
+
+async function upsertRunbook(projectId: string, projectSlug: string) {
+  for (const step of runbooks[projectSlug] ?? []) {
+    const existing = await prisma.projectRunbookStep.findFirst({
+      where: { projectId, order: step.order },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (existing) {
+      await prisma.projectRunbookStep.update({
+        where: { id: existing.id },
+        data: { title: step.title, description: step.description, command: null },
+      });
+    } else {
+      await prisma.projectRunbookStep.create({ data: { projectId, ...step } });
+    }
+  }
+}
+
+async function upsertLearningTracks() {
+  const tracks = [
+    {
+      slug: 'ccna-200-301',
+      title: 'Cisco CCNA (200-301)',
+      domain: Domain.NETWORKING,
+      description: 'Routing and switching fundamentals.',
+      totalObjectives: 10,
+      completedObjectives: 8,
+    },
+    {
+      slug: 'rhcsa-ex200',
+      title: 'Red Hat RHCSA (EX200)',
+      domain: Domain.LINUX,
+      description: 'Linux systems administration.',
+      totalObjectives: 15,
+      completedObjectives: 12,
+    },
+    {
+      slug: 'cloud-native-devops',
+      title: 'Cloud-Native Kubernetes & DevOps',
+      domain: Domain.DEVOPS,
+      description: 'Containers, pipelines, and infrastructure as code.',
+      totalObjectives: 12,
+      completedObjectives: 9,
+    },
+  ];
+
+  for (const track of tracks) {
+    await prisma.learningTrack.upsert({
+      where: { slug: track.slug },
+      update: { ...track, status: ContentStatus.PUBLISHED },
+      create: { ...track, status: ContentStatus.PUBLISHED },
+    });
+  }
+}
 
 async function main() {
   if (!process.env.DATABASE_URL) {
@@ -8,292 +1582,124 @@ async function main() {
     return;
   }
 
-  console.log('Starting seed...');
+  const categories = new Map<string, Awaited<ReturnType<typeof upsertCategory>>>();
+  for (const seed of seedSnapshot.categories) {
+    categories.set(seed.id, await upsertCategory(seed));
+  }
 
-  // Categories
-  const catNetworking = await prisma.category.upsert({
-    where: { slug: 'networking' },
-    update: {},
-    create: {
-      name: 'Networking',
-      slug: 'networking',
-      domain: Domain.NETWORKING,
-      description: 'Enterprise networking projects and labs.'
+  let projectCount = 0;
+  for (const seed of seedSnapshot.projects) {
+    const category = categories.get(seed.categoryId);
+    if (!category?.domain) {
+      throw new Error(`Missing category domain for seed project: ${seed.slug}`);
     }
-  });
 
-  const catLinux = await prisma.category.upsert({
-    where: { slug: 'linux' },
-    update: {},
-    create: {
-      name: 'Linux',
-      slug: 'linux',
-      domain: Domain.LINUX,
-      description: 'Linux systems administration and engineering.'
-    }
-  });
+    const project = await upsertProject(seed, category.id, category.domain);
+    await upsertCompatibilityLab(seed, project);
+    await upsertRunbook(project.id, seed.slug);
+    projectCount += 1;
+  }
 
-  const catDevops = await prisma.category.upsert({
-    where: { slug: 'devops' },
-    update: {},
-    create: {
-      name: 'DevOps',
-      slug: 'devops',
-      domain: Domain.DEVOPS,
-      description: 'DevOps, CI/CD, and Cloud-Native infrastructure.'
-    }
-  });
+  for (const seed of seedSnapshot.blogs) {
+    const category = categories.get(seed.categoryId);
+    if (!category) throw new Error(`Missing category for seed blog: ${seed.slug}`);
 
-  // Projects
-  const proj1 = await prisma.project.upsert({
-    where: { slug: 'enterprise-wan-routing-lab' },
-    update: {},
-    create: {
-      title: 'Enterprise WAN Architecture Lab',
-      slug: 'enterprise-wan-routing-lab',
-      domain: Domain.NETWORKING,
-      categoryId: catNetworking.id,
-      summary: 'Interactive Cisco .PKT sandbox lab with real-time XML topology parser, dual-homed eBGP uplink failover, OSPF Area 0 backbone, and HSRP gateway redundancy.',
-      mission: 'Engineer and validate an enterprise-style, dual-homed WAN edge topology connecting headquarters to redundant Tier-1 transit providers (AS 100 / AS 200). Guarantee deterministic inbound/outbound path selection, gateway tracking, and zero lateral pivot between segmented departmental VLANs.',
-      architectureSummary: 'Dual-homed BGP Edge, OSPF Core, Multi-VLAN distribution.',
-      whatIBuilt: 'Built an enterprise-style lab architecture in Cisco Packet Tracer.',
-      technologies: ['Cisco IOS-XE', 'Packet Tracer 8.2', 'BGP AS 65001', 'OSPF Area 0', 'HSRP', '802.1Q VLANs'],
-      tags: ['Cisco', 'CCNA', 'BGP', 'OSPF', 'HSRP', 'Packet-Tracer'],
-      featured: true,
-      publishedAt: new Date()
-    }
-  });
+    await prisma.blogPost.upsert({
+      where: { slug: seed.slug },
+      update: {
+        title: seed.title,
+        excerpt: seed.excerpt,
+        content: seed.contentMarkdown,
+        domain: category.domain,
+        categoryId: category.id,
+        coverImageUrl: seed.coverImageUrl,
+        readTimeMinutes: seed.readTimeMinutes,
+        tags: seed.tags,
+        status: seed.isPublished ? ContentStatus.PUBLISHED : ContentStatus.DRAFT,
+        publishedAt: new Date(seed.publishedAt),
+        viewCount: seed.viewCount,
+      },
+      create: {
+        id: seed.id,
+        slug: seed.slug,
+        title: seed.title,
+        excerpt: seed.excerpt,
+        content: seed.contentMarkdown,
+        domain: category.domain,
+        categoryId: category.id,
+        coverImageUrl: seed.coverImageUrl,
+        readTimeMinutes: seed.readTimeMinutes,
+        tags: seed.tags,
+        status: seed.isPublished ? ContentStatus.PUBLISHED : ContentStatus.DRAFT,
+        publishedAt: new Date(seed.publishedAt),
+        viewCount: seed.viewCount,
+        createdAt: new Date(seed.createdAt),
+      },
+    });
+  }
 
-  const proj2 = await prisma.project.upsert({
-    where: { slug: 'rhel9-systems-lab' },
-    update: {},
-    create: {
-      title: 'RHEL 9.4 Systems & Hardening',
-      slug: 'rhel9-systems-lab',
-      domain: Domain.LINUX,
-      categoryId: catLinux.id,
-      summary: 'Structural competency-based audit matrix matching official RHCSA EX200 objectives: LVM thin pools, SELinux enforcement, systemd sandbox units, and persistent UUID mounts.',
-      mission: 'Deploy, harden, and audit an enterprise Red Hat Enterprise Linux 9.4 compute node in a security-hardening lab covering SELinux, firewalld, permissions, and benchmark-oriented configuration practices. Deliver immutable storage volumes via thin LVM, full targeted SELinux policy confinement, and automated rootless container lifecycle via systemd Quadlets.',
-      architectureSummary: 'Hardened Linux environment with LVM, systemd, and SELinux.',
-      whatIBuilt: 'Engineered a security-hardening lab covering SELinux, firewalld, permissions, and benchmark-oriented configuration practices.',
-      technologies: ['RHEL 9', 'SELinux', 'LVM / XFS Storage', 'Systemd', 'Podman Containers', 'Firewalld', 'Chrony NTP'],
-      tags: ['Linux', 'Storage', 'Systemd', 'SELinux', 'Automation'],
-      featured: true,
-      publishedAt: new Date()
-    }
-  });
+  for (const seed of seedSnapshot.certifications) {
+    const category = categories.get(seed.categoryId);
+    if (!category) throw new Error(`Missing category for seed certification: ${seed.id}`);
 
-  const proj3 = await prisma.project.upsert({
-    where: { slug: 'cloud-native-gitops-lab' },
-    update: {},
-    create: {
-      title: 'GitOps & eBPF Kubernetes Lab',
-      slug: 'cloud-native-gitops-lab',
-      domain: Domain.DEVOPS,
-      categoryId: catDevops.id,
-      summary: 'A resilient hybrid Kubernetes platform engineered for high-throughput enterprise workloads and declarative zero-trust network policies.',
-      mission: 'Architect a self-healing GitOps delivery workflow and cloud-native Kubernetes cluster with Cilium eBPF network security and modular Terraform IaC. Eliminate manual cluster drift, enforce kernel-level L7 security policies, and achieve automated canary rollouts.',
-      architectureSummary: 'Kubernetes cluster with ArgoCD and Cilium.',
-      whatIBuilt: 'Provisioned a GitOps pipeline and Kubernetes environment.',
-      technologies: ['Kubernetes', 'Cilium eBPF', 'Terraform', 'ArgoCD', 'Helm', 'HashiCorp Vault', 'Prometheus'],
-      tags: ['DevOps', 'Kubernetes', 'GitOps', 'Terraform', 'eBPF', 'CI/CD'],
-      featured: true,
-      publishedAt: new Date()
-    }
-  });
+    const data = {
+      title: seed.title,
+      code: seed.code,
+      issuer: seed.issuer,
+      credentialId: seed.credentialId,
+      verificationUrl: seed.verificationUrl,
+      badgeIcon: seed.badgeIcon,
+      issueDate: new Date(seed.issueDate),
+      expiryDate: seed.expiryDate ? new Date(seed.expiryDate) : null,
+      categoryId: category.id,
+      skillsValidated: seed.skillsValidated,
+      syllabusBreakdown: seed.syllabusBreakdown
+        ? jsonValue(seed.syllabusBreakdown)
+        : Prisma.DbNull,
+      isFeatured: seed.isFeatured,
+      sortOrder: seed.sortOrder,
+    };
 
-  // Labs
-  await prisma.lab.upsert({
-    where: { slug: 'cisco-wan-topology' },
-    update: {},
-    create: {
-      title: 'Cisco WAN Topology',
-      slug: 'cisco-wan-topology',
-      domain: Domain.NETWORKING,
-      kind: LabKind.NETWORK_TOPOLOGY,
-      projectId: proj1.id,
-      summary: 'Interactive network topology simulation.'
-    }
-  });
+    await prisma.certification.upsert({
+      where: { id: seed.id },
+      update: data,
+      create: { id: seed.id, ...data, createdAt: new Date(seed.createdAt) },
+    });
+  }
 
-  await prisma.lab.upsert({
-    where: { slug: 'rhel9-hardening-environment' },
-    update: {},
-    create: {
-      title: 'RHEL9 Hardening Environment',
-      slug: 'rhel9-hardening-environment',
-      domain: Domain.LINUX,
-      kind: LabKind.LINUX_SYSTEM,
-      projectId: proj2.id,
-      summary: 'Linux system hardening and auditing.'
-    }
-  });
+  for (const seed of seedSnapshot.skills) {
+    const category = categories.get(seed.categoryId);
+    if (!category) throw new Error(`Missing category for seed skill: ${seed.id}`);
 
-  await prisma.lab.upsert({
-    where: { slug: 'gitops-k8s-cluster' },
-    update: {},
-    create: {
-      title: 'GitOps K8s Cluster',
-      slug: 'gitops-k8s-cluster',
-      domain: Domain.DEVOPS,
-      kind: LabKind.DEVOPS_PIPELINE,
-      projectId: proj3.id,
-      summary: 'ArgoCD and Kubernetes pipeline visualization.'
-    }
-  });
+    const data = {
+      name: seed.name,
+      level: seed.level,
+      proficiencyPercent: seed.proficiencyPercent,
+      yearsOfExperience: seed.yearsOfExperience,
+      categoryId: category.id,
+      iconName: seed.iconName,
+      terminalSnippet: seed.terminalSnippet,
+      sortOrder: seed.sortOrder,
+    };
 
-  // Learning Tracks
-  await prisma.learningTrack.upsert({
-    where: { slug: 'ccna-200-301' },
-    update: {},
-    create: {
-      title: 'Cisco CCNA (200-301)',
-      slug: 'ccna-200-301',
-      domain: Domain.NETWORKING,
-      description: 'Routing and switching fundamentals.',
-      totalObjectives: 10,
-      completedObjectives: 8
-    }
-  });
+    await prisma.skill.upsert({
+      where: { id: seed.id },
+      update: data,
+      create: { id: seed.id, ...data, createdAt: new Date(seed.createdAt) },
+    });
+  }
 
-  await prisma.learningTrack.upsert({
-    where: { slug: 'rhcsa-ex200' },
-    update: {},
-    create: {
-      title: 'Red Hat RHCSA (EX200)',
-      slug: 'rhcsa-ex200',
-      domain: Domain.LINUX,
-      description: 'Linux systems administration.',
-      totalObjectives: 15,
-      completedObjectives: 12
-    }
-  });
+  await upsertLearningTracks();
 
-  await prisma.learningTrack.upsert({
-    where: { slug: 'cloud-native-devops' },
-    update: {},
-    create: {
-      title: 'Cloud-Native Kubernetes & DevOps',
-      slug: 'cloud-native-devops',
-      domain: Domain.DEVOPS,
-      description: 'Containers, pipelines, and infrastructure as code.',
-      totalObjectives: 12,
-      completedObjectives: 9
-    }
-  });
-
-    // Runbook Steps
-  // Networking Project
-  await prisma.projectRunbookStep.deleteMany({});
-  
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj1.id,
-      order: 1,
-      title: 'Inspect topology',
-      description: 'Review the dual-homed WAN edge topology connecting headquarters.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj1.id,
-      order: 2,
-      title: 'Select edge router',
-      description: 'Identify the active AS 100 edge router.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj1.id,
-      order: 3,
-      title: 'Review routing state',
-      description: 'Verify OSPF Area 0 and BGP peering.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj1.id,
-      order: 4,
-      title: 'Trace packet flow',
-      description: 'Test deterministic inbound and outbound path selection.'
-    }
-  });
-
-  // Linux Project
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj2.id,
-      order: 1,
-      title: 'Inspect host',
-      description: 'Examine the RHEL 9.4 compute node baseline.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj2.id,
-      order: 2,
-      title: 'Select system area',
-      description: 'Review LVM thin pools and storage volumes.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj2.id,
-      order: 3,
-      title: 'Review configuration',
-      description: 'Check SELinux enforcement and firewalld rules.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj2.id,
-      order: 4,
-      title: 'Verify lab state',
-      description: 'Ensure systemd sandboxed units are healthy.'
-    }
-  });
-
-  // DevOps Project
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj3.id,
-      order: 1,
-      title: 'Follow pipeline',
-      description: 'Trace the self-healing GitOps delivery workflow.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj3.id,
-      order: 2,
-      title: 'Inspect stage',
-      description: 'Review ArgoCD deployment metrics.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj3.id,
-      order: 3,
-      title: 'Review artifact/state',
-      description: 'Examine Cilium eBPF network security policies.'
-    }
-  });
-  await prisma.projectRunbookStep.create({
-    data: {
-      projectId: proj3.id,
-      order: 4,
-      title: 'Verify runtime representation',
-      description: 'Ensure automated canary rollouts succeeded.'
-    }
-  });
-
-  console.log('Seed completed successfully.');
+  console.log(
+    `Seed completed: ${seedSnapshot.categories.length} categories, ${projectCount} projects, ${seedSnapshot.blogs.length} blogs, ${seedSnapshot.certifications.length} certifications, and ${seedSnapshot.skills.length} skills.`,
+  );
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
   })
   .finally(async () => {
     await prisma.$disconnect();

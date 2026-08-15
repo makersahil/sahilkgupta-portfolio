@@ -13,12 +13,12 @@ router.get('/blueprint', async (req, res) => {
       version: '2.4.0',
       stack: {
         frontend: 'React 19, TypeScript, Tailwind CSS, Motion (Framer Motion v12), Lucide Icons',
-        backend: 'Node.js 22 LTS, Express.js (Layered Clean Architecture), Tsx / esbuild',
-        database: 'PostgreSQL 16 with Prisma ORM 5.x (Type-safe migrations & relational constraints)',
-        authentication: 'Stateless JWT (HMAC-SHA256) via HttpOnly, SameSite=Lax Cookies & Bearer fallback',
-        networking: 'Cisco Packet Tracer simulation engine, BGP/OSPF route state parser',
-        sysadmin: 'Sandboxed Linux RHCSA CLI execution engine (Systemd, SELinux, Stratis, VDO)',
-        devops: 'GitOps CI/CD Matrix, Cilium eBPF CNI, Docker container optimization, Terraform IaC',
+        backend: 'Node.js, Express 4, TypeScript/tsx, esbuild',
+        database: 'PostgreSQL with Prisma ORM 7.x (migrations & relational constraints)',
+        authentication: 'Signed session JWT via HttpOnly, SameSite=Lax cookie with revocable PostgreSQL AuthSession validation; Bearer fallback for non-browser clients',
+        networking: 'Cisco-oriented topology explorer with representative packet/topology simulation',
+        sysadmin: 'RHEL systems workspace with representative CLI/system investigation surfaces',
+        devops: 'GitOps/Kubernetes/Terraform delivery workspace with representative runtime views',
       },
       layers: [
         {
@@ -27,7 +27,7 @@ router.get('/blueprint', async (req, res) => {
         },
         {
           name: 'Security & Gateway Layer',
-          description: 'Express JWT authentication middleware, HttpOnly cookie validation, rate limiting, and CORS/CSRF protection.',
+          description: 'Express session authentication with persisted user/session validation, role guards, HttpOnly cookie handling, and process-local failed-login throttling.',
         },
         {
           name: 'Controller & Route Layer',
@@ -35,7 +35,7 @@ router.get('/blueprint', async (req, res) => {
         },
         {
           name: 'Domain Service Layer',
-          description: 'Encapsulates business rules, terminal sandboxing, packet hopping algorithms, audit logging, and payload validation.',
+          description: 'Encapsulates content/authentication business rules, payload validation, and current representative terminal/network simulation behavior.',
         },
         {
           name: 'Persistence & Data Layer',

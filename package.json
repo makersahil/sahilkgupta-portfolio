@@ -16,7 +16,18 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:check": "tsx server/scripts/db-check.ts"
+    "db:check": "tsx server/scripts/db-check.ts",
+    "test:content:static": "tsx server/scripts/content-persistence-static-audit.ts",
+    "test:content:legacy": "tsx server/scripts/content-legacy-regression.ts",
+    "test:api-client": "tsx server/scripts/api-client-regression.ts",
+    "test:content:http": "tsx server/scripts/content-http-regression.ts",
+    "test:content:prisma": "tsx server/scripts/content-prisma-regression.ts",
+    "test:content:restart": "tsx server/scripts/content-restart-persistence.ts",
+    "test:content:smoke": "tsx server/scripts/content-persistence-smoke.ts",
+    "auth:bootstrap-admin": "tsx server/scripts/bootstrap-admin.ts",
+    "test:auth:static": "tsx server/scripts/auth-static-audit.ts",
+    "test:auth": "tsx server/scripts/auth-regression.ts",
+    "auth:cleanup-sessions": "tsx server/scripts/cleanup-auth-sessions.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

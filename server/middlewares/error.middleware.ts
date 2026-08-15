@@ -1,17 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
+import { normalizeApplicationError } from '../lib/errors.js';
 
-export function errorHandler(err: any, req: Request, res: Response, next: NextFunction): void {
-  console.error('[Portfolio Error Handler]', err);
+export function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
+  const applicationError = normalizeApplicationError(err);
+  const original = err as { name?: unknown; code?: unknown; message?: unknown; stack?: unknown } | null;
 
-  const statusCode = err.statusCode || err.status || 500;
-  const message = err.message || 'Internal Server Error';
+  console.error('[Portfolio Error Handler]', {
+    name: typeof original?.name === 'string' ? original.name : 'UnknownError',
+    code: typeof original?.code === 'string' ? original.code : applicationError.code,
+    message: applicationError.message,
+  });
 
-  res.status(statusCode).json({
+  res.status(applicationError.statusCode).json({
     success: false,
     error: {
-      message,
-      code: err.code || 'SERVER_ERROR',
-      ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+      message: applicationError.message,
+      code: applicationError.code,
+      ...(applicationError.details && { details: applicationError.details }),
     },
   });
 }

@@ -1,120 +1,104 @@
 import { Router } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { dbService } from '../services/db.service.js';
-import { authenticateToken, AuthenticatedRequest, getJwtSecret } from '../middlewares/auth.middleware.js';
+
+import {
+  AUTH_COOKIE_NAME,
+  signSessionToken,
+  verifySessionToken,
+} from '../lib/auth-token.js';
+import { UnauthorizedError } from '../lib/errors.js';
+import { asyncHandler } from '../middlewares/async-handler.js';
+import {
+  authenticateToken,
+  extractAuthToken,
+  type AuthenticatedRequest,
+} from '../middlewares/auth.middleware.js';
+import { loginRateLimiter } from '../security/login-rate-limiter.js';
+import { authService, normalizeAuthEmail } from '../services/auth/auth.service.js';
 
 const router = Router();
-const TOKEN_EXPIRY = '7d';
 
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    res.status(400).json({ success: false, message: 'Email and password are required' });
-    return;
-  }
-
-  let jwtSecret: string;
-  try {
-    jwtSecret = getJwtSecret();
-  } catch (err: any) {
-    res.status(500).json({
-      success: false,
-      message: 'Authentication is not configured in this production environment.',
-    });
-    return;
-  }
-
-  const normalizedEmail = email.trim().toLowerCase();
-  const configuredAdminEmail = (process.env.ADMIN_EMAIL || 'sahilkguptaprivate@gmail.com').trim().toLowerCase();
-  
-  let user = dbService.getUserByEmail(normalizedEmail);
-
-  // Check matching admin identity
-  if (!user && normalizedEmail === configuredAdminEmail) {
-    user = dbService.getUserByEmail('sahilkguptaprivate@gmail.com');
-  }
-
-  if (!user) {
-    res.status(401).json({ success: false, message: 'Invalid credentials. Access denied.' });
-    return;
-  }
-
-  const cleanPassword = password.trim();
-  const configuredAdminPassword = process.env.ADMIN_PASSWORD;
-
-  // Validate only against cryptographic hash or configured server environment secret
-  let isPasswordValid = false;
-  if (user.passwordHash && bcrypt.compareSync(cleanPassword, user.passwordHash)) {
-    isPasswordValid = true;
-  } else if (configuredAdminPassword && cleanPassword === configuredAdminPassword) {
-    isPasswordValid = true;
-  }
-
-  if (!isPasswordValid) {
-    res.status(401).json({ success: false, message: 'Invalid credentials. Access denied.' });
-    return;
-  }
-
-  // Update last login
-  dbService.updateUserLastLogin(user.id);
-
-  // Generate JWT token
-  const token = jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.fullName,
-    },
-    jwtSecret,
-    { expiresIn: TOKEN_EXPIRY }
-  );
-
-  // Set secure HttpOnly cookie
-  res.cookie('infra_auth_token', token, {
+function cookieOptions(expiresAt?: Date) {
+  return {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-  });
+    sameSite: 'lax' as const,
+    path: '/',
+    ...(expiresAt ? { expires: expiresAt } : {}),
+  };
+}
 
-  const { passwordHash: _, ...safeUser } = user as any;
+router.post(
+  '/login',
+  asyncHandler(async (req, res) => {
+    const rawEmail = typeof req.body?.email === 'string' ? req.body.email : '';
+    const normalizedEmail = normalizeAuthEmail(rawEmail);
+    loginRateLimiter.assertAllowed(req.ip, normalizedEmail);
 
-  res.json({
-    success: true,
-    message: 'Authentication successful',
-    token,
-    user: safeUser,
-  });
-});
+    try {
+      const result = await authService.login(req.body?.email, req.body?.password);
+      loginRateLimiter.clear(req.ip, normalizedEmail);
 
-// GET /api/auth/me
-router.get('/me', authenticateToken, async (req: AuthenticatedRequest, res) => {
-  if (!req.user) {
-    res.status(401).json({ success: false, message: 'Not authenticated' });
-    return;
-  }
+      const token = signSessionToken(result.user.id, result.session.id, result.session.expiresAt);
+      res.cookie(AUTH_COOKIE_NAME, token, cookieOptions(result.session.expiresAt));
+      res.json({
+        success: true,
+        message: 'Authentication successful',
+        user: result.user,
+      });
+    } catch (error) {
+      if (error instanceof UnauthorizedError) {
+        loginRateLimiter.recordFailure(req.ip, normalizedEmail);
+      }
+      throw error;
+    }
+  }),
+);
 
-  const user = dbService.getUserById(req.user.id);
-  if (!user) {
-    res.status(404).json({ success: false, message: 'User not found' });
-    return;
-  }
+router.get(
+  '/me',
+  authenticateToken,
+  asyncHandler(async (req: AuthenticatedRequest, res) => {
+    if (!req.user) {
+      throw new UnauthorizedError('Authentication required');
+    }
 
-  const { passwordHash: _, ...safeUser } = user as any;
-  res.json({
-    success: true,
-    user: safeUser,
-  });
-});
+    res.json({
+      success: true,
+      user: req.user,
+    });
+  }),
+);
 
-// POST /api/auth/logout
-router.post('/logout', async (req, res) => {
-  res.clearCookie('infra_auth_token');
-  res.json({ success: true, message: 'Logged out successfully' });
-});
+router.post(
+  '/logout',
+  asyncHandler(async (req, res) => {
+    const token = extractAuthToken(req);
+    let deferredError: unknown;
+
+    try {
+      if (token) {
+        try {
+          const payload = verifySessionToken(token);
+          await authService.logout(payload.sessionId);
+        } catch (error) {
+          // Invalid/expired sessions are already effectively logged out. Persistence/configuration
+          // errors are still surfaced after the browser cookie is cleared.
+          if (!(error instanceof UnauthorizedError)) {
+            deferredError = error;
+          }
+        }
+      }
+    } finally {
+      res.clearCookie(AUTH_COOKIE_NAME, cookieOptions());
+    }
+
+    if (deferredError) throw deferredError;
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  }),
+);
 
 export default router;

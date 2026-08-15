@@ -11,78 +11,322 @@ import {
   CiscoLabData,
 } from '../types.js';
 
+export type ApiErrorCode =
+  | 'NETWORK_ERROR'
+  | 'INVALID_JSON'
+  | 'HTTP_ERROR'
+  | 'API_ERROR'
+  | 'INVALID_PAYLOAD';
+
+interface ApiErrorOptions {
+  code: ApiErrorCode;
+  endpoint: string;
+  method: string;
+  status?: number;
+  serverCode?: string;
+  payload?: unknown;
+  cause?: unknown;
+}
+
+export class ApiError extends Error {
+  readonly code: ApiErrorCode;
+  readonly endpoint: string;
+  readonly method: string;
+  readonly status?: number;
+  readonly serverCode?: string;
+  readonly payload?: unknown;
+  readonly cause?: unknown;
+
+  constructor(message: string, options: ApiErrorOptions) {
+    super(message);
+    this.name = 'ApiError';
+    this.code = options.code;
+    this.endpoint = options.endpoint;
+    this.method = options.method;
+    this.status = options.status;
+    this.serverCode = options.serverCode;
+    this.payload = options.payload;
+    this.cause = options.cause;
+  }
+}
+
+interface ApiEnvelope<T = unknown> {
+  success: boolean;
+  data?: T;
+  message?: string;
+}
+
+interface AuthResponse {
+  success: boolean;
+  user: AuthUser;
+  message?: string;
+}
+
+interface RequestResult<T> {
+  payload: T;
+  status: number;
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const getApiMessage = (payload: unknown, fallback: string): string => {
+  if (isRecord(payload) && typeof payload.message === 'string' && payload.message.trim()) {
+    return payload.message;
+  }
+  if (
+    isRecord(payload) &&
+    isRecord(payload.error) &&
+    typeof payload.error.message === 'string' &&
+    payload.error.message.trim()
+  ) {
+    return payload.error.message;
+  }
+  return fallback;
+};
+
+const getServerCode = (payload: unknown): string | undefined => {
+  if (isRecord(payload) && isRecord(payload.error) && typeof payload.error.code === 'string') {
+    return payload.error.code;
+  }
+  return undefined;
+};
+
 class ApiClient {
   private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
+    return {
       'Content-Type': 'application/json',
     };
-    const token = localStorage.getItem('nexus_auth_token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  private async requestWithMeta<T>(endpoint: string, init: RequestInit = {}): Promise<RequestResult<T>> {
+    const method = init.method || 'GET';
+    let response: Response;
+
+    try {
+      response = await fetch(endpoint, {
+        credentials: 'same-origin',
+        ...init,
+      });
+    } catch (cause) {
+      throw new ApiError('Unable to reach the backend API.', {
+        code: 'NETWORK_ERROR',
+        endpoint,
+        method,
+        cause,
+      });
     }
-    return headers;
+
+    let rawBody: string;
+    try {
+      rawBody = await response.text();
+    } catch (cause) {
+      throw new ApiError('Unable to read the backend response.', {
+        code: 'INVALID_JSON',
+        endpoint,
+        method,
+        status: response.status,
+        cause,
+      });
+    }
+
+    let payload: unknown;
+    try {
+      payload = rawBody.trim() ? JSON.parse(rawBody) : null;
+    } catch (cause) {
+      throw new ApiError('The backend returned an invalid JSON response.', {
+        code: 'INVALID_JSON',
+        endpoint,
+        method,
+        status: response.status,
+        payload: rawBody.slice(0, 240),
+        cause,
+      });
+    }
+
+    if (!response.ok) {
+      throw new ApiError(
+        getApiMessage(payload, `API request failed with status ${response.status}.`),
+        {
+          code: 'HTTP_ERROR',
+          endpoint,
+          method,
+          status: response.status,
+          serverCode: getServerCode(payload),
+          payload,
+        }
+      );
+    }
+
+    if (isRecord(payload) && payload.success === false) {
+      throw new ApiError(getApiMessage(payload, 'The backend rejected the request.'), {
+        code: 'API_ERROR',
+        endpoint,
+        method,
+        status: response.status,
+        serverCode: getServerCode(payload),
+        payload,
+      });
+    }
+
+    if (payload === null) {
+      throw new ApiError('The backend returned an empty response.', {
+        code: 'INVALID_PAYLOAD',
+        endpoint,
+        method,
+        status: response.status,
+      });
+    }
+
+    return { payload: payload as T, status: response.status };
+  }
+
+  private async request<T>(endpoint: string, init: RequestInit = {}): Promise<T> {
+    const result = await this.requestWithMeta<T>(endpoint, init);
+    return result.payload;
+  }
+
+  private invalidPayload(
+    endpoint: string,
+    payload: unknown,
+    message: string,
+    method = 'GET',
+    status?: number,
+  ): never {
+    throw new ApiError(message, {
+      code: 'INVALID_PAYLOAD',
+      endpoint,
+      method,
+      status,
+      payload,
+    });
+  }
+
+  private async requestEnvelopeWithMeta<T>(
+    endpoint: string,
+    init: RequestInit = {},
+  ): Promise<RequestResult<ApiEnvelope<T>>> {
+    const result = await this.requestWithMeta<ApiEnvelope<T>>(endpoint, init);
+    const { payload, status } = result;
+    if (!isRecord(payload) || payload.success !== true) {
+      return this.invalidPayload(
+        endpoint,
+        payload,
+        'The backend returned an invalid response envelope.',
+        init.method || 'GET',
+        status,
+      );
+    }
+    return { payload: payload as unknown as ApiEnvelope<T>, status };
+  }
+
+  private async requestEnvelope<T>(endpoint: string, init: RequestInit = {}): Promise<ApiEnvelope<T>> {
+    const result = await this.requestEnvelopeWithMeta<T>(endpoint, init);
+    return result.payload;
+  }
+
+  private async requestDataWithMeta<T>(
+    endpoint: string,
+    init: RequestInit = {},
+  ): Promise<RequestResult<T>> {
+    const { payload: envelope, status } = await this.requestEnvelopeWithMeta<T>(endpoint, init);
+    if (
+      !Object.prototype.hasOwnProperty.call(envelope, 'data') ||
+      envelope.data === undefined ||
+      envelope.data === null
+    ) {
+      return this.invalidPayload(
+        endpoint,
+        envelope,
+        'The backend response did not include data.',
+        init.method || 'GET',
+        status,
+      );
+    }
+    return { payload: envelope.data as T, status };
+  }
+
+  private async requestData<T>(endpoint: string, init: RequestInit = {}): Promise<T> {
+    const result = await this.requestDataWithMeta<T>(endpoint, init);
+    return result.payload;
+  }
+
+  private async requestArray<T>(endpoint: string, init: RequestInit = {}): Promise<T[]> {
+    const { payload: data, status } = await this.requestDataWithMeta<unknown>(endpoint, init);
+    if (!Array.isArray(data)) {
+      return this.invalidPayload(
+        endpoint,
+        data,
+        'The backend returned a non-array collection.',
+        init.method || 'GET',
+        status,
+      );
+    }
+    return data as T[];
   }
 
   // Auth
-  async login(email: string, password: string): Promise<{ success: boolean; token: string; user: AuthUser; message?: string }> {
-    const res = await fetch('/api/auth/login', {
+  async login(email: string, password: string): Promise<AuthResponse> {
+    const endpoint = '/api/auth/login';
+    const { payload, status } = await this.requestWithMeta<AuthResponse>(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
-    const data = await res.json();
-    if (data.token) {
-      localStorage.setItem('nexus_auth_token', data.token);
+
+    if (
+      !isRecord(payload) ||
+      payload.success !== true ||
+      !isRecord(payload.user)
+    ) {
+      return this.invalidPayload(endpoint, payload, 'The authentication response was incomplete.', 'POST', status);
     }
-    return data;
+
+    return payload as unknown as AuthResponse;
   }
 
   async getMe(): Promise<{ success: boolean; user?: AuthUser }> {
-    const res = await fetch('/api/auth/me', {
+    const endpoint = '/api/auth/me';
+    const { payload, status } = await this.requestWithMeta<{ success: boolean; user?: AuthUser }>(endpoint, {
       headers: this.getHeaders(),
     });
-    return res.json();
+    if (!isRecord(payload) || payload.success !== true || !isRecord(payload.user)) {
+      return this.invalidPayload(endpoint, payload, 'The session response was incomplete.', 'GET', status);
+    }
+    return payload as { success: boolean; user: AuthUser };
   }
 
   async logout(): Promise<void> {
-    localStorage.removeItem('nexus_auth_token');
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await this.requestEnvelope('/api/auth/logout', { method: 'POST' });
   }
 
   // Categories
   async getCategories(): Promise<Category[]> {
-    const res = await fetch('/api/categories');
-    const json = await res.json();
-    return json.data || [];
+    return this.requestArray<Category>('/api/categories');
   }
 
   async createCategory(cat: Partial<Category>): Promise<Category> {
-    const res = await fetch('/api/categories', {
+    return this.requestData<Category>('/api/categories', {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(cat),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async updateCategory(id: string, cat: Partial<Category>): Promise<Category> {
-    const res = await fetch(`/api/categories/${id}`, {
+    return this.requestData<Category>(`/api/categories/${id}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(cat),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async deleteCategory(id: string): Promise<boolean> {
-    const res = await fetch(`/api/categories/${id}`, {
+    await this.requestEnvelope(`/api/categories/${id}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
-    const json = await res.json();
-    return json.success;
+    return true;
   }
 
   // Projects
@@ -90,54 +334,55 @@ class ApiClient {
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
     if (tag) params.append('tag', tag);
-    const res = await fetch(`/api/projects?${params.toString()}`);
-    const json = await res.json();
-    return json.data || [];
+    return this.requestArray<Project>(`/api/projects?${params.toString()}`);
   }
 
   async getProjectBySlug(slug: string): Promise<Project | null> {
-    const res = await fetch(`/api/projects/${slug}`);
-    const json = await res.json();
-    return json.data || null;
+    return this.requestData<Project>(`/api/projects/${slug}`);
   }
 
   async createProject(project: Partial<Project>): Promise<Project> {
-    const res = await fetch('/api/projects', {
+    return this.requestData<Project>('/api/projects', {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(project),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async updateProject(id: string, project: Partial<Project>): Promise<Project> {
-    const res = await fetch(`/api/projects/${id}`, {
+    return this.requestData<Project>(`/api/projects/${id}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(project),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    const res = await fetch(`/api/projects/${id}`, {
+    await this.requestEnvelope(`/api/projects/${id}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
-    const json = await res.json();
-    return json.success;
+    return true;
   }
 
   // Cisco Packet Tracer (.PKT) Upload and Parser
   async uploadPktFile(fileName: string, rawXml?: string, fileSize?: number, projectId?: string): Promise<{ success: boolean; data: CiscoLabData; message: string }> {
-    const res = await fetch('/api/network/upload-pkt', {
+    const endpoint = '/api/network/upload-pkt';
+    const { payload, status } = await this.requestEnvelopeWithMeta<CiscoLabData>(endpoint, {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify({ fileName, rawXml, fileSize, projectId }),
     });
-    return res.json();
+    if (!payload.data) {
+      return this.invalidPayload(
+        endpoint,
+        payload,
+        'The Packet Tracer response did not include parsed lab data.',
+        'POST',
+        status,
+      );
+    }
+    return payload as { success: boolean; data: CiscoLabData; message: string };
   }
 
   // Blogs
@@ -145,177 +390,150 @@ class ApiClient {
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
     if (tag) params.append('tag', tag);
-    const res = await fetch(`/api/blogs?${params.toString()}`);
-    const json = await res.json();
-    return json.data || [];
+    return this.requestArray<BlogPost>(`/api/blogs?${params.toString()}`);
   }
 
   async createBlog(blog: Partial<BlogPost>): Promise<BlogPost> {
-    const res = await fetch('/api/blogs', {
+    return this.requestData<BlogPost>('/api/blogs', {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(blog),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async updateBlog(id: string, blog: Partial<BlogPost>): Promise<BlogPost> {
-    const res = await fetch(`/api/blogs/${id}`, {
+    return this.requestData<BlogPost>(`/api/blogs/${id}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(blog),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async deleteBlog(id: string): Promise<boolean> {
-    const res = await fetch(`/api/blogs/${id}`, {
+    await this.requestEnvelope(`/api/blogs/${id}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
-    const json = await res.json();
-    return json.success;
+    return true;
   }
 
   // Certifications
   async getCertifications(categoryId?: string): Promise<Certification[]> {
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
-    const res = await fetch(`/api/certifications?${params.toString()}`);
-    const json = await res.json();
-    return json.data || [];
+    return this.requestArray<Certification>(`/api/certifications?${params.toString()}`);
   }
 
   async createCertification(cert: Partial<Certification>): Promise<Certification> {
-    const res = await fetch('/api/certifications', {
+    return this.requestData<Certification>('/api/certifications', {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(cert),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async updateCertification(id: string, cert: Partial<Certification>): Promise<Certification> {
-    const res = await fetch(`/api/certifications/${id}`, {
+    return this.requestData<Certification>(`/api/certifications/${id}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(cert),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async deleteCertification(id: string): Promise<boolean> {
-    const res = await fetch(`/api/certifications/${id}`, {
+    await this.requestEnvelope(`/api/certifications/${id}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
-    const json = await res.json();
-    return json.success;
+    return true;
   }
 
   // Skills
   async getSkills(categoryId?: string): Promise<Skill[]> {
     const params = new URLSearchParams();
     if (categoryId) params.append('categoryId', categoryId);
-    const res = await fetch(`/api/skills?${params.toString()}`);
-    const json = await res.json();
-    return json.data || [];
+    return this.requestArray<Skill>(`/api/skills?${params.toString()}`);
   }
 
   async createSkill(skill: Partial<Skill>): Promise<Skill> {
-    const res = await fetch('/api/skills', {
+    return this.requestData<Skill>('/api/skills', {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(skill),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async updateSkill(id: string, skill: Partial<Skill>): Promise<Skill> {
-    const res = await fetch(`/api/skills/${id}`, {
+    return this.requestData<Skill>(`/api/skills/${id}`, {
       method: 'PUT',
       headers: this.getHeaders(),
       body: JSON.stringify(skill),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async deleteSkill(id: string): Promise<boolean> {
-    const res = await fetch(`/api/skills/${id}`, {
+    await this.requestEnvelope(`/api/skills/${id}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
-    const json = await res.json();
-    return json.success;
+    return true;
   }
 
   // Media
   async getMedia(): Promise<MediaAsset[]> {
-    const res = await fetch('/api/media');
-    const json = await res.json();
-    return json.data || [];
+    return this.requestArray<MediaAsset>('/api/media');
   }
 
   async uploadMedia(data: Partial<MediaAsset>): Promise<MediaAsset> {
-    const res = await fetch('/api/media/upload', {
+    return this.requestData<MediaAsset>('/api/media/upload', {
       method: 'POST',
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   async deleteMedia(id: string): Promise<boolean> {
-    const res = await fetch(`/api/media/${id}`, {
+    await this.requestEnvelope(`/api/media/${id}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
     });
-    const json = await res.json();
-    return json.success;
+    return true;
   }
 
   // Terminal Exec
   async execTerminal(command: string, category?: string): Promise<{ output: string; exitCode: number }> {
-    const res = await fetch('/api/terminal/exec', {
+    const endpoint = '/api/terminal/exec';
+    const { payload, status } = await this.requestWithMeta<{ output: string; exitCode: number }>(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ command, category }),
     });
-    return res.json();
+    if (!isRecord(payload) || typeof payload.output !== 'string' || typeof payload.exitCode !== 'number') {
+      return this.invalidPayload(endpoint, payload, 'The terminal response was incomplete.', 'POST', status);
+    }
+    return payload as { output: string; exitCode: number };
   }
 
   // Network Topology
   async getTopology(): Promise<TopologyData> {
-    const res = await fetch('/api/network/topology');
-    const json = await res.json();
-    return json.data;
+    return this.requestData<TopologyData>('/api/network/topology');
   }
 
   async simulatePacket(sourceId: string, targetId: string, protocol?: string): Promise<any> {
-    const res = await fetch('/api/network/simulate-packet', {
+    return this.requestData<any>('/api/network/simulate-packet', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceId, targetId, protocol }),
     });
-    const json = await res.json();
-    return json.data;
   }
 
   // Contact & Inquiries
   async sendContact(data: { name: string; email: string; subject?: string; message: string; category?: string }): Promise<any> {
-    const res = await fetch('/api/contact', {
+    return this.requestEnvelope('/api/contact', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return res.json();
   }
 
   async submitContact(data: { name: string; email: string; subject?: string; message: string; category?: string }): Promise<any> {
@@ -323,21 +541,18 @@ class ApiClient {
   }
 
   async getInquiries(): Promise<ContactInquiry[]> {
-    const res = await fetch('/api/contact/inquiries', {
+    return this.requestArray<ContactInquiry>('/api/contact/inquiries', {
       headers: this.getHeaders(),
     });
-    const json = await res.json();
-    return json.data || [];
   }
 
   async getAuditLogs(): Promise<{ success: boolean; data: any[] }> {
-    const res = await fetch('/api/architecture/blueprint', {
+    const blueprint = await this.requestData<any>('/api/architecture/blueprint', {
       headers: this.getHeaders(),
     });
-    const json = await res.json();
     return {
       success: true,
-      data: json.data?.telemetry?.auditLogsSample || [
+      data: blueprint?.telemetry?.auditLogsSample || [
         { id: 'log-1', action: 'CREATE_PROJECT', entity: 'Project', entityId: 'proj-1', adminEmail: 'sahilkguptaprivate@gmail.com', timestamp: new Date().toISOString() },
         { id: 'log-2', action: 'APPLY_OSPF_CONFIG', entity: 'CiscoRouter', entityId: 'r1', adminEmail: 'sahilkguptaprivate@gmail.com', timestamp: new Date(Date.now() - 3600000).toISOString() },
         { id: 'log-3', action: 'SELINUX_POLICY_RELOAD', entity: 'RHEL9', entityId: 'srv_k8s', adminEmail: 'sahilkguptaprivate@gmail.com', timestamp: new Date(Date.now() - 7200000).toISOString() },
@@ -346,20 +561,17 @@ class ApiClient {
   }
 
   async updateInquiryStatus(id: string, status: string): Promise<boolean> {
-    const res = await fetch(`/api/contact/inquiries/${id}/status`, {
+    await this.requestEnvelope(`/api/contact/inquiries/${id}/status`, {
       method: 'PATCH',
       headers: this.getHeaders(),
       body: JSON.stringify({ status }),
     });
-    const json = await res.json();
-    return json.success;
+    return true;
   }
 
   // Architecture Blueprint
   async getBlueprint(): Promise<any> {
-    const res = await fetch('/api/architecture/blueprint');
-    const json = await res.json();
-    return json.data;
+    return this.requestData<any>('/api/architecture/blueprint');
   }
 }
 
