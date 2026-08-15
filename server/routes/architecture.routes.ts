@@ -31,15 +31,15 @@ router.get('/blueprint', async (req, res) => {
         },
         {
           name: 'Controller & Route Layer',
-          description: 'Modular Express routers mapping HTTP endpoints to business domain services (/api/auth, /api/categories, /api/projects, /api/blogs, /api/certifications, /api/skills, /api/terminal, /api/network).',
+          description: 'Modular Express routers mapping HTTP endpoints to business domain services, including /api/labs for canonical lab configuration and Lab Manifest v1 delivery.',
         },
         {
           name: 'Domain Service Layer',
-          description: 'Encapsulates content/authentication business rules, payload validation, and current representative terminal/network simulation behavior.',
+          description: 'Encapsulates content, authentication, and canonical lab business rules. LabService validates project/domain ownership, standardized inputs, topology, scenarios, runbooks, and evidence; domain simulation engines remain planned for later phases.',
         },
         {
           name: 'Persistence & Data Layer',
-          description: 'Prisma ORM over PostgreSQL with indexed relational models: Users, Categories, Projects, BlogPosts, Certifications, Skills, MediaAssets, AuditLogs, and Inquiries.',
+          description: 'Prisma ORM over PostgreSQL with indexed relational models for content/authentication plus Projects, Labs, LabInputs, topology nodes/links, scenarios, lab runbooks, evidence, and artifact metadata.',
         },
       ],
       metrics,

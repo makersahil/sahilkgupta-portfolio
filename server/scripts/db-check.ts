@@ -7,6 +7,7 @@ const EXPECTED_PROJECT_SLUGS = [
   'rhel-9-rhcsa-hardening-storage-selinux',
   'cloud-native-gitops-k8s-cilium-terraform',
 ] as const;
+const EXPECTED_LAB_SLUGS = ['cisco-wan-topology', 'rhel9-hardening-environment', 'gitops-k8s-cluster'] as const;
 
 async function main() {
   if (!env.DATABASE_URL?.trim()) {
@@ -18,7 +19,7 @@ async function main() {
   try {
     await prisma.$queryRaw`SELECT 1`;
 
-    const [categories, projects, blogCount, certificationCount, skillCount, userCount, authSessionCount] = await Promise.all([
+    const [categories, projects, blogCount, certificationCount, skillCount, userCount, authSessionCount, labs, labInputCount, labRunbookCount] = await Promise.all([
       prisma.category.findMany({
         select: {
           slug: true,
@@ -44,6 +45,9 @@ async function main() {
       prisma.skill.count(),
       prisma.user.count(),
       prisma.authSession.count(),
+      prisma.lab.findMany({ select: { slug: true, projectId: true, status: true, manifestVersion: true, capabilities: true, normalizedState: true } }),
+      prisma.labInput.count(),
+      prisma.labRunbookStep.count(),
     ]);
 
     for (const slug of EXPECTED_CATEGORY_SLUGS) {
@@ -67,6 +71,18 @@ async function main() {
       void project.whatIBuilt;
     }
 
+    for (const slug of EXPECTED_LAB_SLUGS) {
+      const lab = labs.find((item) => item.slug === slug);
+      if (!lab) throw new Error(`Missing canonical lab: ${slug}`);
+      if (!lab.projectId) throw new Error(`Lab ${slug} is not connected to a project`);
+      if (lab.status !== 'READY') throw new Error(`Lab ${slug} is not READY`);
+      if (lab.manifestVersion !== '1.0') throw new Error(`Lab ${slug} is not on Lab Manifest v1.0`);
+      if (!Array.isArray(lab.capabilities)) throw new Error(`Lab ${slug} capabilities are invalid`);
+      if (lab.normalizedState === null) throw new Error(`Lab ${slug} has no normalizedState`);
+    }
+    if (labInputCount < 3) throw new Error(`Expected at least 3 lab inputs, found ${labInputCount}`);
+    if (labRunbookCount < 12) throw new Error(`Expected at least 12 lab runbook steps, found ${labRunbookCount}`);
+
     if (blogCount < 3) throw new Error(`Expected at least 3 blogs, found ${blogCount}`);
     if (certificationCount < 3) {
       throw new Error(`Expected at least 3 certification cards, found ${certificationCount}`);
@@ -76,6 +92,7 @@ async function main() {
     console.log('DATABASE CONNECTION: OK');
     console.log('DATABASE SCHEMA: OK');
     console.log(`AUTH SCHEMA: OK (${userCount} users, ${authSessionCount} sessions)`);
+    console.log(`LAB PLATFORM: OK (${labs.length} labs, ${labInputCount} inputs, ${labRunbookCount} runbook steps)`);
     console.log(
       `CONTENT BASELINE: OK (${categories.length} categories, ${projects.length} projects, ${blogCount} blogs, ${certificationCount} certifications, ${skillCount} skills)`,
     );

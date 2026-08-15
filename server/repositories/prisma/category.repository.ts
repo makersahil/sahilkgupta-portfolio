@@ -1,4 +1,4 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Domain, LabKind, PrismaClient } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import type {
   CategoryListQuery,
@@ -18,6 +18,13 @@ const TERMINAL_THEMES = new Set<Category['terminalTheme']>([
   'violet',
   'emerald',
 ]);
+
+
+const LAB_KIND_BY_DOMAIN: Record<Domain, LabKind> = {
+  NETWORKING: 'NETWORK_TOPOLOGY',
+  LINUX: 'LINUX_SYSTEM',
+  DEVOPS: 'DEVOPS_PIPELINE',
+};
 
 function validateTerminalTheme(value: unknown): Category['terminalTheme'] {
   if (typeof value !== 'string' || !TERMINAL_THEMES.has(value as Category['terminalTheme'])) {
@@ -123,6 +130,21 @@ export class PrismaCategoryRepository implements CategoryRepository {
           data: { domain: input.domain },
         });
         if (projectIds.length > 0) {
+          const incompatibleLab = await transaction.lab.findFirst({
+            where: {
+              projectId: { in: projectIds },
+              kind: { not: LAB_KIND_BY_DOMAIN[input.domain] },
+            },
+            select: { id: true, slug: true, kind: true },
+          });
+          if (incompatibleLab) {
+            throw new ValidationError('Category domain change would make an existing lab incompatible with its project domain', {
+              labId: incompatibleLab.id,
+              labSlug: incompatibleLab.slug,
+              labKind: incompatibleLab.kind,
+              requestedDomain: input.domain,
+            });
+          }
           await transaction.lab.updateMany({
             where: { projectId: { in: projectIds } },
             data: { domain: input.domain },

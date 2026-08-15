@@ -15,6 +15,8 @@ import terminalRoutes from './server/routes/terminal.routes.js';
 import networkRoutes from './server/routes/network.routes.js';
 import contactRoutes from './server/routes/contact.routes.js';
 import architectureRoutes from './server/routes/architecture.routes.js';
+import labsRoutes from './server/routes/labs.routes.js';
+import adminRoutes from './server/routes/admin.routes.js';
 import { env } from './server/config/env.js';
 import { ConfigurationError } from './server/lib/errors.js';
 import { asyncHandler } from './server/middlewares/async-handler.js';
@@ -60,6 +62,8 @@ async function startServer() {
   app.use('/api/network', networkRoutes);
   app.use('/api/contact', contactRoutes);
   app.use('/api/architecture', architectureRoutes);
+  app.use('/api/labs', labsRoutes);
+  app.use('/api/admin', adminRoutes);
 
   // Global Error Handler for API
   app.use('/api', errorHandler);

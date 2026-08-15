@@ -335,11 +335,11 @@ export const ProjectsShowcase: React.FC = () => {
                           <span>1. MISSION // Operational Problem &amp; Scope</span>
                         </div>
                         <p className="text-white/80 font-sans text-xs leading-relaxed">
-                          {activeProjectModal.formatType === 'cisco_pkt_lab'
+                          {activeProjectModal.mission || (activeProjectModal.formatType === 'cisco_pkt_lab'
                             ? 'Engineer and validate an enterprise-grade, dual-homed WAN edge topology connecting headquarters to redundant Tier-1 transit providers (AS 100 / AS 200). Guarantee deterministic inbound/outbound path selection, sub-2-second failover via HSRP gateway tracking, and zero lateral pivot between segmented departmental VLANs.'
                             : activeProjectModal.formatType === 'rhcsa_matrix'
                             ? 'Deploy, harden, and audit an enterprise Red Hat Enterprise Linux 9.4 compute node in a security-hardening lab covering SELinux, firewalld, permissions, and benchmark-oriented configuration practices. Deliver immutable storage volumes via thin LVM, full targeted SELinux policy confinement, and automated rootless container lifecycle via systemd Quadlets.'
-                            : 'Architect a self-healing GitOps delivery workflow and cloud-native Kubernetes cluster with Cilium eBPF network security and modular Terraform IaC. Eliminate manual cluster drift, enforce kernel-level L7 security policies, and achieve automated canary rollouts.'}
+                            : 'Architect a self-healing GitOps delivery workflow and cloud-native Kubernetes cluster with Cilium eBPF network security and modular Terraform IaC. Eliminate manual cluster drift, enforce kernel-level L7 security policies, and achieve automated canary rollouts.')}
                         </p>
                       </div>
 
@@ -350,6 +350,10 @@ export const ProjectsShowcase: React.FC = () => {
                           <span>2. ARCHITECTURE // Topology &amp; Infrastructure Stack</span>
                         </div>
                         
+                        {activeProjectModal.architectureSummary && (
+                          <p className="text-white/70 font-sans text-xs leading-relaxed">{activeProjectModal.architectureSummary}</p>
+                        )}
+
                         {/* Metrics Grid */}
                         {activeProjectModal.metrics && (
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -382,7 +386,9 @@ export const ProjectsShowcase: React.FC = () => {
                           <span>3. WHAT I BUILT // Concrete Technical Deliverables</span>
                         </div>
                         <div className="text-white/80 text-xs leading-relaxed space-y-2">
-                          {activeProjectModal.formatType === 'cisco_pkt_lab' ? (
+                          {activeProjectModal.whatIBuilt ? (
+                            <p className="whitespace-pre-line text-white/75">{activeProjectModal.whatIBuilt}</p>
+                          ) : activeProjectModal.formatType === 'cisco_pkt_lab' ? (
                             <ul className="list-disc list-inside space-y-1.5 text-white/70">
                               <li><strong className="text-white">Dual-Homed eBGP Peering:</strong> Configured AS 65001 with autonomous system path prepending and Local-Preference routing policies.</li>
                               <li><strong className="text-white">OSPF Area 0 Backbone:</strong> Internal multi-area routing with MD5 cryptographic authentication and cost metric tuning.</li>

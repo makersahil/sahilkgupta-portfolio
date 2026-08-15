@@ -1,6 +1,7 @@
 import {
   ContentStatus,
   Domain,
+  LabInputSourceKind,
   LabKind,
   LabStatus,
   Prisma,
@@ -1294,6 +1295,21 @@ const labIdentities: Partial<
   },
 };
 
+
+const labCapabilities: Partial<Record<NonNullable<ApiProject['formatType']>, string[]>> = {
+  cisco_pkt_lab: ['topology', 'device-config', 'routing-state', 'packet-flow'],
+  rhcsa_matrix: ['host-state', 'storage', 'systemd', 'selinux'],
+  devops_pipeline: ['pipeline', 'iac', 'gitops', 'kubernetes', 'observability'],
+};
+
+const primaryLabInputs: Partial<
+  Record<NonNullable<ApiProject['formatType']>, { inputKey: string; inputType: string; label: string }>
+> = {
+  cisco_pkt_lab: { inputKey: 'baseline-network-topology', inputType: 'NETWORK_TOPOLOGY', label: 'Baseline Network Topology' },
+  rhcsa_matrix: { inputKey: 'baseline-system-snapshot', inputType: 'SYSTEM_SNAPSHOT', label: 'Baseline System Snapshot' },
+  devops_pipeline: { inputKey: 'baseline-ci-pipeline', inputType: 'CI_PIPELINE', label: 'Baseline Delivery Pipeline' },
+};
+
 const runbooks: Record<
   string,
   Array<{ order: number; title: string; description: string }>
@@ -1495,7 +1511,11 @@ async function upsertCompatibilityLab(
   const metadata = projectMetadata(project);
   if (!metadata) throw new Error(`Missing specialized payload for seed project: ${project.slug}`);
 
-  await prisma.lab.upsert({
+  const capabilities = labCapabilities[format] ?? [];
+  const primaryInput = primaryLabInputs[format];
+  if (!primaryInput) throw new Error(`Missing canonical input fixture for seed project: ${project.slug}`);
+
+  const lab = await prisma.lab.upsert({
     where: { slug: identity.slug },
     update: {
       title: identity.title,
@@ -1505,6 +1525,9 @@ async function upsertCompatibilityLab(
       status: LabStatus.READY,
       projectId: persisted.id,
       isInteractive: true,
+      manifestVersion: '1.0',
+      capabilities,
+      normalizedState: metadata,
       metadata,
     },
     create: {
@@ -1516,9 +1539,48 @@ async function upsertCompatibilityLab(
       status: LabStatus.READY,
       projectId: persisted.id,
       isInteractive: true,
+      manifestVersion: '1.0',
+      capabilities,
+      normalizedState: metadata,
       metadata,
     },
   });
+
+  await prisma.labInput.upsert({
+    where: { labId_inputKey: { labId: lab.id, inputKey: primaryInput.inputKey } },
+    update: {
+      inputType: primaryInput.inputType,
+      label: primaryInput.label,
+      description: 'Normalized compatibility snapshot derived from the established project fixture. It does not imply arbitrary binary artifact parsing.',
+      sourceKind: LabInputSourceKind.INLINE,
+      schemaVersion: '1.0',
+      payload: metadata,
+      externalUrl: null,
+      artifactId: null,
+      isPrimary: true,
+      sortOrder: 0,
+    },
+    create: {
+      labId: lab.id,
+      inputKey: primaryInput.inputKey,
+      inputType: primaryInput.inputType,
+      label: primaryInput.label,
+      description: 'Normalized compatibility snapshot derived from the established project fixture. It does not imply arbitrary binary artifact parsing.',
+      sourceKind: LabInputSourceKind.INLINE,
+      schemaVersion: '1.0',
+      payload: metadata,
+      isPrimary: true,
+      sortOrder: 0,
+    },
+  });
+
+  for (const step of runbooks[project.slug] ?? []) {
+    await prisma.labRunbookStep.upsert({
+      where: { labId_order: { labId: lab.id, order: step.order } },
+      update: { title: step.title, description: step.description, command: null, expectedObservation: null },
+      create: { labId: lab.id, order: step.order, title: step.title, description: step.description },
+    });
+  }
 }
 
 async function upsertRunbook(projectId: string, projectSlug: string) {

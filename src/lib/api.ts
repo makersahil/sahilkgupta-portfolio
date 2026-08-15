@@ -9,6 +9,18 @@ import {
   ContactInquiry,
   TopologyData,
   CiscoLabData,
+  LabAggregate,
+  LabRecord,
+  LabInputRecord,
+  LabInputTypeDefinition,
+  LabNodeRecord,
+  LabLinkRecord,
+  LabScenarioRecord,
+  LabRunbookStepRecord,
+  LabEvidenceRecord,
+  CanonicalLabManifestV1,
+  AdminAuditLog,
+  LabDomain,
 } from '../types.js';
 
 export type ApiErrorCode =
@@ -546,18 +558,11 @@ class ApiClient {
     });
   }
 
-  async getAuditLogs(): Promise<{ success: boolean; data: any[] }> {
-    const blueprint = await this.requestData<any>('/api/architecture/blueprint', {
+  async getAuditLogs(limit = 100): Promise<AdminAuditLog[]> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    return this.requestArray<AdminAuditLog>(`/api/admin/audit?${params.toString()}`, {
       headers: this.getHeaders(),
     });
-    return {
-      success: true,
-      data: blueprint?.telemetry?.auditLogsSample || [
-        { id: 'log-1', action: 'CREATE_PROJECT', entity: 'Project', entityId: 'proj-1', adminEmail: 'sahilkguptaprivate@gmail.com', timestamp: new Date().toISOString() },
-        { id: 'log-2', action: 'APPLY_OSPF_CONFIG', entity: 'CiscoRouter', entityId: 'r1', adminEmail: 'sahilkguptaprivate@gmail.com', timestamp: new Date(Date.now() - 3600000).toISOString() },
-        { id: 'log-3', action: 'SELINUX_POLICY_RELOAD', entity: 'RHEL9', entityId: 'srv_k8s', adminEmail: 'sahilkguptaprivate@gmail.com', timestamp: new Date(Date.now() - 7200000).toISOString() },
-      ],
-    };
   }
 
   async updateInquiryStatus(id: string, status: string): Promise<boolean> {
@@ -567,6 +572,118 @@ class ApiClient {
       body: JSON.stringify({ status }),
     });
     return true;
+  }
+
+  // Canonical Lab Platform / Admin Orchestrator
+  async getAdminLabs(projectId?: string): Promise<LabRecord[]> {
+    const params = new URLSearchParams();
+    if (projectId) params.set('projectId', projectId);
+    const query = params.toString();
+    return this.requestArray<LabRecord>(`/api/labs/admin${query ? `?${query}` : ''}`, {
+      headers: this.getHeaders(),
+    });
+  }
+
+  async getAdminLab(identifier: string): Promise<LabAggregate> {
+    return this.requestData<LabAggregate>(`/api/labs/admin/${identifier}`, { headers: this.getHeaders() });
+  }
+
+  async getLabManifestPreview(identifier: string): Promise<CanonicalLabManifestV1> {
+    return this.requestData<CanonicalLabManifestV1>(`/api/labs/admin/${identifier}/manifest`, { headers: this.getHeaders() });
+  }
+
+  async getLabInputRegistry(domain: LabDomain): Promise<LabInputTypeDefinition[]> {
+    return this.requestArray<LabInputTypeDefinition>(`/api/labs/registry/${domain}`);
+  }
+
+  async createLab(lab: Partial<LabRecord>): Promise<LabRecord> {
+    return this.requestData<LabRecord>('/api/labs', {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(lab),
+    });
+  }
+
+  async updateLab(id: string, lab: Partial<LabRecord>): Promise<LabRecord> {
+    return this.requestData<LabRecord>(`/api/labs/${id}`, {
+      method: 'PUT', headers: this.getHeaders(), body: JSON.stringify(lab),
+    });
+  }
+
+  async deleteLab(id: string): Promise<void> {
+    await this.requestEnvelope(`/api/labs/${id}`, { method: 'DELETE', headers: this.getHeaders() });
+  }
+
+  async createLabInput(labId: string, input: Partial<LabInputRecord>): Promise<LabInputRecord> {
+    return this.requestData<LabInputRecord>(`/api/labs/${labId}/inputs`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async updateLabInput(labId: string, inputId: string, input: Partial<LabInputRecord>): Promise<LabInputRecord> {
+    return this.requestData<LabInputRecord>(`/api/labs/${labId}/inputs/${inputId}`, {
+      method: 'PUT', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async deleteLabInput(labId: string, inputId: string): Promise<void> {
+    await this.requestEnvelope(`/api/labs/${labId}/inputs/${inputId}`, { method: 'DELETE', headers: this.getHeaders() });
+  }
+
+  async replaceLabTopology(
+    labId: string,
+    nodes: Array<Partial<LabNodeRecord>>,
+    links: Array<Partial<LabLinkRecord>>,
+  ): Promise<{ nodes: LabNodeRecord[]; links: LabLinkRecord[] }> {
+    return this.requestData<{ nodes: LabNodeRecord[]; links: LabLinkRecord[] }>(`/api/labs/${labId}/topology`, {
+      method: 'PUT', headers: this.getHeaders(), body: JSON.stringify({ nodes, links }),
+    });
+  }
+
+  async createLabScenario(labId: string, scenario: Partial<LabScenarioRecord>): Promise<LabScenarioRecord> {
+    return this.requestData<LabScenarioRecord>(`/api/labs/${labId}/scenarios`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(scenario),
+    });
+  }
+
+  async updateLabScenario(labId: string, scenarioId: string, scenario: Partial<LabScenarioRecord>): Promise<LabScenarioRecord> {
+    return this.requestData<LabScenarioRecord>(`/api/labs/${labId}/scenarios/${scenarioId}`, {
+      method: 'PUT', headers: this.getHeaders(), body: JSON.stringify(scenario),
+    });
+  }
+
+  async deleteLabScenario(labId: string, scenarioId: string): Promise<void> {
+    await this.requestEnvelope(`/api/labs/${labId}/scenarios/${scenarioId}`, { method: 'DELETE', headers: this.getHeaders() });
+  }
+
+  async createLabRunbookStep(labId: string, step: Partial<LabRunbookStepRecord>): Promise<LabRunbookStepRecord> {
+    return this.requestData<LabRunbookStepRecord>(`/api/labs/${labId}/runbook`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(step),
+    });
+  }
+
+  async updateLabRunbookStep(labId: string, stepId: string, step: Partial<LabRunbookStepRecord>): Promise<LabRunbookStepRecord> {
+    return this.requestData<LabRunbookStepRecord>(`/api/labs/${labId}/runbook/${stepId}`, {
+      method: 'PUT', headers: this.getHeaders(), body: JSON.stringify(step),
+    });
+  }
+
+  async deleteLabRunbookStep(labId: string, stepId: string): Promise<void> {
+    await this.requestEnvelope(`/api/labs/${labId}/runbook/${stepId}`, { method: 'DELETE', headers: this.getHeaders() });
+  }
+
+  async createLabEvidence(labId: string, evidence: Partial<LabEvidenceRecord>): Promise<LabEvidenceRecord> {
+    return this.requestData<LabEvidenceRecord>(`/api/labs/${labId}/evidence`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(evidence),
+    });
+  }
+
+  async updateLabEvidence(labId: string, evidenceId: string, evidence: Partial<LabEvidenceRecord>): Promise<LabEvidenceRecord> {
+    return this.requestData<LabEvidenceRecord>(`/api/labs/${labId}/evidence/${evidenceId}`, {
+      method: 'PUT', headers: this.getHeaders(), body: JSON.stringify(evidence),
+    });
+  }
+
+  async deleteLabEvidence(labId: string, evidenceId: string): Promise<void> {
+    await this.requestEnvelope(`/api/labs/${labId}/evidence/${evidenceId}`, { method: 'DELETE', headers: this.getHeaders() });
   }
 
   // Architecture Blueprint

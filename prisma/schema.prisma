@@ -57,6 +57,12 @@ enum LabStatus {
   ARCHIVED
 }
 
+enum LabInputSourceKind {
+  INLINE
+  EXTERNAL
+  ARTIFACT_REFERENCE
+}
+
 enum EvidenceKind {
   CONFIGURATION
   COMMAND_OUTPUT
@@ -235,29 +241,60 @@ model LearningTrack {
 }
 
 model Lab {
-  id            String    @id @default(cuid())
-  slug          String    @unique
-  title         String
-  summary       String?
-  domain        Domain
-  kind          LabKind
-  status        LabStatus @default(READY)
-  projectId     String?
-  isInteractive Boolean   @default(true)
-  metadata      Json?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  title           String
+  summary         String?
+  domain          Domain
+  kind            LabKind
+  status          LabStatus @default(READY)
+  projectId       String?
+  isInteractive   Boolean   @default(true)
+  manifestVersion String    @default("1.0")
+  capabilities    String[]  @default([])
+  normalizedState Json?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  project   Project?      @relation("ProjectLab", fields: [projectId], references: [id], onDelete: Cascade)
-  nodes     LabNode[]
-  links     LabLink[]
-  scenarios LabScenario[]
-  evidence  Evidence[]
-  artifacts Artifact[]    @relation("LabArtifact")
+  project      Project?         @relation("ProjectLab", fields: [projectId], references: [id], onDelete: Cascade)
+  inputs       LabInput[]
+  nodes        LabNode[]
+  links        LabLink[]
+  scenarios    LabScenario[]
+  runbookSteps LabRunbookStep[]
+  evidence     Evidence[]
+  artifacts    Artifact[]       @relation("LabArtifact")
 
   @@index([domain])
   @@index([kind])
   @@index([status])
+  @@index([projectId, status])
+}
+
+model LabInput {
+  id            String             @id @default(cuid())
+  labId         String
+  inputKey      String
+  inputType     String
+  label         String
+  description   String?
+  sourceKind    LabInputSourceKind
+  schemaVersion String             @default("1.0")
+  payload       Json?
+  externalUrl   String?
+  artifactId    String?
+  isPrimary     Boolean            @default(false)
+  sortOrder     Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  lab      Lab       @relation(fields: [labId], references: [id], onDelete: Cascade)
+  artifact Artifact? @relation("LabInputArtifact", fields: [artifactId], references: [id], onDelete: Restrict)
+
+  @@unique([labId, inputKey])
+  @@index([labId, sortOrder])
+  @@index([artifactId])
 }
 
 model LabNode {
@@ -299,7 +336,7 @@ model LabLink {
 model LabScenario {
   id                   String   @id @default(cuid())
   labId                String
-  slug                 String   @unique
+  slug                 String
   title                String
   summary              String
   description          String?
@@ -313,6 +350,25 @@ model LabScenario {
   updatedAt            DateTime @updatedAt
 
   lab Lab @relation(fields: [labId], references: [id], onDelete: Cascade)
+
+  @@unique([labId, slug])
+  @@index([labId, order])
+}
+
+model LabRunbookStep {
+  id                  String   @id @default(cuid())
+  labId               String
+  order               Int
+  title               String
+  description         String?
+  command             String?
+  expectedObservation String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  lab Lab @relation(fields: [labId], references: [id], onDelete: Cascade)
+
+  @@unique([labId, order])
 }
 
 model Evidence {
@@ -352,6 +408,7 @@ model Artifact {
   uploadedById    String?
   uploadedBy      User?      @relation("ArtifactUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   evidence        Evidence[] @relation("EvidenceArtifact")
+  labInputs       LabInput[] @relation("LabInputArtifact")
   isPublic        Boolean    @default(true)
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt

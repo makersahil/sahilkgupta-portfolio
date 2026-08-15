@@ -27,7 +27,16 @@
     "auth:bootstrap-admin": "tsx server/scripts/bootstrap-admin.ts",
     "test:auth:static": "tsx server/scripts/auth-static-audit.ts",
     "test:auth": "tsx server/scripts/auth-regression.ts",
-    "auth:cleanup-sessions": "tsx server/scripts/cleanup-auth-sessions.ts"
+    "auth:cleanup-sessions": "tsx server/scripts/cleanup-auth-sessions.ts",
+    "test:labs:static": "tsx server/scripts/lab-platform-static-audit.ts",
+    "test:labs": "tsx server/scripts/lab-platform-regression.ts",
+    "test:labs:manifest": "tsx server/scripts/lab-manifest-regression.ts",
+    "test:labs:http": "tsx server/scripts/lab-platform-http-regression.ts",
+    "test:admin:static": "tsx server/scripts/admin-static-audit.ts",
+    "test:admin:http": "tsx server/scripts/admin-http-regression.ts",
+    "verify": "tsx server/scripts/verify.ts full",
+    "verify:tests": "tsx server/scripts/verify.ts tests",
+    "verify:quick": "tsx server/scripts/verify.ts quick"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
