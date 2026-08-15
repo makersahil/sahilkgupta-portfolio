@@ -19,6 +19,11 @@ import {
   LinuxHostState,
   LinuxLabState,
   LinuxLabSummary,
+  LinuxOperationsSnapshot,
+  LinuxOperatorContext,
+  DevOpsLabState,
+  DevOpsLabSummary,
+  DevOpsPipelineState,
   LabAggregate,
   LabRecord,
   LabInputRecord,
@@ -609,6 +614,42 @@ class ApiClient {
   async getLinuxHost(identifier: string, hostKey: string): Promise<LinuxHostState> {
     return this.requestData<LinuxHostState>(
       `/api/linux/labs/${encodeURIComponent(identifier)}/hosts/${encodeURIComponent(hostKey)}`,
+    );
+  }
+
+  async getLinuxOperations(identifier: string, hostKey?: string): Promise<LinuxOperationsSnapshot> {
+    const params = new URLSearchParams();
+    if (hostKey) params.set('hostKey', hostKey);
+    const query = params.toString();
+    return this.requestData<LinuxOperationsSnapshot>(
+      `/api/linux/labs/${encodeURIComponent(identifier)}/operations${query ? `?${query}` : ''}`,
+    );
+  }
+
+  async getLinuxContext(identifier: string, hostKey?: string): Promise<LinuxOperatorContext> {
+    const params = new URLSearchParams();
+    if (hostKey) params.set('hostKey', hostKey);
+    const query = params.toString();
+    return this.requestData<LinuxOperatorContext>(
+      `/api/linux/labs/${encodeURIComponent(identifier)}/context${query ? `?${query}` : ''}`,
+    );
+  }
+
+  // Dynamic DevOps Lab Engine
+  async getDevOpsLabs(projectSlug?: string): Promise<DevOpsLabSummary[]> {
+    const params = new URLSearchParams();
+    if (projectSlug) params.set('projectSlug', projectSlug);
+    const query = params.toString();
+    return this.requestArray<DevOpsLabSummary>(`/api/devops/labs${query ? `?${query}` : ''}`);
+  }
+
+  async getDevOpsLab(identifier: string): Promise<DevOpsLabState> {
+    return this.requestData<DevOpsLabState>(`/api/devops/labs/${encodeURIComponent(identifier)}`);
+  }
+
+  async getDevOpsPipeline(identifier: string, pipelineId: string): Promise<DevOpsPipelineState> {
+    return this.requestData<DevOpsPipelineState>(
+      `/api/devops/labs/${encodeURIComponent(identifier)}/pipelines/${encodeURIComponent(pipelineId)}`,
     );
   }
 

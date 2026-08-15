@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Activity,
   AlertTriangle,
   BookOpen,
   Database,
@@ -13,6 +14,7 @@ import {
 import { api } from '../../lib/api.js';
 import type { LinuxHostState, LinuxLabState, LinuxLabSummary } from '../../types.js';
 import { LinuxHostInspector } from './LinuxHostInspector.js';
+import { LinuxOperationsPanel } from './LinuxOperationsPanel.js';
 
 function statusTone(status: string): string {
   if (status === 'UP') return 'border-[#00ff41]/30 bg-[#00ff41]/10 text-[#00ff41]';
@@ -26,6 +28,7 @@ export const LinuxLabExplorer: React.FC = () => {
   const [activeLabSlug, setActiveLabSlug] = useState('');
   const [state, setState] = useState<LinuxLabState | null>(null);
   const [selectedHostKey, setSelectedHostKey] = useState('');
+  const [activeView, setActiveView] = useState<'inspect' | 'operations'>('inspect');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,7 +87,7 @@ export const LinuxLabExplorer: React.FC = () => {
           <div>
             <div className="mb-2 inline-flex items-center gap-2 rounded border border-[#00ff41]/25 bg-[#00ff41]/5 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-[#00ff41]"><TerminalSquare className="h-3.5 w-3.5" /> Dynamic Linux Engine</div>
             <h2 className="font-mono text-2xl font-bold uppercase tracking-tight text-white sm:text-3xl">RHEL Systems Console</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/55">Inspect normalized Linux host state from persisted Lab manifests. Services, storage, SELinux, network configuration, logs, configuration files and recorded checks come from the selected Lab rather than a hard-coded showcase.</p>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-white/55">Inspect normalized Linux host state and investigate recorded service, storage, SELinux, network and log signals from persisted Lab manifests. Diagnostics remain evidence-driven and do not execute shell commands.</p>
           </div>
           <button type="button" onClick={() => void loadLabs()} className="flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-[#111114] px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60 hover:text-white"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh persisted state</button>
         </div>
@@ -133,11 +136,19 @@ export const LinuxLabExplorer: React.FC = () => {
               <div className="rounded-xl border border-white/10 bg-[#111114] p-4"><div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-[#00d4ff]"><ShieldCheck className="h-3.5 w-3.5" /> Capability contract</div><div className="mt-3 flex flex-wrap gap-2">{state.lab.capabilities.map((capability) => <span key={capability} className="rounded border border-[#00ff41]/15 bg-[#00ff41]/5 px-2 py-1 font-mono text-[9px] text-[#00ff41]/70">{capability}</span>)}</div></div>
             </div>
 
-            {activeHost ? <LinuxHostInspector host={activeHost} /> : <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-xs text-white/35"><Server className="mx-auto mb-2 h-5 w-5" />This Lab has no normalized host records.</div>}
+            {activeHost ? (
+              <>
+                <div className="mb-4 flex gap-1 rounded-xl border border-white/10 bg-[#111114] p-1.5">
+                  <button type="button" onClick={() => setActiveView('inspect')} className={`flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider transition ${activeView === 'inspect' ? 'bg-[#00ff41]/10 text-[#00ff41]' : 'text-white/45 hover:bg-white/5 hover:text-white'}`}><Server className="h-3.5 w-3.5" /> Host Inspector</button>
+                  <button type="button" onClick={() => setActiveView('operations')} className={`flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wider transition ${activeView === 'operations' ? 'bg-[#00d4ff]/10 text-[#00d4ff]' : 'text-white/45 hover:bg-white/5 hover:text-white'}`}><Activity className="h-3.5 w-3.5" /> Operations</button>
+                </div>
+                {activeView === 'inspect' ? <LinuxHostInspector host={activeHost} /> : <LinuxOperationsPanel labSlug={state.lab.slug} hostKey={activeHost.key} />}
+              </>
+            ) : <div className="rounded-xl border border-dashed border-white/10 p-8 text-center text-xs text-white/35"><Server className="mx-auto mb-2 h-5 w-5" />This Lab has no normalized host records.</div>}
 
             {state.warnings.length > 0 && <div className="mt-4 space-y-2">{state.warnings.map((warning) => <div key={warning} className="flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3 text-xs text-amber-100/70"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />{warning}</div>)}</div>}
 
-            <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-white/40"><HardDrive className="mr-2 inline h-3.5 w-3.5 text-[#00ff41]" />Phase 4A renders persisted recorded state only. Failure investigation/remediation belongs to Phase 4B; contextual command execution belongs to the unified CLI phase.</div>
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-white/40"><HardDrive className="mr-2 inline h-3.5 w-3.5 text-[#00ff41]" />Phase 4B derives investigation findings and remediation guidance from persisted recorded state. Suggested commands are not executed here; contextual command execution remains Phase 6 and mutable scenario execution remains Phase 7.</div>
           </>
         )}
       </div>

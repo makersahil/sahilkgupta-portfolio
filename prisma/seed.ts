@@ -1291,15 +1291,15 @@ const labIdentities: Partial<
     slug: 'gitops-k8s-cluster',
     title: 'GitOps K8s Cluster',
     kind: LabKind.DEVOPS_PIPELINE,
-    summary: 'ArgoCD and Kubernetes pipeline visualization.',
+    summary: 'Data-driven DevOps delivery Lab backed by persisted CI/CD, Terraform, Kubernetes, GitOps, Helm, Cilium, and observability snapshots.',
   },
 };
 
 
 const labCapabilities: Partial<Record<NonNullable<ApiProject['formatType']>, string[]>> = {
   cisco_pkt_lab: ['topology', 'device-inventory', 'interfaces', 'device-config', 'routing-state', 'vlans', 'acls', 'packet-path', 'control-plane', 'route-lookup', 'health-analysis', 'operator-context', 'scenario-readiness'],
-  rhcsa_matrix: ['host-state', 'services', 'storage', 'filesystems', 'fstab', 'systemd', 'selinux', 'network', 'logs', 'configurations', 'verification'],
-  devops_pipeline: ['pipeline', 'iac', 'gitops', 'kubernetes', 'observability'],
+  rhcsa_matrix: ['host-state', 'services', 'storage', 'filesystems', 'fstab', 'systemd', 'selinux', 'network', 'logs', 'configurations', 'verification', 'health-analysis', 'diagnostics', 'operator-context', 'scenario-readiness'],
+  devops_pipeline: ['pipeline', 'repository', 'iac', 'terraform', 'gitops', 'kubernetes', 'helm', 'network-policy', 'observability', 'artifacts'],
 };
 
 const primaryLabInputs: Partial<
@@ -1325,13 +1325,13 @@ const runbooks: Record<
     { order: 1, title: 'Inspect host', description: 'Examine the persisted RHEL 9.4 host baseline and input provenance.' },
     { order: 2, title: 'Inspect services and storage', description: 'Review normalized systemd service state, LVM metadata, mounts, and /etc/fstab entries.' },
     { order: 3, title: 'Inspect security and network state', description: 'Review recorded SELinux mode, policy/configuration snapshots, interfaces, and routes without assuming live telemetry.' },
-    { order: 4, title: 'Review recorded checks', description: 'Compare persisted configuration and verification outputs supplied by the Lab inputs.' },
+    { order: 4, title: 'Investigate recorded health', description: 'Correlate persisted service, storage, SELinux, network, log, and verification signals using the recorded-state operations layer.' },
   ],
   'cloud-native-gitops-k8s-cilium-terraform': [
-    { order: 1, title: 'Follow pipeline', description: 'Trace the self-healing GitOps delivery workflow.' },
-    { order: 2, title: 'Inspect stage', description: 'Review ArgoCD deployment metrics.' },
-    { order: 3, title: 'Review artifact/state', description: 'Examine Cilium eBPF network security policies.' },
-    { order: 4, title: 'Verify runtime representation', description: 'Ensure automated canary rollouts succeeded.' },
+    { order: 1, title: 'Follow pipeline', description: 'Trace the persisted CI/CD stages and recorded outputs for the selected DevOps Lab.' },
+    { order: 2, title: 'Inspect infrastructure inputs', description: 'Review Terraform/IaC files and the inputs actually attached to this Lab.' },
+    { order: 3, title: 'Inspect delivery state', description: 'Review recorded Kubernetes, ArgoCD, Helm, and Cilium state without assuming live cluster access.' },
+    { order: 4, title: 'Inspect recorded observations', description: 'Correlate recorded delivery and observability snapshots while keeping live telemetry and command execution out of scope.' },
   ],
 };
 
@@ -1376,6 +1376,49 @@ const networkingScenarioDefinitions = [
     actions: { schemaVersion: 'networking.scenario.v1', mutations: [{ type: 'SELECT_ACL_OBSERVATION', aclId: 'acl-103' }] },
     expectedObservations: { observableSignals: ['acl:acl-103=deny', 'policy-review-required'] },
     verificationCriteria: { checks: ['deny rule remains inspectable', 'engine does not fabricate packet-policy enforcement'] },
+  },
+] as const;
+
+const linuxScenarioDefinitions = [
+  {
+    slug: 'service-failure',
+    title: 'systemd Service Failure',
+    summary: 'Scenario contract for investigating a failed systemd unit using recorded service state, unit configuration, and journal evidence.',
+    order: 10,
+    baselineState: { schemaVersion: 'linux.scenario.v1', requiredSignals: ['host:rhel9-lab-01=UP', 'service:sshd.service=ACTIVE'] },
+    actions: { schemaVersion: 'linux.scenario.v1', mutations: [{ type: 'SET_SERVICE_STATE', hostKey: 'rhel9-lab-01', unit: 'sshd.service', activeState: 'FAILED' }] },
+    expectedObservations: { observableSignals: ['service:sshd.service=FAILED', 'service-health=DEGRADED', 'journal-correlation-available-if-recorded'] },
+    verificationCriteria: { checks: ['failed unit is surfaced by health analysis', 'remediation guidance remains non-executing'] },
+  },
+  {
+    slug: 'selinux-denial',
+    title: 'SELinux Denial Investigation',
+    summary: 'Scenario contract for correlating an AVC denial with SELinux mode, labels, booleans, and recorded application context.',
+    order: 20,
+    baselineState: { schemaVersion: 'linux.scenario.v1', requiredSignals: ['selinux:mode=ENFORCING'] },
+    actions: { schemaVersion: 'linux.scenario.v1', mutations: [{ type: 'ADD_RECORDED_AVC_DENIAL', hostKey: 'rhel9-lab-01' }] },
+    expectedObservations: { observableSignals: ['selinux:avc-denial-present', 'policy-context-review-required'] },
+    verificationCriteria: { checks: ['denial evidence is inspectable', 'engine does not recommend disabling SELinux as a generic fix'] },
+  },
+  {
+    slug: 'mount-failure',
+    title: 'Persistent Mount Failure',
+    summary: 'Scenario contract for an LVM-backed filesystem that is expected by fstab but is not represented as mounted.',
+    order: 30,
+    baselineState: { schemaVersion: 'linux.scenario.v1', requiredSignals: ['fstab:/data/db=DEFINED'] },
+    actions: { schemaVersion: 'linux.scenario.v1', mutations: [{ type: 'SET_MOUNT_STATE', hostKey: 'rhel9-lab-01', target: '/data/db', state: 'UNMOUNTED' }] },
+    expectedObservations: { observableSignals: ['mount:/data/db=UNMOUNTED', 'fstab-runtime-mismatch', 'storage-health=DEGRADED'] },
+    verificationCriteria: { checks: ['mount mismatch is surfaced from recorded state', 'no automatic mount or LVM mutation is performed'] },
+  },
+  {
+    slug: 'network-interface-loss',
+    title: 'Network Interface Loss',
+    summary: 'Scenario contract for investigating a recorded interface-down condition and its relationship to addresses and routes.',
+    order: 40,
+    baselineState: { schemaVersion: 'linux.scenario.v1', requiredSignals: ['network-interface-record-present'] },
+    actions: { schemaVersion: 'linux.scenario.v1', mutations: [{ type: 'SET_INTERFACE_STATE', hostKey: 'rhel9-lab-01', interfaceName: 'bond0', state: 'DOWN' }] },
+    expectedObservations: { observableSignals: ['interface:bond0=DOWN', 'network-health=DEGRADED'] },
+    verificationCriteria: { checks: ['interface state is visible to diagnostics', 'engine does not fabricate reachability'] },
   },
 ] as const;
 
@@ -1907,6 +1950,219 @@ function linuxFixture(project: ApiProject): SeedLinuxFixture | null {
   };
 }
 
+
+interface SeedDevOpsFixture {
+  state: {
+    schemaVersion: 'devops.v1';
+    overview: string;
+    repository: {
+      name: string;
+      branch: string;
+      commitSha: string;
+      source: 'RECORDED_PROJECT_FIXTURE';
+    };
+    pipelines: Array<{
+      id: string;
+      name: string;
+      framework: string;
+      status: 'SUCCESS' | 'RUNNING' | 'PENDING' | 'FAILED' | 'UNKNOWN';
+      stages: Array<{
+        id: string;
+        name: string;
+        tool: string;
+        status: 'SUCCESS' | 'RUNNING' | 'PENDING' | 'FAILED' | 'UNKNOWN';
+        durationSeconds: number;
+        recordedOutput: string;
+        artifacts: string[];
+        source: 'RECORDED_PROJECT_FIXTURE';
+      }>;
+      source: 'RECORDED_PROJECT_FIXTURE';
+    }>;
+    terraform: {
+      present: true;
+      workspace: null;
+      backend: string | null;
+      files: Array<{
+        name: string;
+        path: string;
+        type: 'FILE' | 'DIRECTORY';
+        size: string | null;
+        content: string | null;
+        source: 'RECORDED_PROJECT_FIXTURE';
+      }>;
+      source: 'RECORDED_PROJECT_FIXTURE';
+    } | null;
+    kubernetes: {
+      clusters: Array<{ name: string; version: string | null; status: 'READY' | 'UNKNOWN'; provider: string | null; source: 'RECORDED_PROJECT_FIXTURE' }>;
+      workloads: Array<{ kind: string; namespace: null; name: string; desiredReplicas: number; readyReplicas: number; status: 'READY'; image: null; source: 'RECORDED_PROJECT_FIXTURE' }>;
+    };
+    gitops: Array<{ name: string; controller: string; syncStatus: 'SYNCED' | 'UNKNOWN'; healthStatus: 'HEALTHY' | 'UNKNOWN'; revision: string; destination: string | null; source: 'RECORDED_PROJECT_FIXTURE' }>;
+    helm: Array<{ name: string; namespace: null; chart: string; version: null; status: 'READY'; source: 'RECORDED_PROJECT_FIXTURE' }>;
+    networkPolicies: Array<{ name: string; namespace: null; provider: 'Cilium'; status: 'ENFORCED'; summary: string; source: 'RECORDED_PROJECT_FIXTURE' }>;
+    observability: Array<{ id: string; name: string; provider: string; status: 'PASS' | 'UNKNOWN'; summary: string; recordedOutput: string; source: 'RECORDED_PROJECT_FIXTURE' }>;
+    architecture: Array<{ tier: string; description: string; technologies: string[]; recordedMetric: string | null }>;
+    provenance: { sourceType: 'NORMALIZED_PROJECT_FIXTURE'; notes: string[] };
+  };
+}
+
+function devOpsStageStatus(value: string): 'SUCCESS' | 'RUNNING' | 'PENDING' | 'FAILED' | 'UNKNOWN' {
+  return value === 'SUCCESS' || value === 'RUNNING' || value === 'PENDING' || value === 'FAILED' ? value : 'UNKNOWN';
+}
+
+function flattenSeedIaCTree(
+  nodes: NonNullable<ApiProject['devopsPipelineData']>['iacTree'],
+  result: NonNullable<SeedDevOpsFixture['state']['terraform']>['files'] = [],
+): NonNullable<SeedDevOpsFixture['state']['terraform']>['files'] {
+  for (const node of nodes) {
+    result.push({
+      name: node.name,
+      path: node.path,
+      type: node.type === 'directory' ? 'DIRECTORY' : 'FILE',
+      size: node.size ?? null,
+      content: node.type === 'file' ? node.content ?? null : null,
+      source: 'RECORDED_PROJECT_FIXTURE',
+    });
+    if (node.children) flattenSeedIaCTree(node.children, result);
+  }
+  return result;
+}
+
+function devOpsFixture(project: ApiProject): SeedDevOpsFixture | null {
+  const data = project.devopsPipelineData;
+  if (!data) return null;
+
+  const stages = data.pipelineStages.map((stage) => ({
+    id: stage.id,
+    name: stage.name,
+    tool: stage.tool,
+    status: devOpsStageStatus(stage.status),
+    durationSeconds: stage.durationSeconds,
+    recordedOutput: stage.stdoutSnippet,
+    artifacts: stage.artifactsProduced ?? [],
+    source: 'RECORDED_PROJECT_FIXTURE' as const,
+  }));
+  const pipelineStatus = stages.some((stage) => stage.status === 'FAILED')
+    ? 'FAILED' as const
+    : stages.some((stage) => stage.status === 'RUNNING')
+      ? 'RUNNING' as const
+      : stages.length > 0 && stages.every((stage) => stage.status === 'SUCCESS')
+        ? 'SUCCESS' as const
+        : stages.some((stage) => stage.status === 'PENDING')
+          ? 'PENDING' as const
+          : 'UNKNOWN' as const;
+
+  const files = flattenSeedIaCTree(data.iacTree);
+  const terraformFiles = files.filter((file) => file.path.toLowerCase().endsWith('.tf'));
+  const backendMatch = terraformFiles.map((file) => file.content ?? '').join('\n').match(/backend\s+"([^"]+)"/i);
+
+  const argoStage = data.pipelineStages.find((stage) => /argocd/i.test(stage.tool) || /argocd/i.test(stage.name));
+  const argoOutput = argoStage?.stdoutSnippet ?? '';
+  const clusterMatch = argoOutput.match(/cluster\s+'([^']+)'/i);
+  const workloadMatch = argoOutput.match(/(Deployment)\/([A-Za-z0-9._-]+)\s*->\s*(\d+)\/(\d+)\s+Replicas Ready/i);
+  const kubernetesVersion = data.architectureLayers
+    .flatMap((layer) => layer.technologies)
+    .map((technology) => technology.match(/Kubernetes\s+([0-9.]+)/i)?.[1] ?? null)
+    .find((version): version is string => version !== null) ?? null;
+
+  const helmStage = data.pipelineStages.find((stage) => /helm/i.test(stage.tool) || /helm/i.test(stage.name));
+  const helmMatch = helmStage?.stdoutSnippet.match(/Packaging chart\s+([^\s]+)/i) ?? null;
+  const observabilityStages = data.pipelineStages.filter((stage) => /prometheus|flagger|observability|telemetry|canary/i.test(`${stage.tool} ${stage.name}`));
+
+  return {
+    state: {
+      schemaVersion: 'devops.v1',
+      overview: 'Canonical DevOps delivery state normalized from the persisted GitOps/Kubernetes/Terraform project fixture.',
+      repository: {
+        name: project.slug,
+        branch: data.branch,
+        commitSha: data.gitCommitSha,
+        source: 'RECORDED_PROJECT_FIXTURE',
+      },
+      pipelines: [{
+        id: 'delivery',
+        name: 'Recorded GitOps Delivery Pipeline',
+        framework: data.framework,
+        status: pipelineStatus,
+        stages,
+        source: 'RECORDED_PROJECT_FIXTURE',
+      }],
+      terraform: terraformFiles.length > 0 ? {
+        present: true,
+        workspace: null,
+        backend: backendMatch?.[1] ?? null,
+        files,
+        source: 'RECORDED_PROJECT_FIXTURE',
+      } : null,
+      kubernetes: {
+        clusters: clusterMatch ? [{
+          name: clusterMatch[1]!,
+          version: kubernetesVersion,
+          status: /Health:\s*Healthy/i.test(argoOutput) ? 'READY' : 'UNKNOWN',
+          provider: data.architectureLayers.flatMap((layer) => layer.technologies).some((technology) => /EKS/i.test(technology)) ? 'EKS' : null,
+          source: 'RECORDED_PROJECT_FIXTURE',
+        }] : [],
+        workloads: workloadMatch ? [{
+          kind: workloadMatch[1]!,
+          namespace: null,
+          name: workloadMatch[2]!,
+          desiredReplicas: Number(workloadMatch[3]),
+          readyReplicas: Number(workloadMatch[4]),
+          status: 'READY',
+          image: null,
+          source: 'RECORDED_PROJECT_FIXTURE',
+        }] : [],
+      },
+      gitops: argoStage ? [{
+        name: 'recorded-argocd-reconciliation',
+        controller: 'ArgoCD',
+        syncStatus: /Sync status:\s*Synced/i.test(argoOutput) ? 'SYNCED' : 'UNKNOWN',
+        healthStatus: /Health:\s*Healthy/i.test(argoOutput) ? 'HEALTHY' : 'UNKNOWN',
+        revision: data.gitCommitSha,
+        destination: clusterMatch?.[1] ?? null,
+        source: 'RECORDED_PROJECT_FIXTURE',
+      }] : [],
+      helm: helmMatch ? [{
+        name: 'recorded-chart-package',
+        namespace: null,
+        chart: helmMatch[1]!,
+        version: null,
+        status: 'READY',
+        source: 'RECORDED_PROJECT_FIXTURE',
+      }] : [],
+      networkPolicies: /Cilium NetworkPolicies\s*->\s*Enforced/i.test(argoOutput) ? [{
+        name: 'recorded-cilium-network-policies',
+        namespace: null,
+        provider: 'Cilium',
+        status: 'ENFORCED',
+        summary: 'Recorded pipeline output reports Cilium NetworkPolicies as enforced; this is not live policy telemetry.',
+        source: 'RECORDED_PROJECT_FIXTURE',
+      }] : [],
+      observability: observabilityStages.map((stage) => ({
+        id: `observation-${stage.id}`,
+        name: stage.name,
+        provider: stage.tool,
+        status: stage.status === 'SUCCESS' ? 'PASS' as const : 'UNKNOWN' as const,
+        summary: 'Recorded pipeline observation from the persisted project fixture.',
+        recordedOutput: stage.stdoutSnippet,
+        source: 'RECORDED_PROJECT_FIXTURE' as const,
+      })),
+      architecture: data.architectureLayers.map((layer) => ({
+        tier: layer.tier,
+        description: layer.description,
+        technologies: layer.technologies,
+        recordedMetric: /\d/.test(layer.slaMetrics) ? null : layer.slaMetrics,
+      })),
+      provenance: {
+        sourceType: 'NORMALIZED_PROJECT_FIXTURE',
+        notes: [
+          'The DevOps engine renders persisted normalized Lab state and recorded pipeline/IaC snapshots.',
+          'Cluster, workload, GitOps and observability values are recorded project-fixture observations, not live production telemetry.',
+          'The UI does not execute pipelines, Terraform, kubectl, Helm or ArgoCD commands in Phase 5A.',
+        ],
+      },
+    },
+  };
+}
 async function reconcileLinuxHosts(labId: string, fixture: SeedLinuxFixture): Promise<void> {
   const host = fixture.host;
   await prisma.$transaction(async (tx) => {
@@ -2150,11 +2406,14 @@ async function upsertCompatibilityLab(
 
   const networkFixture = format === 'cisco_pkt_lab' ? networkingFixture(project) : null;
   const linuxFixtureData = format === 'rhcsa_matrix' ? linuxFixture(project) : null;
+  const devOpsFixtureData = format === 'devops_pipeline' ? devOpsFixture(project) : null;
   const normalizedState = networkFixture
     ? jsonValue(networkFixture.controlPlane)
     : linuxFixtureData
       ? jsonValue(linuxFixtureData.state)
-      : metadata;
+      : devOpsFixtureData
+        ? jsonValue(devOpsFixtureData.state)
+        : metadata;
   const primaryPayload = networkFixture
     ? jsonValue({
         schemaVersion: 'networking.input.v1',
@@ -2164,7 +2423,9 @@ async function upsertCompatibilityLab(
       })
     : linuxFixtureData
       ? jsonValue({ schemaVersion: 'linux.input.v1', hosts: linuxFixtureData.state.hosts })
-      : normalizedState;
+      : devOpsFixtureData
+        ? jsonValue({ schemaVersion: 'devops.input.v1', state: devOpsFixtureData.state })
+        : normalizedState;
 
   const capabilities = labCapabilities[format] ?? [];
   const primaryInput = primaryLabInputs[format];
@@ -2208,11 +2469,13 @@ async function upsertCompatibilityLab(
       label: primaryInput.label,
       description: networkFixture
         ? 'Canonical Networking input generated from persisted normalized topology, device, interface, configuration, and control-plane records.'
-        : linuxFixtureData
+         : linuxFixtureData
           ? 'Canonical Linux system snapshot generated from the persisted RHEL 9.4 project fixture.'
-          : 'Normalized compatibility snapshot derived from the established project fixture.',
+          : devOpsFixtureData
+            ? 'Canonical DevOps delivery snapshot generated from the persisted GitOps, Kubernetes, Terraform, and recorded pipeline project fixture.'
+            : 'Normalized compatibility snapshot derived from the established project fixture.',
       sourceKind: LabInputSourceKind.INLINE,
-      schemaVersion: networkFixture ? 'networking.input.v1' : linuxFixtureData ? 'linux.input.v1' : '1.0',
+      schemaVersion: networkFixture ? 'networking.input.v1' : linuxFixtureData ? 'linux.input.v1' : devOpsFixtureData ? 'devops.input.v1' : '1.0',
       payload: primaryPayload,
       externalUrl: null,
       artifactId: null,
@@ -2226,11 +2489,13 @@ async function upsertCompatibilityLab(
       label: primaryInput.label,
       description: networkFixture
         ? 'Canonical Networking input generated from persisted normalized topology, device, interface, configuration, and control-plane records.'
-        : linuxFixtureData
+         : linuxFixtureData
           ? 'Canonical Linux system snapshot generated from the persisted RHEL 9.4 project fixture.'
-          : 'Normalized compatibility snapshot derived from the established project fixture.',
+          : devOpsFixtureData
+            ? 'Canonical DevOps delivery snapshot generated from the persisted GitOps, Kubernetes, Terraform, and recorded pipeline project fixture.'
+            : 'Normalized compatibility snapshot derived from the established project fixture.',
       sourceKind: LabInputSourceKind.INLINE,
-      schemaVersion: networkFixture ? 'networking.input.v1' : linuxFixtureData ? 'linux.input.v1' : '1.0',
+      schemaVersion: networkFixture ? 'networking.input.v1' : linuxFixtureData ? 'linux.input.v1' : devOpsFixtureData ? 'devops.input.v1' : '1.0',
       payload: primaryPayload,
       isPrimary: true,
       sortOrder: 0,
@@ -2380,8 +2645,146 @@ async function upsertCompatibilityLab(
         },
       });
     }
+
+
+    for (const scenario of linuxScenarioDefinitions) {
+      await prisma.labScenario.upsert({
+        where: { labId_slug: { labId: lab.id, slug: scenario.slug } },
+        update: {
+          title: scenario.title,
+          summary: scenario.summary,
+          description: 'Scenario definition only. Mutation, remediation verification, and reset execution are implemented by the later shared Scenario Engine.',
+          order: scenario.order,
+          isEnabled: true,
+          baselineState: jsonValue(scenario.baselineState),
+          actions: jsonValue(scenario.actions),
+          expectedObservations: jsonValue(scenario.expectedObservations),
+          verificationCriteria: jsonValue(scenario.verificationCriteria),
+        },
+        create: {
+          labId: lab.id,
+          slug: scenario.slug,
+          title: scenario.title,
+          summary: scenario.summary,
+          description: 'Scenario definition only. Mutation, remediation verification, and reset execution are implemented by the later shared Scenario Engine.',
+          order: scenario.order,
+          isEnabled: true,
+          baselineState: jsonValue(scenario.baselineState),
+          actions: jsonValue(scenario.actions),
+          expectedObservations: jsonValue(scenario.expectedObservations),
+          verificationCriteria: jsonValue(scenario.verificationCriteria),
+        },
+      });
+    }
   }
 
+
+  if (devOpsFixtureData && project.devopsPipelineData) {
+    const state = devOpsFixtureData.state;
+    const devOpsInputs = [
+      {
+        inputKey: 'git-repository-snapshot',
+        inputType: 'GIT_REPOSITORY',
+        label: 'Git Repository Snapshot',
+        description: 'Recorded repository branch and revision metadata from the persisted project fixture.',
+        schemaVersion: 'devops.repository.v1',
+        payload: state.repository,
+        sortOrder: 5,
+      },
+      state.terraform ? {
+        inputKey: 'terraform-snapshot',
+        inputType: 'TERRAFORM',
+        label: 'Terraform IaC Snapshot',
+        description: 'Recorded Terraform files and backend metadata normalized from the persisted project fixture.',
+        schemaVersion: 'devops.terraform.v1',
+        payload: state.terraform,
+        sortOrder: 10,
+      } : null,
+      state.kubernetes.clusters.length > 0 || state.kubernetes.workloads.length > 0 ? {
+        inputKey: 'kubernetes-snapshot',
+        inputType: 'KUBERNETES_MANIFEST',
+        label: 'Kubernetes Runtime Snapshot',
+        description: 'Recorded cluster and workload observations from the persisted GitOps pipeline fixture; not live Kubernetes telemetry.',
+        schemaVersion: 'devops.kubernetes.v1',
+        payload: state.kubernetes,
+        sortOrder: 20,
+      } : null,
+      state.helm.length > 0 ? {
+        inputKey: 'helm-snapshot',
+        inputType: 'HELM',
+        label: 'Helm Package Snapshot',
+        description: 'Recorded Helm packaging metadata from the persisted delivery pipeline fixture.',
+        schemaVersion: 'devops.helm.v1',
+        payload: { releases: state.helm },
+        sortOrder: 30,
+      } : null,
+      state.gitops.length > 0 ? {
+        inputKey: 'argocd-snapshot',
+        inputType: 'ARGOCD',
+        label: 'ArgoCD Reconciliation Snapshot',
+        description: 'Recorded ArgoCD reconciliation state from the persisted delivery pipeline fixture.',
+        schemaVersion: 'devops.argocd.v1',
+        payload: { applications: state.gitops },
+        sortOrder: 40,
+      } : null,
+      state.networkPolicies.length > 0 ? {
+        inputKey: 'cilium-policy-snapshot',
+        inputType: 'CILIUM_POLICY',
+        label: 'Cilium Policy Snapshot',
+        description: 'Recorded Cilium policy observation from the project fixture; no live eBPF policy query is performed.',
+        schemaVersion: 'devops.cilium.v1',
+        payload: { policies: state.networkPolicies },
+        sortOrder: 50,
+      } : null,
+      state.observability.length > 0 ? {
+        inputKey: 'observability-snapshot',
+        inputType: 'OBSERVABILITY_SNAPSHOT',
+        label: 'Observability Snapshot',
+        description: 'Recorded Prometheus/Flagger pipeline observations. The portfolio does not fabricate live metrics.',
+        schemaVersion: 'devops.observability.v1',
+        payload: { snapshots: state.observability },
+        sortOrder: 60,
+      } : null,
+    ].filter((entry) => entry !== null) as Array<{
+      inputKey: string;
+      inputType: string;
+      label: string;
+      description: string;
+      schemaVersion: string;
+      payload: unknown;
+      sortOrder: number;
+    }>;
+
+    for (const input of devOpsInputs) {
+      await prisma.labInput.upsert({
+        where: { labId_inputKey: { labId: lab.id, inputKey: input.inputKey } },
+        update: {
+          inputType: input.inputType,
+          label: input.label,
+          description: input.description,
+          sourceKind: LabInputSourceKind.INLINE,
+          schemaVersion: input.schemaVersion,
+          payload: jsonValue(input.payload),
+          externalUrl: null,
+          artifactId: null,
+          isPrimary: false,
+          sortOrder: input.sortOrder,
+        },
+        create: {
+          labId: lab.id,
+          inputKey: input.inputKey,
+          inputType: input.inputType,
+          label: input.label,
+          description: input.description,
+          sourceKind: LabInputSourceKind.INLINE,
+          schemaVersion: input.schemaVersion,
+          payload: jsonValue(input.payload),
+          isPrimary: false,
+          sortOrder: input.sortOrder,
+        },
+      });
+    }
+  }
   for (const step of runbooks[project.slug] ?? []) {
     await prisma.labRunbookStep.upsert({
       where: { labId_order: { labId: lab.id, order: step.order } },

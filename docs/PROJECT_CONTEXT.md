@@ -226,7 +226,7 @@ Admin CMS
 
 PostgreSQL/Prisma is the only supported runtime persistence path. There is no silent in-memory fallback when PostgreSQL is unavailable. An old `PERSISTENCE_MODE=prisma` environment entry is tolerated only for local migration compatibility; `legacy` is rejected.
 
-Phase 2B content persistence, Phase 2C persistent authentication/RBAC, Phase 2D Canonical Lab Platform + Admin Core, and Phase 2E Prisma-only runtime retirement are COMPLETE and exit-verified. Phase 3A Core Networking Engine is exit-verified and Phase 3B Networking Investigation and Operations is implemented in the current baseline. Phase 4A Core Linux Engine is implemented and awaiting local/full-ZIP exit validation.
+Phase 2B content persistence, Phase 2C persistent authentication/RBAC, Phase 2D Canonical Lab Platform + Admin Core, and Phase 2E Prisma-only runtime retirement are COMPLETE and exit-verified. Phase 3 Dynamic Networking and Phase 4 Dynamic Linux are complete. Phase 5A Core Dynamic DevOps is the current completed checkpoint and Phase 5B is next.
 
 ---
 
@@ -539,7 +539,7 @@ Project
 
 `Project.domain` is canonical. Lab input types are validated by domain-specific application registries instead of project-name checks. Public lab reads require a READY Lab attached to a PUBLISHED Project. Public Lab Manifest v1 output exposes safe input descriptors, enabled scenarios, public evidence, and public artifact summaries; it does not expose raw input payloads, raw external input URLs, or internal storage keys.
 
-The three existing flagship lab fixtures are compatibility seed data normalized into this platform. They are not evidence that arbitrary Packet Tracer, Linux, or DevOps artifacts are parsed. Networking/Linux/DevOps adapters and stateful engines remain Phases 3–5. See `docs/LAB_PLATFORM_ARCHITECTURE.md`.
+The three existing flagship lab fixtures are compatibility seed data normalized into this platform. They are not evidence that arbitrary Packet Tracer, Linux, or DevOps artifacts are parsed. Networking and Linux domain engines are complete, and Phase 5A provides the reusable DevOps core engine. See `docs/LAB_PLATFORM_ARCHITECTURE.md`.
 
 # 16. Phase Roadmap
 
@@ -593,54 +593,23 @@ Production Security, Testing, Performance and Deployment
 
 ---
 
-# 17. Planned Networking Evolution
+# 17. Dynamic Networking Engine
 
-Phase 3 is compressed into two quality gates:
-
-3A Core Networking Engine — persisted state adapter, reusable topology/device renderer, control-plane snapshots, deterministic topology reachability, multi-project/multi-lab support
-
-3B Networking Investigation and Operations — recorded BGP/OSPF and first-hop redundancy inspection, health derivation, longest-prefix route lookup, conservative structured ACL/path analysis, durable operator-context contracts, and scenario-ready investigation definitions
-
-Example scenarios:
-
-ISP_FAILOVER
-OSPF_NEIGHBOR_LOSS
+Phase 3 is complete. The Networking workspace uses persisted multi-project/multi-Lab state for topology/device inspection plus recorded BGP/OSPF/first-hop-redundancy operations, route lookup, conservative ACL/path reasoning, `NETOPS/...` context contracts, and scenario-ready definitions. Arbitrary Packet Tracer binary parsing and live device execution are not claimed.
 
 ---
 
-# 18. Planned Linux Evolution
+# 18. Dynamic Linux Engine
 
-Phase 4 should likely include:
-
-system model
-services
-storage
-SELinux/security
-troubleshooting
-shell integration
-
-Example scenarios:
-
-SELINUX_DENIAL
-SERVICE_FAILURE
-DISK_PRESSURE
+Phase 4 is complete. The Linux workspace uses reusable `linux.v1` recorded state for RHEL 9.4 hosts and recorded-state operations covering services, storage/LVM/mount/fstab, SELinux, networking, logs/configuration, remediation guidance, `RHEL/...` context contracts, and scenario-ready definitions. Shell execution and scenario mutation remain later phases.
 
 ---
 
-# 19. Planned DevOps Evolution
+# 19. Dynamic DevOps Engine
 
-Phase 5 should likely include:
+Phase 5A is complete as the current checkpoint. The DevOps workspace uses reusable `devops.v1` recorded state for repository/revision metadata, CI/CD pipelines, Terraform/IaC, Kubernetes, ArgoCD/GitOps, Helm, Cilium/network-policy observations, observability, architecture, runbooks, and evidence. Only modules represented by each Lab are rendered.
 
-pipeline model
-IaC
-GitOps/Kubernetes
-failure and rollback
-telemetry
-
-Example scenarios:
-
-ARGOCD_DRIFT
-CANARY_FAILURE
+Phase 5B is the next bounded phase and adds recorded-state DevOps investigation/operations, `GITOPS/...` context, remediation guidance, and scenario-ready definitions. Phase 6 owns unified command execution and Phase 7 owns shared scenario mutation/remediation/reset.
 
 ---
 
@@ -737,9 +706,9 @@ Phase 2B is COMPLETE and exit-verified. `PH2A-DEFER-001` is DONE.
 
 **Phase 3A — Core Dynamic Networking Engine is COMPLETE and exit-verified.** The full consolidated verification suite passed and the returned ZIP preserves the reusable persisted Lab adapter/service/UI, multi-project/multi-Lab behavior, device/interface/configuration inspection, and deterministic topology reachability without fabricated latency or arbitrary `.pkt` parsing claims.
 
-**Phase 3B — Networking Investigation and Operations is implemented.** The implementation adds recorded BGP/OSPF neighbor state, first-hop redundancy state, derived health checks, IPv4 longest-prefix route lookup, conservative structured ACL/path assessment, a durable `NETOPS/...` operator-context contract, and scenario-ready definitions. It deliberately does not execute arbitrary device commands or mutate scenarios; those capabilities remain Phase 6 and Phase 7 respectively.
+**Phase 3B — Networking Investigation and Operations is COMPLETE.** It adds recorded BGP/OSPF neighbor state, first-hop redundancy state, derived health checks, IPv4 longest-prefix route lookup, conservative structured ACL/path assessment, a durable `NETOPS/...` operator-context contract, and scenario-ready definitions. It deliberately does not execute arbitrary device commands or mutate scenarios; those capabilities remain Phase 6 and Phase 7 respectively.
 
-Routine validation is consolidated under `npm run verify`; targeted domain scripts remain for debugging. Phase 4A now adds the reusable `linux.v1` host model, Linux adapter/service/API, dynamic Linux workspace, RHEL 9.4 normalized seed baseline, and durable Linux regressions. Phase 4B remains the next Linux investigation/operations layer.
+Routine validation is consolidated under `npm run verify`; targeted domain scripts remain for debugging. **Phase 4 is COMPLETE.** Phase 4A provides the reusable `linux.v1` host model, Linux adapter/service/API, dynamic Linux workspace, RHEL 9.4 normalized seed baseline, and durable Linux regressions. Phase 4B adds recorded-state health analysis, service/storage/SELinux/network/log diagnostics, remediation guidance, `RHEL/...` operator-context contracts, and scenario-ready definitions without shell execution or state mutation.
 
 Multi-Project Dynamic Lab Principle: Domain workspaces and interactive labs must be data-driven and reusable. Networking, Linux, and DevOps experiences must not be hard-coded for one flagship project. A Project may contain zero or more Labs; a Lab may contain zero or more Scenarios and Artifacts. Domain-specific adapters normalize project/lab inputs into a canonical lab state consumed by reusable renderers, CLI contexts, scenario engines, runbooks, and evidence views. Adding a supported project or lab should normally require data/artifact configuration rather than new frontend components.
 
@@ -747,4 +716,34 @@ Multi-Project Dynamic Lab Principle: Domain workspaces and interactive labs must
 
 Phase 4A replaces the fixed Linux workspace preview with a reusable canonical Linux Lab engine. READY `LINUX_SYSTEM` Labs belonging to published Linux projects are adapted from Lab Manifest v1 into `linux.v1` state. The model supports multiple hosts and includes systemd services, storage/LVM/filesystems/mounts/fstab, SELinux, interfaces/routes, recorded logs, configuration files, verification records, provenance, runbook, evidence, and input descriptors.
 
-The canonical RHEL project seed is standardized to RHEL 9.4 and persisted as normalized Lab state plus durable Linux input descriptors. The engine does not claim live host telemetry, arbitrary shell execution, or remediation. Those investigation/operations concerns remain Phase 4B, unified CLI Phase 6, and scenario mutation Phase 7.
+The canonical RHEL project seed is standardized to RHEL 9.4 and persisted as normalized Lab state plus durable Linux input descriptors. Phase 4B now reasons over that recorded state and exposes non-executing remediation guidance and scenario contracts. The engine still does not claim live host telemetry, arbitrary shell execution, or applied remediation; unified CLI execution remains Phase 6 and scenario mutation remains Phase 7.
+
+
+## Phase 4B Linux Investigation and Operations
+
+Phase 4B layers `LinuxOperationsService` over the Core Linux Engine. It derives health checks and investigation findings from persisted `linux.v1` host state, correlating systemd service failures, explicit storage/mount/LVM problems, fstab/runtime mismatches, SELinux mode drift and recorded AVC denials, interface/route issues, and recorded warning/error logs. Suggested commands and remediation steps are guidance only and are never executed by the server.
+
+The public Linux operations contract adds `/operations` and `/context` endpoints. Host contexts use durable `RHEL/...` identifiers for later Phase 6 CLI integration. Persisted Linux scenario definitions are surfaced as scenario-ready contracts with `executionAvailable: false`; mutation/reset remains Phase 7.
+
+---
+
+# 25. Phase 4 Closeout and Phase 5A Current State
+
+Phase 4 is treated as the verified baseline for Phase 5. The current Linux workspace uses canonical `linux.v1` state plus `LinuxOperationsService` recorded-state diagnostics. `RHEL/...` context remains non-executing until Phase 6 and Linux scenario mutation/reset remains Phase 7.
+
+Phase 5A replaces the old static DevOps pipeline visualizer with the Core Dynamic DevOps Engine:
+
+```text
+Canonical DevOps Lab Manifest
+  -> DevOpsLabAdapter
+  -> devops.v1 normalized state
+  -> DevOpsService
+  -> /api/devops
+  -> Dynamic Delivery Control Plane
+```
+
+The engine supports multiple published DevOps projects and READY Labs without project-slug conditionals. Supported normalized modules include repository/revision metadata, CI/CD pipelines, Terraform/IaC files, Kubernetes cluster/workload snapshots, ArgoCD state, Helm records, Cilium/network-policy observations, observability snapshots, and architecture records. The UI renders only modules actually present in the Lab.
+
+The canonical GitOps project is a recorded project fixture, not live production telemetry. Phase 5A does not execute pipelines, Terraform, kubectl, Helm, ArgoCD, Cilium, or cloud APIs. Missing state remains empty/unknown. The former browser-side timer-based pipeline replay is removed.
+
+Phase 5A is the completed Core Dynamic DevOps checkpoint. Phase 5B is the next bounded phase and will add DevOps recorded-state investigation/operations plus `GITOPS/...` context and scenario-ready definitions. Phase 6 owns command execution and Phase 7 owns shared mutable scenario execution/reset.

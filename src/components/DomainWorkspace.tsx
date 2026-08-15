@@ -5,7 +5,7 @@ import { WorkspaceHeader } from './WorkspaceHeader.js';
 import { OperatorPath } from './OperatorPath.js';
 import { NetworkingLabExplorer } from './networking/index.js';
 import { LinuxLabExplorer } from './linux/index.js';
-import { DevOpsPipelineVisualizer } from './DevOpsPipelineVisualizer.js';
+import { DevOpsLabExplorer } from './devops/index.js';
 import { ProjectsShowcase } from './ProjectsShowcase.js';
 import { CertificationMatrix } from './CertificationMatrix.js';
 import { TechnicalBlog } from './TechnicalBlog.js';
@@ -31,7 +31,7 @@ export const DomainWorkspace: React.FC<DomainWorkspaceProps> = ({ domainSlug }) 
       {/* 3. Domain Core Lab / Visualizer */}
       {config.slug === 'networking' && <NetworkingLabExplorer />}
       {config.slug === 'linux' && <LinuxLabExplorer />}
-      {config.slug === 'devops' && <DevOpsPipelineVisualizer />}
+      {config.slug === 'devops' && <DevOpsLabExplorer />}
 
       {/* 4. Domain Projects */}
       <ProjectsShowcase />

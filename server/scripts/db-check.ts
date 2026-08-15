@@ -19,7 +19,7 @@ async function main() {
   try {
     await prisma.$queryRaw`SELECT 1`;
 
-    const [categories, projects, blogCount, certificationCount, skillCount, userCount, authSessionCount, labs, labInputCount, labRunbookCount, networkingLab, linuxLab] = await Promise.all([
+    const [categories, projects, blogCount, certificationCount, skillCount, userCount, authSessionCount, labs, labInputCount, labRunbookCount, networkingLab, linuxLab, devOpsLab] = await Promise.all([
       prisma.category.findMany({
         select: {
           slug: true,
@@ -54,7 +54,11 @@ async function main() {
       }),
       prisma.lab.findUnique({
         where: { slug: 'rhel9-hardening-environment' },
-        include: { nodes: true, inputs: true },
+        include: { nodes: true, inputs: true, scenarios: true },
+      }),
+      prisma.lab.findUnique({
+        where: { slug: 'gitops-k8s-cluster' },
+        include: { inputs: true, scenarios: true },
       }),
     ]);
 
@@ -114,6 +118,32 @@ async function main() {
     const firstLinuxHost = linuxState.hosts[0] as Record<string, unknown> | undefined;
     if (!Array.isArray(firstLinuxHost?.services) || firstLinuxHost.services.length < 1) throw new Error('Linux Lab is missing normalized systemd service state');
     if (!Array.isArray(firstLinuxHost?.fstab) || firstLinuxHost.fstab.length < 1) throw new Error('Linux Lab is missing normalized fstab state');
+    for (const capability of ['health-analysis', 'diagnostics', 'operator-context', 'scenario-readiness']) {
+      if (!linuxLab.capabilities.includes(capability)) throw new Error(`Linux Lab is missing Phase 4B capability: ${capability}`);
+    }
+    const expectedLinuxScenarios = ['service-failure', 'selinux-denial', 'mount-failure', 'network-interface-loss'];
+    for (const slug of expectedLinuxScenarios) {
+      if (!linuxLab.scenarios.some((scenario) => scenario.slug === slug && scenario.isEnabled)) {
+        throw new Error(`Linux Lab is missing enabled scenario-ready definition: ${slug}`);
+      }
+    }
+
+    if (!devOpsLab) throw new Error('Missing canonical DevOps Lab');
+    for (const inputType of ['CI_PIPELINE', 'GIT_REPOSITORY', 'TERRAFORM', 'KUBERNETES_MANIFEST', 'HELM', 'ARGOCD', 'CILIUM_POLICY', 'OBSERVABILITY_SNAPSHOT']) {
+      if (!devOpsLab.inputs.some((input) => input.inputType === inputType)) {
+        throw new Error(`DevOps Lab is missing ${inputType} input`);
+      }
+    }
+    const devOpsState = devOpsLab.normalizedState as Record<string, unknown> | null;
+    if (devOpsState?.schemaVersion !== 'devops.v1') throw new Error('DevOps Lab normalizedState is not devops.v1');
+    if (!Array.isArray(devOpsState.pipelines) || devOpsState.pipelines.length < 1) throw new Error('DevOps Lab is missing normalized pipeline state');
+    const kubernetes = devOpsState.kubernetes as Record<string, unknown> | undefined;
+    if (!Array.isArray(kubernetes?.clusters) || kubernetes.clusters.length < 1) throw new Error('DevOps Lab is missing recorded Kubernetes cluster state');
+    if (!Array.isArray(devOpsState.gitops) || devOpsState.gitops.length < 1) throw new Error('DevOps Lab is missing normalized GitOps state');
+    if (!Array.isArray(devOpsState.observability) || devOpsState.observability.length < 1) throw new Error('DevOps Lab is missing recorded observability snapshots');
+    for (const capability of ['pipeline', 'repository', 'terraform', 'kubernetes', 'gitops', 'observability']) {
+      if (!devOpsLab.capabilities.includes(capability)) throw new Error(`DevOps Lab is missing Phase 5A capability: ${capability}`);
+    }
 
     if (blogCount < 3) throw new Error(`Expected at least 3 blogs, found ${blogCount}`);
     if (certificationCount < 3) {
@@ -126,7 +156,8 @@ async function main() {
     console.log(`AUTH SCHEMA: OK (${userCount} users, ${authSessionCount} sessions)`);
     console.log(`LAB PLATFORM: OK (${labs.length} labs, ${labInputCount} inputs, ${labRunbookCount} runbook steps)`);
     console.log(`NETWORKING ENGINE: OK (${networkingLab.nodes.length} devices, ${networkingLab.links.length} links, ${networkingLab.inputs.length} inputs, ${networkingLab.scenarios.length} scenario definitions)`);
-    console.log(`LINUX ENGINE: OK (${linuxLab.nodes.length} hosts, ${linuxLab.inputs.length} inputs)`);
+    console.log(`LINUX ENGINE: OK (${linuxLab.nodes.length} hosts, ${linuxLab.inputs.length} inputs, ${linuxLab.scenarios.length} scenario-ready definitions)`);
+    console.log(`DEVOPS ENGINE: OK (${devOpsLab.inputs.length} inputs, normalized delivery state available)`);
     console.log(
       `CONTENT BASELINE: OK (${categories.length} categories, ${projects.length} projects, ${blogCount} blogs, ${certificationCount} certifications, ${skillCount} skills)`,
     );
