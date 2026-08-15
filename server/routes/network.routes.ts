@@ -1,6 +1,4 @@
 import { Router } from 'express';
-import { dbService } from '../services/db.service.js';
-import { authenticateToken, requireRole } from '../middlewares/auth.middleware.js';
 
 const router = Router();
 
@@ -157,36 +155,6 @@ router.post('/simulate-packet', async (req, res) => {
       inspectedByFirewall: hops.includes('fw_asa'),
       vlanTransitions: ['VLAN 10 (Access) -> 802.1Q Tagged (Trunk) -> VLAN 20 (SVI Gateway)'],
     },
-  });
-});
-
-// POST /api/network/upload-pkt (Cisco Packet Tracer File Parser Pipeline)
-router.post('/upload-pkt', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  const { fileName, rawXml, fileSize, projectId } = req.body;
-
-  if (!fileName) {
-    res.status(400).json({ success: false, message: 'fileName is required' });
-    return;
-  }
-
-  const targetProjectId = projectId || 'proj-cisco-wan-pkt';
-  const parsedLab = dbService.parseAndAttachPktFile(
-    targetProjectId,
-    fileName,
-    rawXml || `<PacketTracerTopology version="8.2.1" file="${fileName}">
-  <NetworkWorkspace name="Enterprise_HQ_WAN">
-    <Device type="Router" name="R1-HQ-Edge" model="Cisco ISR 4451-X" />
-    <Device type="Router" name="R2-Backup-Edge" model="Cisco ISR 4451-X" />
-    <Device type="MultilayerSwitch" name="SW-Core-MLS" model="Cisco Catalyst 9500" />
-  </NetworkWorkspace>
-</PacketTracerTopology>`,
-    fileSize || 184520
-  );
-
-  res.json({
-    success: true,
-    message: `Packet Tracer file '${fileName}' parsed and attached successfully.`,
-    data: parsedLab,
   });
 });
 

@@ -137,16 +137,16 @@ export function normalizeApplicationError(error: unknown): ApplicationError {
     return new PersistenceUnavailableError();
   }
 
-  const legacyStatus =
+  const httpStatus =
     typeof candidate?.statusCode === 'number'
       ? candidate.statusCode
       : typeof candidate?.status === 'number'
         ? candidate.status
         : undefined;
 
-  if (legacyStatus && legacyStatus >= 400 && legacyStatus <= 599) {
+  if (httpStatus && httpStatus >= 400 && httpStatus <= 599) {
     const message = typeof candidate?.message === 'string' ? candidate.message : 'Request failed';
-    return new ApplicationError(message, legacyStatus, 'SERVER_ERROR');
+    return new ApplicationError(message, httpStatus, 'SERVER_ERROR');
   }
 
   return new ApplicationError('Internal Server Error', 500, 'SERVER_ERROR');

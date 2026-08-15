@@ -29,13 +29,13 @@ const staticTests: Step[] = [
   { label: 'Content static audit', command: 'npm', args: ['run', 'test:content:static'] },
   { label: 'Lab platform static audit', command: 'npm', args: ['run', 'test:labs:static'] },
   { label: 'Admin orchestration static audit', command: 'npm', args: ['run', 'test:admin:static'] },
+  { label: 'Persistent runtime static audit', command: 'npm', args: ['run', 'test:runtime:static'] },
   { label: 'API client regression', command: 'npm', args: ['run', 'test:api-client'] },
 ];
 
 const databaseTests: Step[] = [
   { label: 'Database check', command: 'npm', args: ['run', 'db:check'], requiresDatabase: true },
   { label: 'Authentication regression', command: 'npm', args: ['run', 'test:auth'], requiresDatabase: true },
-  { label: 'Content legacy regression', command: 'npm', args: ['run', 'test:content:legacy'] },
   { label: 'Content persistence smoke', command: 'npm', args: ['run', 'test:content:smoke'], requiresDatabase: true },
   { label: 'Content Prisma regression', command: 'npm', args: ['run', 'test:content:prisma'], requiresDatabase: true },
   {
@@ -58,6 +58,7 @@ const databaseTests: Step[] = [
   { label: 'Lab manifest regression', command: 'npm', args: ['run', 'test:labs:manifest'], requiresDatabase: true },
   { label: 'Lab HTTP regression', command: 'npm', args: ['run', 'test:labs:http'], requiresDatabase: true },
   { label: 'Admin orchestration HTTP regression', command: 'npm', args: ['run', 'test:admin:http'], requiresDatabase: true },
+  { label: 'Persistent runtime HTTP regression', command: 'npm', args: ['run', 'test:runtime:http'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [

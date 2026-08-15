@@ -31,16 +31,13 @@ async function main(): Promise<void> {
     throw new Error('DATABASE_URL is required for the persistence smoke test');
   }
 
-  // Make module-level repository construction deterministic for this standalone process.
-  process.env.PERSISTENCE_MODE = 'prisma';
-
   const [{ createRepositories }, { createContentServices }, { prisma }] = await Promise.all([
     import('../repositories/repository.factory.js'),
     import('../services/content/index.js'),
     import('../lib/prisma.js'),
   ]);
 
-  const repositories = createRepositories('prisma');
+  const repositories = createRepositories();
   const services = createContentServices(repositories);
   const created: CreatedIds = {};
   const cleanupFailures: string[] = [];

@@ -200,8 +200,8 @@ React
 → Express content routes
 → application services
 → repository contracts
-→ repository factory
-→ Legacy adapters or Prisma adapters
+→ Prisma repositories
+→ PostgreSQL
 
 Persistent authentication:
 Admin UI
@@ -224,9 +224,9 @@ Admin CMS
 → PostgreSQL
 → persisted `AuditLog` through AuditService/PrismaAuditRepository
 
-`PERSISTENCE_MODE=legacy|prisma` remains implemented for the content boundary. Production must use Prisma and must not silently fall back to in-memory persistence when PostgreSQL is unavailable. Authentication is now Prisma-backed regardless of the legacy content compatibility mode.
+PostgreSQL/Prisma is the only supported runtime persistence path. There is no silent in-memory fallback when PostgreSQL is unavailable. An old `PERSISTENCE_MODE=prisma` environment entry is tolerated only for local migration compatibility; `legacy` is rejected.
 
-Phase 2B content persistence, Phase 2C persistent authentication/RBAC, and Phase 2D Canonical Lab Platform + Admin Core are COMPLETE and exit-verified. Full `MockDatabaseService` retirement remains Phase 2E after the remaining media/network/architecture compatibility paths receive persistent replacements.
+Phase 2B content persistence, Phase 2C persistent authentication/RBAC, and Phase 2D Canonical Lab Platform + Admin Core are COMPLETE and exit-verified. Phase 2E legacy runtime retirement is implemented in code and awaiting its exit validation.
 
 ---
 
@@ -301,9 +301,9 @@ Phase 2A established the schema/migration foundation. Phase 2B has since expande
 
 The obsolete dormant `server/services/prisma.database.service.ts` transition service has been removed. Content persistence uses repository contracts plus dedicated Prisma adapters.
 
-`server/services/db.service.ts` remains intentionally present for legacy content adapters and selected compatibility routes such as media, architecture metrics, and current Packet Tracer compatibility behavior. Authentication no longer depends on it.
+The former `server/services/db.service.ts` and legacy repository adapters have been removed. Media reference metadata now persists through `Artifact`, architecture metrics come from PostgreSQL counts, and the synthetic Packet Tracer parser attachment endpoint is retired.
 
-Do not retire `MockDatabaseService` until the remaining Admin/non-content dependencies have persistent replacements and Phase 2E exit criteria pass.
+Phase 2E exit validation must prove that no runtime route depends on legacy in-memory persistence and that the complete regression baseline passes against PostgreSQL.
 
 ---
 
@@ -331,7 +331,7 @@ The current repository state is the source of truth for planning the next migrat
 
 Persistence work must NEVER make existing portfolio content disappear.
 
-The active `MockDatabaseService` regression baseline is:
+The canonical persistent content regression baseline is:
 
 Canonical categories, with IDs and slugs that currently drive exact frontend filtering:
 
@@ -345,7 +345,7 @@ Flagship projects:
 2. **Enterprise RHEL 9 Infrastructure Hardening, Stratis/LVM Storage & SELinux Compliance Matrix** — slug `rhel-9-rhcsa-hardening-storage-selinux`, format `rhcsa_matrix`
 3. **Cloud-Native GitOps Kubernetes Infrastructure with Cilium eBPF & Terraform** — slug `cloud-native-gitops-k8s-cilium-terraform`, format `devops_pipeline`
 
-Certification/learning cards currently served as mock `Certification` records:
+Certification/learning cards persisted as `Certification` records:
 
 1. **CCNA 200-301 Preparation Track**
 2. **RHCSA EX200 Preparation Track**
@@ -508,34 +508,19 @@ The frontend API client validates HTTP status and API envelopes, and core portfo
 
 # 15. Persistence Architecture
 
-Phase 2B implements the content API boundary as:
+The runtime persistence boundary is now:
 
 HTTP Route
 → Application Service
 → Repository Contract
-→ Repository Implementation
-
-Repository implementations:
-
-Legacy Repository
-→ MockDatabaseService
-
-Prisma Repository
+→ Prisma Repository
 → PostgreSQL
 
-Migrated content routes do not select persistence directly and do not import Prisma. Repository selection is centralized.
+Content routes do not import Prisma directly. Authentication, canonical Labs, Admin audit, artifact metadata, and system metrics all use persistent PostgreSQL state.
 
-Supported modes:
+There is no supported legacy runtime repository mode and no silent fallback to in-memory data. Database failure is surfaced through health/error handling instead of returning mock content.
 
-PERSISTENCE_MODE=legacy
-
-PERSISTENCE_MODE=prisma
-
-Production must never silently fall back from broken PostgreSQL to in-memory persistence.
-
-Phase 2B also includes explicit API error handling, async Express forwarding, frontend HTTP/envelope validation, loading/error/empty distinction, protected persistent Packet Tracer upload behavior, database checks, and persistence/regression scripts.
-
-Phase 2B remains the content contract and Prisma parity checkpoint. Phase 2C adds the persistent auth repository/service boundary and revocable database sessions. Phase 2D adds the canonical Lab platform and persistent Admin core. `MockDatabaseService` can be retired only in Phase 2E after the remaining runtime compatibility dependencies have persistent replacements and the complete regression baseline is verified.
+The former Packet Tracer parser endpoint is retired. Packet Tracer files/references are represented through canonical `PACKET_TRACER` LabInputs; arbitrary `.pkt` binary parsing is not claimed. Media compatibility APIs persist metadata in `Artifact` but do not claim managed byte storage, which remains Phase 8/9 work.
 
 ---
 
@@ -583,7 +568,7 @@ Phase 2D-2:
 Admin Lab Builder, persistent Admin orchestration, Skills/Certifications management, and real AuditLog UI
 
 Phase 2E:
-Legacy MockDatabaseService retirement after content, authentication, and Admin persistence parity
+Prisma-only runtime cutover, legacy service/adapters retirement, persistent media metadata, truthful system metrics, and parser cleanup
 
 Phase 3:
 Networking Control Plane
@@ -748,8 +733,10 @@ Phase 2B is COMPLETE and exit-verified. `PH2A-DEFER-001` is DONE.
 
 **Phase 2C — Persistent Authentication & RBAC is COMPLETE and exit-verified.** The migration, explicit administrator bootstrap, persisted session behavior, current-role enforcement, logout revocation, content regressions, lint, and build passed the Phase 2C exit gate.
 
-**Phase 2D — Canonical Lab Platform + Admin Core is COMPLETE and exit-verified.** Lab Manifest v1, standardized domain input registries, Project→many Labs, LabInputs, normalized state/topology/scenarios/runbooks/evidence, authenticated Lab Builder, persisted AuditLog UI, Skills/Certifications management, inquiry status management, and Project story-field round-tripping passed the consolidated verification baseline.
+**Phase 2D — Canonical Lab Platform + Admin Core is COMPLETE and exit-verified.** Lab Manifest v1, standardized domain input registries, Project→many Labs, persisted LabInputs/topology/scenarios/runbooks/evidence, authenticated Lab Builder, persistent AuditLog UI, Skills/Certifications management, inquiry status management, and project story-field round-tripping passed the consolidated verification baseline.
 
-Routine validation is consolidated under `npm run verify`; targeted scripts remain for debugging. The next implementation target is **Phase 2E — safe retirement of the remaining MockDatabaseService runtime paths**.
+**Phase 2E — Prisma-only Runtime Cutover is implemented in code and awaiting exit validation.** `MockDatabaseService`, legacy repository adapters, and the legacy content regression mode are removed; media reference metadata uses `Artifact`; architecture metrics use PostgreSQL counts; and the synthetic Packet Tracer parser endpoint/client path is retired.
+
+Routine validation is consolidated under `npm run verify`; targeted scripts remain for debugging. After Phase 2E PASS, the next implementation target is **Phase 3 — Dynamic Networking Lab Engine**.
 
 Multi-Project Dynamic Lab Principle: Domain workspaces and interactive labs must be data-driven and reusable. Networking, Linux, and DevOps experiences must not be hard-coded for one flagship project. A Project may contain zero or more Labs; a Lab may contain zero or more Scenarios and Artifacts. Domain-specific adapters normalize project/lab inputs into a canonical lab state consumed by reusable renderers, CLI contexts, scenario engines, runbooks, and evidence views. Adding a supported project or lab should normally require data/artifact configuration rather than new frontend components.

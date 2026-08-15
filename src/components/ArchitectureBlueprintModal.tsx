@@ -47,277 +47,91 @@ export const ArchitectureBlueprintModal: React.FC = () => {
 
   if (!isArchitectureModalOpen) return null;
 
-  const prismaSchemaCode = `// prisma/schema.prisma - PostgreSQL Schema for Systems Portfolio & CMS
-generator client {
-  provider = "prisma-client-js"
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-enum UserRole {
-  SUPER_ADMIN
-  ADMIN
-  EDITOR
-}
-
-enum ProjectStatus {
-  COMPLETED
-  IN_PROGRESS
-  ARCHIVED
-  PLANNED
-}
-
-enum InquiryStatus {
-  NEW
-  READ
-  RESPONDED
-  ARCHIVED
-}
-
+  const prismaSchemaCode = `// Current persistence architecture excerpt
 model User {
-  id           String      @id @default(uuid())
-  email        String      @unique
-  passwordHash String
-  fullName     String
-  role         Role        @default(ADMIN)
-  avatarUrl    String?
-  bio          String?
-  lastLoginAt  DateTime?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  
-  auditLogs    SystemAuditLog[]
-  mediaAssets  MediaAsset[]
-
-  @@index([email])
-}
-
-model Category {
-  id           String      @id @default(uuid())
-  slug         String      @unique
-  name         String
-  tagline      String
-  description  String
-  icon         String
-  accentColor  String
-  terminalTheme String     // green | cyan | amber | violet
-  sortOrder    Int         @default(0)
-  isPublished  Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-
-  projects       Project[]
-  blogPosts      BlogPost[]
-  certifications Certification[]
-  skills         Skill[]
-
-  @@index([slug])
-  @@index([isPublished, sortOrder])
+  id           String        @id @default(cuid())
+  email        String        @unique
+  displayName  String
+  passwordHash String?
+  role         UserRole      @default(ADMIN)
+  isActive     Boolean       @default(true)
+  authSessions AuthSession[]
+  auditLogs    AuditLog[]
 }
 
 model Project {
-  id                  String        @id @default(uuid())
-  title               String
-  slug                String        @unique
-  summary             String
-  descriptionMarkdown String        @db.Text
-  categoryId          String
-  category            Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  status              ProjectStatus @default(COMPLETED)
-  isFeatured          Boolean       @default(false)
-  sortOrder           Int           @default(0)
-  
-  coverImageUrl       String?
-  architectureSvg     String?       @db.Text
-  liveUrl             String?
-  githubUrl           String?
-  packetTracerFile    String?
-  topologyConfigJson  String?       @db.Text
-  devopsStack         String[]
-  tags                String[]
-  
-  metrics             Json?
-  
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-
-  @@index([categoryId])
-  @@index([slug])
-  @@index([isFeatured, sortOrder])
+  id                  String   @id @default(cuid())
+  slug                String   @unique
+  domain              Domain
+  mission             String?
+  architectureSummary String?
+  whatIBuilt           String?
+  labs                Lab[]
+  artifacts           Artifact[]
 }
 
-model BlogPost {
-  id                  String      @id @default(uuid())
-  title               String
-  slug                String      @unique
-  excerpt             String
-  contentMarkdown     String      @db.Text
-  categoryId          String
-  category            Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  coverImageUrl       String?
-  readTimeMinutes     Int         @default(5)
-  tags                String[]
-  isPublished         Boolean     @default(true)
-  publishedAt         DateTime    @default(now())
-  viewCount           Int         @default(0)
-  
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-
-  @@index([categoryId])
-  @@index([slug])
-  @@index([isPublished, publishedAt])
+model Lab {
+  id              String            @id @default(cuid())
+  projectId       String?
+  manifestVersion String            @default("1.0")
+  normalizedState Json?
+  inputs          LabInput[]
+  nodes           LabNode[]
+  links           LabLink[]
+  scenarios       LabScenario[]
+  runbookSteps    LabRunbookStep[]
+  evidence        Evidence[]
 }
 
-model Certification {
-  id                  String      @id @default(uuid())
-  title               String
-  code                String
-  issuer              String
-  credentialId        String
-  verificationUrl     String?
-  badgeIcon           String
-  issueDate           DateTime
-  expiryDate          DateTime?
-  categoryId          String
-  category            Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  skillsValidated     String[]
-  syllabusBreakdown   Json?
-  isFeatured          Boolean     @default(true)
-  sortOrder           Int         @default(0)
-  
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-
-  @@index([categoryId])
+model Artifact {
+  id              String   @id @default(cuid())
+  fileName        String
+  mimeType        String
+  storageProvider String
+  storageKey      String
+  sizeBytes       Int
+  sha256          String?
+  publicUrl       String?
+  isPublic        Boolean  @default(true)
 }
 
-model Skill {
-  id                  String      @id @default(uuid())
-  name                String
-  level               String
-  proficiencyPercent  Int
-  yearsOfExperience   Float
-  categoryId          String
-  category            Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  
-  iconName            String?
-  terminalSnippet     String?
-  sortOrder           Int         @default(0)
-  
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-
-  @@index([categoryId])
-}
-
-model MediaAsset {
-  id           String      @id @default(uuid())
-  filename     String
-  originalName String
-  mimeType     String
-  sizeBytes    Int
-  url          String
-  s3Key        String?
-  uploaderId   String?
-  uploader     User?       @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
-  
-  createdAt    DateTime    @default(now())
-
-  @@index([uploaderId])
-}
-
-model SystemAuditLog {
-  id           String      @id @default(uuid())
-  action       String
-  entity       String
-  entityId     String?
-  adminEmail   String
-  ipAddress    String?
-  userAgent    String?
-  details      Json?
-  userId       String?
-  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  timestamp    DateTime    @default(now())
-
-  @@index([userId])
-  @@index([action])
-  @@index([timestamp])
-}
-
-model ContactInquiry {
-  id           String        @id @default(uuid())
-  name         String
-  email        String
-  subject      String
-  message      String        @db.Text
-  category     String?
-  status       InquiryStatus @default(NEW)
-  ipAddress    String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  @@index([status])
-}`;
+// PostgreSQL/Prisma is the only supported runtime persistence path.
+// Managed artifact byte storage remains a later production/orchestration phase.`;
 
   const directoryTreeCode = `infra-portfolio-cms/
 ├── prisma/
-│   └── schema.prisma                 # Complete PostgreSQL relational schema & indexes
+│   ├── schema.prisma
+│   ├── migrations/
+│   └── seed.ts
 ├── server/
-│   ├── middlewares/
-│   │   ├── auth.middleware.ts        # JWT verification (HttpOnly cookie & Bearer header)
-│   │   └── error.middleware.ts       # Global error boundary & formatted JSON exceptions
-│   ├── routes/
-│   │   ├── auth.routes.ts            # /api/auth/login, /api/auth/me, /api/auth/logout
-│   │   ├── categories.routes.ts      # Multi-tenant dynamic portfolio categories CRUD
-│   │   ├── projects.routes.ts        # Projects CRUD with Packet Tracer metadata & stack
-│   │   ├── blogs.routes.ts           # Markdown engineering blog CRUD & view counter
-│   │   ├── certifications.routes.ts  # RHCSA/CCNA credentials & domain syllabus breakdown
-│   │   ├── skills.routes.ts          # Technical competency matrix with mapped CLI commands
-│   │   ├── media.routes.ts           # S3 / disk asset upload pipeline
-│   │   ├── terminal.routes.ts        # Sandboxed RHCSA/CCNA/DevOps CLI execution engine
-│   │   ├── network.routes.ts         # Cisco Packet Tracer topology & packet hop simulation
-│   │   ├── contact.routes.ts         # Contact form ingestion & inquiry status manager
-│   │   └── architecture.routes.ts    # System blueprint & telemetry metadata endpoint
+│   ├── middlewares/              # auth, async, error handling
+│   ├── repositories/
+│   │   ├── contracts/            # content/auth/lab/audit/artifact/system contracts
+│   │   └── prisma/               # PostgreSQL implementations
+│   ├── routes/                   # HTTP controllers
 │   ├── services/
-│   │   └── db.service.ts             # Clean data layer with transactional mutations
-│   └── types/
-│       └── index.ts                  # Server-side TypeScript interfaces & enums
+│   │   ├── auth/
+│   │   ├── content/
+│   │   ├── labs/
+│   │   ├── admin/
+│   │   ├── media/
+│   │   └── system/
+│   ├── security/
+│   └── scripts/                  # durable verification/regression tools
 ├── src/
 │   ├── components/
-│   │   ├── AdminCMS/
-│   │   │   └── AdminModal.tsx        # Restricted CMS portal with full CRUD & audit log
-│   │   ├── ArchitectureBlueprintModal.tsx  # Interactive Architecture Explorer
-│   │   ├── CertificationMatrix.tsx   # Verified badges & syllabus radar
-│   │   ├── CiscoTopologyVisualizer.tsx # Cisco Packet Tracer interactive canvas & hops
-│   │   ├── ContactSection.tsx        # Terminal-styled contact form & PGP fingerprint
-│   │   ├── DevOpsPipelineVisualizer.tsx # CI/CD GitOps matrix & K8s pod board
-│   │   ├── Footer.tsx                # System health telemetry & active category
-│   │   ├── HeroSection.tsx           # Cyber-industrial hero with live CLI preview
-│   │   ├── Navbar.tsx                # Category switcher tabs & terminal quick launcher
-│   │   ├── ProjectsShowcase.tsx      # Projects grid with deep-dive modal
-│   │   ├── TechnicalBlog.tsx         # Markdown engineering blog with syntax highlighting
-│   │   ├── TerminalEmulator.tsx      # Interactive Linux RHCSA terminal emulator
-│   │   └── ToastContainer.tsx        # Floating notification stack
+│   │   └── AdminCMS/             # persistent Admin + Lab Builder
 │   ├── context/
-│   │   └── PortfolioContext.tsx      # Central reactive state & cookie-session auth provider
-│   ├── lib/
-│   │   └── api.ts                    # Centralized client-side fetch client
-│   ├── types.ts                      # Client TypeScript interfaces
-│   ├── App.tsx                       # Main portfolio composition
-│   ├── index.css                     # Dark-mode terminal typography & Tailwind styles
-│   └── main.tsx                      # React 19 StrictMode entry point
-├── server.ts                         # Express applet server with Vite middleware
-├── package.json                      # Full-stack dependencies & esbuild scripts
-├── tsconfig.json
-└── vite.config.ts`;
+│   ├── lib/api.ts
+│   └── types.ts
+├── docs/
+│   ├── LAB_PLATFORM_ARCHITECTURE.md
+│   ├── ADMIN_ORCHESTRATOR.md
+│   ├── AUTHENTICATION_RUNBOOK.md
+│   └── PERSISTENCE_ARCHITECTURE.md
+└── server.ts
+
+No runtime MockDatabaseService or legacy repository adapter remains.`;
 
   const jwtMiddlewareCode = `// Current authentication flow (abridged)
 Browser HttpOnly cookie
@@ -349,14 +163,14 @@ Role changes and account deactivation take effect on the next protected request.
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-white text-sm sm:text-base uppercase tracking-tight">
-                    TARGET PRODUCTION ARCHITECTURE
+                    SYSTEM ARCHITECTURE BLUEPRINT
                   </h3>
                   <span className="px-2 py-0.5 rounded text-[10px] bg-[#00d4ff]/10 text-[#00d4ff] border border-[#00d4ff]/30 uppercase font-mono font-bold">
-                    PLANNED BLUEPRINT
+                    CURRENT + PLANNED
                   </span>
                 </div>
                 <p className="text-xs text-white/50">
-                  Target backend, persistence, security and deployment architecture for the production portfolio.
+                  Implemented runtime architecture plus clearly identified future domain-engine and deployment targets.
                 </p>
               </div>
             </div>
@@ -423,7 +237,7 @@ Role changes and account deactivation take effect on the next protected request.
               }`}
             >
               <Server className="w-4 h-4" />
-              <span>Deployment &amp; S3 Pipeline</span>
+              <span>Deployment &amp; Artifact Storage</span>
             </button>
           </div>
 
@@ -438,7 +252,7 @@ Role changes and account deactivation take effect on the next protected request.
                       Presentation Layer (React 19 SPA)
                     </span>
                     <p className="text-white/70 text-xs font-sans leading-relaxed">
-                      Zero page-reload client architecture with Motion layout animations, interactive Cisco Packet Tracer simulation canvas, xterm-style RHCSA terminal emulator, and restricted CMS portal.
+                      React SPA with domain workspaces, representative infrastructure visualizers, contextual operator surfaces, and a restricted persistent Admin CMS.
                     </p>
                   </div>
                   <div className="p-4 rounded-xl bg-black border border-white/10 space-y-2">
@@ -454,7 +268,7 @@ Role changes and account deactivation take effect on the next protected request.
                       Domain Service Layer
                     </span>
                     <p className="text-white/70 text-xs font-sans leading-relaxed">
-                      Encapsulates core business logic: dynamic multi-tenant category switching, sandboxed Linux CLI parser, Cisco OSPF/BGP hop simulator, and media asset pipelines.
+                      Encapsulates content, persisted authentication, canonical Lab Manifest v1, Admin orchestration, artifact-reference validation, and representative domain simulations pending the later stateful engines.
                     </p>
                   </div>
                   <div className="p-4 rounded-xl bg-black border border-white/10 space-y-2">
@@ -470,10 +284,10 @@ Role changes and account deactivation take effect on the next protected request.
                 <div className="p-5 rounded-xl bg-black border border-white/10 space-y-3 font-mono">
                   <h4 className="text-sm font-bold text-white flex items-center gap-2 uppercase tracking-tight">
                     <Sparkles className="w-4 h-4 text-[#00d4ff]" />
-                    Multi-Category &amp; Multi-Tenant Engine Design
+                    Data-Driven Multi-Domain Portfolio Design
                   </h4>
                   <p className="text-xs text-white/60 font-sans leading-relaxed">
-                    The platform decouples portfolio presentation from hardcoded UI views by introducing a first-class <code className="text-[#00d4ff]">Category</code> entity in PostgreSQL. When an administrator creates or toggles a category (e.g. &ldquo;Networking&rdquo;, &ldquo;Linux&rdquo;, &ldquo;DevOps&rdquo;), all associated projects, blog articles, certifications, and skills adapt reactively without touching any frontend code.
+                    The platform persists Categories, Projects, Labs, standardized inputs, scenarios, runbooks, evidence metadata, skills, certifications, and audit events in PostgreSQL. Domain engines are designed to consume canonical Lab state instead of adding one-off project components.
                   </p>
                 </div>
               </div>
@@ -566,7 +380,7 @@ Role changes and account deactivation take effect on the next protected request.
                       <strong className="text-white">Production Build</strong>: Run <code className="text-[#00ff41]">npm run build</code> to compile the React 19 frontend into static assets and bundle the Express server into <code className="text-[#00ff41]">dist/server.cjs</code>.
                     </li>
                     <li>
-                      <strong className="text-white">Media Pipeline Configuration</strong>: Wire AWS S3 bucket keys or Cloudinary environment secrets to the media controller.
+                      <strong className="text-white">Media Pipeline Configuration</strong>: Configure a real storage provider, upload pipeline, checksums, provenance, and backups. The current media compatibility endpoint stores artifact-reference metadata only.
                     </li>
                   </ol>
                 </div>
