@@ -282,3 +282,30 @@ export type {
   NetworkingVerificationRecord,
   NetworkingVlanState,
 } from './networking.js';
+
+
+export type {
+  LinuxBlockDeviceRecord,
+  LinuxConfigRecord,
+  LinuxFstabEntry,
+  LinuxHostState,
+  LinuxHostStatus,
+  LinuxLabState,
+  LinuxLabSummary,
+  LinuxLogicalVolumeRecord,
+  LinuxLogRecord,
+  LinuxMountRecord,
+  LinuxMountState,
+  LinuxNetworkInterfaceRecord,
+  LinuxObservationSource,
+  LinuxRouteRecord,
+  LinuxSelinuxBoolean,
+  LinuxSelinuxContext,
+  LinuxSelinuxPort,
+  LinuxSelinuxState,
+  LinuxServiceRecord,
+  LinuxServiceState,
+  LinuxStateProvenance,
+  LinuxVerificationRecord,
+  LinuxVolumeGroupRecord,
+} from './linux.js';

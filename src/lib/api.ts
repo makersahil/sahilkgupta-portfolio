@@ -16,6 +16,9 @@ import {
   NetworkingRouteLookup,
   NetworkingOperationalPathAnalysis,
   NetworkingOperatorContext,
+  LinuxHostState,
+  LinuxLabState,
+  LinuxLabSummary,
   LabAggregate,
   LabRecord,
   LabInputRecord,
@@ -587,6 +590,25 @@ class ApiClient {
     const query = params.toString();
     return this.requestData<NetworkingOperatorContext>(
       `/api/network/labs/${encodeURIComponent(identifier)}/context${query ? `?${query}` : ''}`,
+    );
+  }
+
+
+  // Dynamic Linux Lab Engine
+  async getLinuxLabs(projectSlug?: string): Promise<LinuxLabSummary[]> {
+    const params = new URLSearchParams();
+    if (projectSlug) params.set('projectSlug', projectSlug);
+    const query = params.toString();
+    return this.requestArray<LinuxLabSummary>(`/api/linux/labs${query ? `?${query}` : ''}`);
+  }
+
+  async getLinuxLab(identifier: string): Promise<LinuxLabState> {
+    return this.requestData<LinuxLabState>(`/api/linux/labs/${encodeURIComponent(identifier)}`);
+  }
+
+  async getLinuxHost(identifier: string, hostKey: string): Promise<LinuxHostState> {
+    return this.requestData<LinuxHostState>(
+      `/api/linux/labs/${encodeURIComponent(identifier)}/hosts/${encodeURIComponent(hostKey)}`,
     );
   }
 

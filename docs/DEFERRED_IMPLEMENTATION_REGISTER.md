@@ -17,7 +17,7 @@ Item: Remaining RHCSA/Linux verified/compliant counters or hard-coded check tota
 Reason Deferred: Status must be generated from actual implemented lab checks in future phases.
 Target Phase: Phase 4 — Linux Systems Console / Phase 7 Scenario Verification
 Priority: P1
-Verification: Verification status must be generated from actual implemented lab checks.
+Verification: Verification status must be generated from actual implemented lab checks. Phase 4A now persists recorded Linux verification records through the canonical Linux engine, but aggregate verified/compliant counters remain intentionally unimplemented until investigation/scenario verification is authoritative.
 Status: OPEN
 
 ### [PH1-DEFER-003]

@@ -168,18 +168,18 @@ function mapAggregate(row: AggregateRow): LabAggregate {
 }
 
 export class PrismaLabRepository implements LabRepository {
-  constructor(private readonly client: PrismaClient = prisma) {}
+  constructor(private readonly client: PrismaClient = prisma) { }
 
   async findAll(query: LabListQuery = {}): Promise<LabRecord[]> {
     const projectFilter = query.projectSlug || query.publishedProjectOnly
       ? {
-          project: {
-            is: {
-              ...(query.projectSlug ? { slug: query.projectSlug } : {}),
-              ...(query.publishedProjectOnly ? { status: 'PUBLISHED' as const } : {}),
-            },
+        project: {
+          is: {
+            ...(query.projectSlug ? { slug: query.projectSlug } : {}),
+            ...(query.publishedProjectOnly ? { status: 'PUBLISHED' as const } : {}),
           },
-        }
+        },
+      }
       : {};
     const rows = await this.client.lab.findMany({
       where: {
@@ -327,44 +327,72 @@ export class PrismaLabRepository implements LabRepository {
     return result.count > 0;
   }
 
-  async replaceTopology(labId: string, nodes: LabNodeInput[], links: LabLinkInput[]): Promise<{ nodes: LabNodeRecord[]; links: LabLinkRecord[] }> {
-    return this.client.$transaction(async (tx) => {
-      await tx.labLink.deleteMany({ where: { labId } });
-      await tx.labNode.deleteMany({ where: { labId } });
-      for (const node of nodes) {
-        await tx.labNode.create({
-          data: {
-            labId,
-            nodeKey: node.nodeKey,
-            label: node.label,
-            kind: node.kind,
-            description: node.description ?? null,
-            position: jsonWrite(node.position),
-            configuration: jsonWrite(node.configuration),
-            metadata: jsonWrite(node.metadata),
-          },
+  async replaceTopology(
+    labId: string,
+    nodes: LabNodeInput[],
+    links: LabLinkInput[],
+  ): Promise<{ nodes: LabNodeRecord[]; links: LabLinkRecord[] }> {
+    return this.client.$transaction(
+      async (tx) => {
+        await tx.labLink.deleteMany({
+          where: { labId },
         });
-      }
-      for (const link of links) {
-        await tx.labLink.create({
-          data: {
-            labId,
-            linkKey: link.linkKey,
-            sourceNodeKey: link.sourceNodeKey,
-            targetNodeKey: link.targetNodeKey,
-            label: link.label ?? null,
-            kind: link.kind ?? null,
-            configuration: jsonWrite(link.configuration),
-            metadata: jsonWrite(link.metadata),
-          },
+
+        await tx.labNode.deleteMany({
+          where: { labId },
         });
-      }
-      const [persistedNodes, persistedLinks] = await Promise.all([
-        tx.labNode.findMany({ where: { labId }, orderBy: { createdAt: 'asc' } }),
-        tx.labLink.findMany({ where: { labId }, orderBy: { createdAt: 'asc' } }),
-      ]);
-      return { nodes: persistedNodes.map(mapNode), links: persistedLinks.map(mapLink) };
-    });
+
+        if (nodes.length > 0) {
+          await tx.labNode.createMany({
+            data: nodes.map((node) => ({
+              labId,
+              nodeKey: node.nodeKey,
+              label: node.label,
+              kind: node.kind,
+              description: node.description ?? null,
+              position: jsonWrite(node.position),
+              configuration: jsonWrite(node.configuration),
+              metadata: jsonWrite(node.metadata),
+            })),
+          });
+        }
+
+        if (links.length > 0) {
+          await tx.labLink.createMany({
+            data: links.map((link) => ({
+              labId,
+              linkKey: link.linkKey,
+              sourceNodeKey: link.sourceNodeKey,
+              targetNodeKey: link.targetNodeKey,
+              label: link.label ?? null,
+              kind: link.kind ?? null,
+              configuration: jsonWrite(link.configuration),
+              metadata: jsonWrite(link.metadata),
+            })),
+          });
+        }
+
+        const [persistedNodes, persistedLinks] = await Promise.all([
+          tx.labNode.findMany({
+            where: { labId },
+            orderBy: { createdAt: 'asc' },
+          }),
+          tx.labLink.findMany({
+            where: { labId },
+            orderBy: { createdAt: 'asc' },
+          }),
+        ]);
+
+        return {
+          nodes: persistedNodes.map(mapNode),
+          links: persistedLinks.map(mapLink),
+        };
+      },
+      {
+        maxWait: 10_000,
+        timeout: 30_000,
+      },
+    );
   }
 
   async createScenario(labId: string, input: CreateLabScenarioInput): Promise<LabScenarioRecord> {
