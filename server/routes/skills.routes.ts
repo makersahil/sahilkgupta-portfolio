@@ -1,57 +1,49 @@
 import { Router } from 'express';
-import { dbService } from '../services/db.service.js';
 import { authenticateToken, requireRole } from '../middlewares/auth.middleware.js';
+import { asyncHandler } from '../middlewares/async-handler.js';
+import { contentServices } from '../services/content/index.js';
+import { optionalQueryString, parseSkillCreate, parseSkillUpdate } from './content-input.js';
 
 const router = Router();
 
-// GET /api/skills
-router.get('/', async (req, res) => {
-  const { categoryId } = req.query;
-  const skills = dbService.getSkills(categoryId as string);
-  res.json({ success: true, data: skills });
-});
+router.get(
+  '/',
+  asyncHandler(async (request, response) => {
+    const skills = await contentServices.skills.list(
+      optionalQueryString(request.query.categoryId, 'categoryId'),
+    );
+    response.json({ success: true, data: skills });
+  }),
+);
 
-// POST /api/skills (Admin only)
-router.post('/', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  const { name, level, proficiencyPercent, yearsOfExperience, categoryId, iconName, terminalSnippet, sortOrder } = req.body;
+router.post(
+  '/',
+  authenticateToken,
+  requireRole('SUPER_ADMIN', 'ADMIN'),
+  asyncHandler(async (request, response) => {
+    const skill = await contentServices.skills.create(parseSkillCreate(request.body));
+    response.status(201).json({ success: true, data: skill, message: 'Skill added successfully' });
+  }),
+);
 
-  if (!name || !categoryId) {
-    res.status(400).json({ success: false, message: 'Name and categoryId are required' });
-    return;
-  }
+router.put(
+  '/:id',
+  authenticateToken,
+  requireRole('SUPER_ADMIN', 'ADMIN'),
+  asyncHandler(async (request, response) => {
+    const skill = await contentServices.skills.update(request.params.id, parseSkillUpdate(request.body));
+    response.json({ success: true, data: skill, message: 'Skill updated successfully' });
+  }),
+);
 
-  const skill = dbService.createSkill({
-    name,
-    level: level || 'Advanced',
-    proficiencyPercent: Number(proficiencyPercent) || 85,
-    yearsOfExperience: Number(yearsOfExperience) || 3,
-    categoryId,
-    iconName: iconName || 'Code',
-    terminalSnippet: terminalSnippet || '',
-    sortOrder: sortOrder || 0,
-  });
-
-  res.status(201).json({ success: true, data: skill, message: 'Skill added successfully' });
-});
-
-// PUT /api/skills/:id (Admin only)
-router.put('/:id', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  const updated = dbService.updateSkill(req.params.id, req.body);
-  if (!updated) {
-    res.status(404).json({ success: false, message: 'Skill not found' });
-    return;
-  }
-  res.json({ success: true, data: updated, message: 'Skill updated successfully' });
-});
-
-// DELETE /api/skills/:id (Admin only)
-router.delete('/:id', authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'), async (req, res) => {
-  const deleted = dbService.deleteSkill(req.params.id);
-  if (!deleted) {
-    res.status(404).json({ success: false, message: 'Skill not found' });
-    return;
-  }
-  res.json({ success: true, message: 'Skill deleted successfully' });
-});
+router.delete(
+  '/:id',
+  authenticateToken,
+  requireRole('SUPER_ADMIN', 'ADMIN'),
+  asyncHandler(async (request, response) => {
+    await contentServices.skills.delete(request.params.id);
+    response.json({ success: true, message: 'Skill deleted successfully' });
+  }),
+);
 
 export default router;

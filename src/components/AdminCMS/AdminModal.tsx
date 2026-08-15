@@ -75,37 +75,51 @@ export const AdminModal: React.FC = () => {
   }, [user, isAdminModalOpen, activeTab]);
 
   const loadAdminData = async () => {
-    if (activeTab === 'inquiries') {
-      const data = await api.getInquiries();
-      setInquiries(Array.isArray(data) ? data : []);
-    } else if (activeTab === 'audit') {
-      const res = await api.getAuditLogs();
-      if (res.success) setAuditLogs(res.data);
+    try {
+      if (activeTab === 'inquiries') {
+        const data = await api.getInquiries();
+        setInquiries(data);
+      } else if (activeTab === 'audit') {
+        const res = await api.getAuditLogs();
+        setAuditLogs(res.data);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load admin data';
+      showToast(message, 'error');
     }
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
-    await login(email, password);
-    setIsLoggingIn(false);
+    try {
+      await login(email, password);
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   // --- Project Handlers ---
   const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingProject?.title || !editingProject.categoryId) {
-      showToast('Title and Category are required', 'error');
+    if (!editingProject?.title?.trim() || !editingProject.slug?.trim() || !editingProject.categoryId) {
+      showToast('Title, Slug, and Category are required', 'error');
       return;
     }
+
+    const projectPayload = {
+      ...editingProject,
+      title: editingProject.title.trim(),
+      slug: editingProject.slug.trim(),
+    };
 
     setIsSubmitting(true);
     try {
       if (editingProject.id) {
-        await api.updateProject(editingProject.id, editingProject);
+        await api.updateProject(editingProject.id, projectPayload);
         showToast('Project updated successfully', 'success');
       } else {
-        await api.createProject(editingProject);
+        await api.createProject(projectPayload);
         showToast('New project created', 'success');
       }
       setEditingProject(null);
@@ -146,25 +160,37 @@ export const AdminModal: React.FC = () => {
         showToast(`Parsed and attached ${file.name} successfully!`, 'success');
       }
     } catch (err) {
-      showToast('Uploaded Packet Tracer file', 'info');
+      const message = err instanceof Error ? err.message : 'Failed to parse Packet Tracer file';
+      showToast(message, 'error');
     }
   };
 
   // --- Blog Handlers ---
   const handleSaveBlog = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingBlog?.title || !editingBlog.categoryId) {
-      showToast('Title and Category are required', 'error');
+    if (
+      !editingBlog?.title?.trim() ||
+      !editingBlog.slug?.trim() ||
+      !editingBlog.categoryId ||
+      !editingBlog.contentMarkdown?.trim()
+    ) {
+      showToast('Title, Slug, Category, and Article Content are required', 'error');
       return;
     }
+
+    const blogPayload = {
+      ...editingBlog,
+      title: editingBlog.title.trim(),
+      slug: editingBlog.slug.trim(),
+    };
 
     setIsSubmitting(true);
     try {
       if (editingBlog.id) {
-        await api.updateBlog(editingBlog.id, editingBlog);
+        await api.updateBlog(editingBlog.id, blogPayload);
         showToast('Blog article updated', 'success');
       } else {
-        await api.createBlog(editingBlog);
+        await api.createBlog(blogPayload);
         showToast('Blog article published', 'success');
       }
       setEditingBlog(null);
@@ -236,7 +262,7 @@ export const AdminModal: React.FC = () => {
                   Portfolio CMS &amp; Architecture Orchestrator
                 </h3>
                 <p className="text-xs text-white/50">
-                  {user ? `Authenticated: ${user.fullName} (${user.role})` : 'Secured via JWT & Argon2id'}
+                  {user ? `Authenticated: ${user.fullName} (${user.role})` : 'Secured via persistent session + RBAC'}
                 </p>
               </div>
             </div>
@@ -525,6 +551,7 @@ export const AdminModal: React.FC = () => {
                             name: '',
                             slug: '',
                             description: '',
+                            domain: 'NETWORKING',
                             icon: 'Layers',
                             sortOrder: categories.length + 1,
                             isPublished: true,
@@ -547,7 +574,7 @@ export const AdminModal: React.FC = () => {
                             <span className="font-bold text-white text-sm block">{c.name}</span>
                             <p className="text-white/60 text-[11px]">{c.description}</p>
                             <div className="text-[10px] text-white/40 font-mono">
-                              Slug: /{c.slug} &bull; Icon: {c.icon}
+                              Slug: /{c.slug} &bull; Domain: {c.domain || 'UNASSIGNED'} &bull; Icon: {c.icon}
                             </div>
                           </div>
 
@@ -647,6 +674,7 @@ export const AdminModal: React.FC = () => {
                         type="text"
                         value={editingProject.slug || ''}
                         onChange={(e) => setEditingProject({ ...editingProject, slug: e.target.value })}
+                        required
                         placeholder="e.g. enterprise-bgp-hsrp"
                         className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
                       />
@@ -791,6 +819,18 @@ export const AdminModal: React.FC = () => {
                     />
                   </div>
 
+                  <div>
+                    <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">URL Slug</label>
+                    <input
+                      type="text"
+                      value={editingBlog.slug || ''}
+                      onChange={(e) => setEditingBlog({ ...editingBlog, slug: e.target.value })}
+                      required
+                      placeholder="e.g. troubleshooting-bgp-convergence"
+                      className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white font-mono focus:outline-none focus:border-[#00d4ff]"
+                    />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Category</label>
@@ -836,6 +876,7 @@ export const AdminModal: React.FC = () => {
                       rows={6}
                       value={editingBlog.contentMarkdown || ''}
                       onChange={(e) => setEditingBlog({ ...editingBlog, contentMarkdown: e.target.value })}
+                      required
                       className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white font-mono focus:outline-none focus:border-[#00d4ff]"
                     />
                   </div>
@@ -897,6 +938,24 @@ export const AdminModal: React.FC = () => {
                       placeholder="e.g. cyber-sec"
                       className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
                     />
+                  </div>
+
+                  <div>
+                    <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Engineering Domain</label>
+                    <select
+                      value={editingCategory.domain || 'NETWORKING'}
+                      onChange={(e) =>
+                        setEditingCategory({
+                          ...editingCategory,
+                          domain: e.target.value as Category['domain'],
+                        })
+                      }
+                      className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
+                    >
+                      <option value="NETWORKING">Networking</option>
+                      <option value="LINUX">Linux</option>
+                      <option value="DEVOPS">DevOps</option>
+                    </select>
                   </div>
 
                   <div>

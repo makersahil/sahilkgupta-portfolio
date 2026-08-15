@@ -1,23 +1,11 @@
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'EDITOR' | 'VIEWER';
+export type Domain = 'NETWORKING' | 'LINUX' | 'DEVOPS';
 export type ProjectStatus = 'COMPLETED' | 'IN_PROGRESS' | 'ARCHIVED' | 'PLANNED';
 export type InquiryStatus = 'NEW' | 'READ' | 'RESPONDED' | 'ARCHIVED';
 export type ProjectFormatType = 'cisco_pkt_lab' | 'rhcsa_matrix' | 'devops_pipeline' | 'standard';
 
-export interface User {
-  id: string;
-  email: string;
-  passwordHash: string;
-  fullName: string;
-  role: Role;
-  avatarUrl?: string;
-  bio?: string;
-  lastLoginAt?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface Category {
   id: string;
+  domain?: Domain;
   slug: string;
   name: string;
   tagline: string;

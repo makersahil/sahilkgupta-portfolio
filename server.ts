@@ -15,11 +15,18 @@ import terminalRoutes from './server/routes/terminal.routes.js';
 import networkRoutes from './server/routes/network.routes.js';
 import contactRoutes from './server/routes/contact.routes.js';
 import architectureRoutes from './server/routes/architecture.routes.js';
+import { env } from './server/config/env.js';
+import { ConfigurationError } from './server/lib/errors.js';
+import { asyncHandler } from './server/middlewares/async-handler.js';
 import { errorHandler } from './server/middlewares/error.middleware.js';
+import { contentRepositories } from './server/repositories/repository.factory.js';
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const port = Number(env.PORT);
+  if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw new ConfigurationError('PORT must be an integer between 1 and 65535');
+  }
 
   // Middlewares
   app.use(express.json({ limit: '10mb' }));
@@ -27,14 +34,19 @@ async function startServer() {
   app.use(cookieParser());
 
   // Health check endpoint
-  app.get('/api/health', (req, res) => {
-    res.json({
-      status: 'healthy',
-      service: 'Systems Infrastructure Portfolio & CMS API',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-    });
-  });
+  app.get(
+    '/api/health',
+    asyncHandler(async (_request, response) => {
+      const persistence = await contentRepositories.checkHealth();
+      response.status(persistence.ready ? 200 : 503).json({
+        status: persistence.ready ? 'healthy' : 'degraded',
+        service: 'Systems Infrastructure Portfolio & CMS API',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        persistence,
+      });
+    }),
+  );
 
   // Mount API Domain Routes
   app.use('/api/auth', authRoutes);
@@ -53,7 +65,7 @@ async function startServer() {
   app.use('/api', errorHandler);
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
+  if (env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -67,8 +79,10 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Systems Portfolio Server] Listening on http://0.0.0.0:${PORT}`);
+  app.listen(port, '0.0.0.0', () => {
+    console.log(
+      `[Systems Portfolio Server] Listening on http://0.0.0.0:${port} (persistence=${contentRepositories.mode})`,
+    );
   });
 }
 

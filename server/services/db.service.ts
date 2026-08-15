@@ -1,5 +1,4 @@
-// TEMPORARY LEGACY PERSISTENCE: Phase 2B will migrate these routes.
-import bcrypt from 'bcryptjs';
+// LEGACY COMPATIBILITY SERVICE: retained only for Phase 2E-scheduled routes/adapters.
 import {
   Category,
   Project,
@@ -7,7 +6,6 @@ import {
   Certification,
   Skill,
   MediaAsset,
-  User,
   SystemAuditLog,
   ContactInquiry,
   CiscoLabData,
@@ -22,10 +20,9 @@ import {
  * This database service mirrors a PostgreSQL relational schema
  * with polymorphic structured metadata columns (`ciscoLabData`, `rhcsaMatrixData`, `devopsPipelineData`).
  * It provides thread-safe in-memory state with deep audit logging,
- * bcrypt credential hashing, and query filters.
+ * deterministic in-memory compatibility data and query filters.
  */
 class MockDatabaseService {
-  private users: User[] = [];
   private categories: Category[] = [];
   private projects: Project[] = [];
   private blogs: BlogPost[] = [];
@@ -40,31 +37,7 @@ class MockDatabaseService {
   }
 
   private seedInitialData() {
-    // Cryptographic hash for admin credentials using environment variables
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    const adminEmail = process.env.ADMIN_EMAIL || 'sahilkguptaprivate@gmail.com';
-    // If no password is configured in environment, generate an unguessable random string so default accounts cannot be compromised
-    const adminPasswordHash = adminPassword
-      ? bcrypt.hashSync(adminPassword, 10)
-      : bcrypt.hashSync(Math.random().toString(36) + Date.now().toString(), 10);
-
-    // 1. Super Admin Profile: Sahil K Gupta
-    this.users = [
-      {
-        id: 'usr-sahil-01',
-        email: adminEmail,
-        passwordHash: adminPasswordHash,
-        fullName: 'Sahil K Gupta',
-        role: 'SUPER_ADMIN',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=300&q=80',
-        bio: 'Infrastructure & Systems Engineer specializing in Enterprise Networking (Routing/Switching), Enterprise Linux Administration, and Cloud-Native DevOps Automation.',
-        lastLoginAt: new Date().toISOString(),
-        createdAt: new Date('2025-01-01').toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ];
-
-    // 2. Core 3 Competencies / Domains
+    // Core 3 Competencies / Domains
     this.categories = [
       {
         id: 'cat-networking',
@@ -1154,49 +1127,6 @@ Traditional Kubernetes \`kube-proxy\` uses linear \`iptables\` rule lookups, res
     ];
   }
 
-  // -------------------------------------------------------------
-  // User Authentication Operations
-  // -------------------------------------------------------------
-  public getUserByEmail(email: string): User | undefined {
-    const normalized = email.toLowerCase().trim();
-    return this.users.find((u) => u.email.toLowerCase() === normalized);
-  }
-
-  public getUserById(id: string): User | undefined {
-    return this.users.find((u) => u.id === id);
-  }
-
-  public updateUserLastLogin(id: string): void {
-    const user = this.getUserById(id);
-    if (user) {
-      user.lastLoginAt = new Date().toISOString();
-      user.updatedAt = new Date().toISOString();
-    }
-  }
-
-  // -------------------------------------------------------------
-  // Category Operations
-  // -------------------------------------------------------------
-  
-  public createOrUpdateAdmin(email: string, passwordHash: string, fullName: string = 'Admin'): User {
-    const existing = this.getUserByEmail(email);
-    if (existing) {
-      existing.passwordHash = passwordHash;
-      existing.fullName = fullName;
-      return existing;
-    }
-    const newUser: User = {
-      id: `usr-${Date.now()}`,
-      email,
-      passwordHash,
-      fullName,
-      role: 'ADMIN',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    this.users.push(newUser);
-    return newUser;
-  }
   public getCategories(): Category[] {
     return [...this.categories].sort((a, b) => a.sortOrder - b.sortOrder);
   }
@@ -1418,9 +1348,12 @@ interface Vlan20
   // Blog Operations
   // -------------------------------------------------------------
   public getBlogs(categoryId?: string, tag?: string): BlogPost[] {
+    return this.getAllBlogs(categoryId, tag).filter((blog) => blog.isPublished);
+  }
+
+  public getAllBlogs(categoryId?: string, tag?: string): BlogPost[] {
     return this.blogs
       .filter((b) => {
-        if (!b.isPublished) return false;
         if (categoryId && b.categoryId !== categoryId) return false;
         if (tag && !b.tags.includes(tag)) return false;
         return true;
@@ -1613,6 +1546,13 @@ interface Vlan20
     return true;
   }
 
+  public deleteInquiry(id: string): boolean {
+    const index = this.inquiries.findIndex((inquiry) => inquiry.id === id);
+    if (index === -1) return false;
+    this.inquiries.splice(index, 1);
+    return true;
+  }
+
   // -------------------------------------------------------------
   // System Metrics & Health Operations
   // -------------------------------------------------------------
@@ -1628,7 +1568,7 @@ interface Vlan20
       totalRamMb: 32768,
       freeRamMb: 21340,
       activeConnections: 142,
-      databaseType: 'In-Memory Relational Engine (Argon2 / BCrypt)',
+      databaseType: 'Legacy compatibility in-memory store',
     };
   }
 

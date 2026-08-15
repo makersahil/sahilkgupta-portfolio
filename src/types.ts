@@ -1,10 +1,13 @@
 export type CategoryTheme = 'green' | 'cyan' | 'amber' | 'violet' | 'emerald';
+export type Domain = 'NETWORKING' | 'LINUX' | 'DEVOPS';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'EDITOR';
 export type ProjectStatus = 'COMPLETED' | 'IN_PROGRESS' | 'ARCHIVED' | 'PLANNED';
 export type InquiryStatus = 'NEW' | 'READ' | 'RESPONDED' | 'ARCHIVED';
 export type ProjectFormatType = 'cisco_pkt_lab' | 'rhcsa_matrix' | 'devops_pipeline' | 'standard';
 
 export interface Category {
   id: string;
+  domain?: Domain;
   slug: string;
   name: string;
   tagline: string;
@@ -228,9 +231,7 @@ export interface AuthUser {
   id: string;
   email: string;
   fullName: string;
-  role: string;
-  avatarUrl?: string;
-  bio?: string;
+  role: UserRole;
   lastLoginAt?: string;
 }
 
