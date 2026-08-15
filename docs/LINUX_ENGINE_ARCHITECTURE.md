@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Phase 4A replaces the fixed Linux showcase with a reusable, data-driven Linux Lab engine. Public Linux workspaces are derived from persisted canonical Lab Manifest data rather than project-specific React markup.
+Phase 4 turns the Linux workspace into a reusable, data-driven RHEL operations experience. Public Linux workspaces are derived from persisted canonical Lab Manifest data rather than project-specific React markup.
 
-The **multi-project requirement** is explicit: the engine is designed for multiple Linux projects and multiple Labs per project. Adding another supported RHEL/Linux Lab should normally require persisted Lab data and standardized inputs, not another custom frontend page.
+The **multi-project requirement** is explicit: the engine supports multiple Linux projects and multiple Labs per project. Adding another supported RHEL/Linux Lab should normally require persisted Lab data and standardized inputs, not another custom frontend page.
 
 ## Runtime flow
 
@@ -15,24 +15,16 @@ Published Linux Project
       -> LinuxLabAdapter
         -> linux.v1 state
           -> LinuxService
-            -> /api/linux/labs/*
-              -> LinuxLabExplorer
+            -> LinuxOperationsService
+              -> /api/linux/labs/*
+                -> LinuxLabExplorer / LinuxOperationsPanel
 ```
 
-The adapter consumes:
-
-- `Lab.normalizedState`
-- `LabNode` host records
-- Lab input descriptors
-- runbook steps
-- public evidence
-- scenario definitions when present
-
-The engine does not read Prisma directly from routes or React components.
+Routes and React components do not access Prisma directly. Both core inspection and operations consume the same normalized Lab state.
 
 ## linux.v1 host model
 
-Each Linux Lab may contain one or more normalized hosts. The Phase 4A model supports:
+Each Linux Lab may contain one or more normalized hosts. The model supports:
 
 - host identity, RHEL release, kernel, architecture, boot target, and recorded host state
 - systemd service/unit snapshots
@@ -46,19 +38,53 @@ Each Linux Lab may contain one or more normalized hosts. The Phase 4A model supp
 
 The canonical seed normalizes the existing **RHEL 9.4** project fixture into this model.
 
-## Truthfulness boundary
+## Phase 4B recorded-state operations
 
-Phase 4A renders **recorded state**. It is not a live SSH agent, a systemd emulator, or production telemetry collector.
+`LinuxOperationsService` adds an investigation layer over `linux.v1`. It derives health checks and diagnostic findings from persisted state only. It covers:
 
-When an input is absent, the engine returns an empty/unknown state and the UI says so. It does not invent:
+- failed or unexpectedly inactive systemd services
+- explicit degraded/unmounted storage and LVM state
+- `/etc/fstab` versus recorded mount alignment when both snapshots exist
+- SELinux mode drift and recorded AVC denial correlation
+- recorded interface-down/default-route conditions
+- warning/error signals from recorded journal/log extracts
+- evidence-linked suggested inspection commands and remediation guidance
 
-- CPU or memory utilization
-- live process/service state
-- current journal entries
-- live mount health
-- measured compliance percentages
-- host reachability
-- remediation success
+Every finding is labeled `RECORDED_STATE_DIAGNOSTIC`. Suggested commands are guidance text; the service does not spawn a shell, SSH to a host, apply configuration, restart services, mount filesystems, change SELinux policy, or claim remediation success.
+
+## Health model
+
+Phase 4B health uses explicit recorded values and deliberately preserves unknown state. Checks are classified as:
+
+```text
+PASS
+WARN
+FAIL
+UNKNOWN
+```
+
+The Lab/host operations summary becomes `HEALTHY`, `DEGRADED`, `CRITICAL`, or `UNKNOWN` based on those checks. Missing optional data is not silently converted into a passing result.
+
+## Operator context
+
+The engine exposes a durable operator-context contract for later unified CLI work:
+
+```text
+RHEL/RHEL9-LAB-01>
+```
+
+The context lists the inspectors available for the selected host, but `executionAvailable` remains false in Phase 4B. Command execution belongs to Phase 6.
+
+## Scenario-ready contracts
+
+Phase 4B surfaces persisted Lab scenario definitions without mutating them. The canonical Linux seed provides scenario-ready contracts for:
+
+- systemd service failure
+- SELinux denial investigation
+- persistent mount failure
+- network interface loss
+
+Each scenario exposes expected observable signals and clearly reports that execution is unavailable. Generic mutation, remediation verification, and reset belong to Phase 7.
 
 ## Standardized Linux inputs
 
@@ -74,7 +100,7 @@ The existing Lab input registry remains the contract for supported Linux inputs:
 - `ANSIBLE`
 - `CONFIG_BUNDLE`
 
-Phase 4A consumes normalized state produced from these contracts. It does not claim arbitrary parsing of every Linux bundle format.
+The engine consumes normalized state produced from these contracts. It does not claim arbitrary parsing of every Linux bundle format.
 
 ## Public API
 
@@ -82,14 +108,30 @@ Phase 4A consumes normalized state produced from these contracts. It does not cl
 GET /api/linux/labs
 GET /api/linux/labs/:identifier
 GET /api/linux/labs/:identifier/hosts/:hostKey
+GET /api/linux/labs/:identifier/operations?hostKey=:hostKey
+GET /api/linux/labs/:identifier/context?hostKey=:hostKey
 ```
 
 Only READY Linux Labs belonging to published projects are exposed through the public Linux engine.
 
+## Truthfulness boundary
+
+Phase 4 renders and reasons about **recorded state**. It is not a live SSH agent, a systemd emulator, or production telemetry collector.
+
+When data is absent, the engine returns empty/unknown state and says so. It does not invent:
+
+- CPU or memory utilization
+- live process/service state
+- current journal entries
+- live filesystem pressure
+- measured compliance percentages
+- host/network reachability
+- remediation success
+
 ## Phase boundaries
 
-Phase 4A provides the core normalized host model and dynamic inspection workspace.
+Phase 4A provides the normalized host model and dynamic inspection workspace.
 
-Phase 4B adds Linux investigation/operations such as service failure analysis, storage pressure/mount diagnosis, SELinux denial reasoning, journal investigation, network troubleshooting, health derivation, remediation guidance, operator-context contracts, and scenario-ready definitions.
+Phase 4B provides recorded-state health analysis, investigation findings, remediation guidance, RHEL operator-context contracts, and scenario-ready definitions.
 
 Unified command execution remains Phase 6. Stateful scenario mutation/remediation/reset remains Phase 7.

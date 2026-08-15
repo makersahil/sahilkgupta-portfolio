@@ -113,5 +113,22 @@ If a requirement conflicts with repository state, stop and explain instead of gu
 - Public Lab reads require `Lab.status=READY` and a published Project. Public manifests expose only public evidence and safe artifact summaries.
 - Public-shaped manifests describe input availability but do not expose raw inline LabInput payloads, raw external input URLs, or internal artifact storage keys.
 - Never claim arbitrary Packet Tracer/PCAP/config parsing unless a real adapter exists and is tested. Reference/normalized fixture metadata must be labeled truthfully.
-- Domain engines are later work. The canonical Lab platform stores and validates normalized state; it does not pretend to execute Cisco, RHEL, Kubernetes, or GitOps systems.
+- Domain engines may inspect and reason over persisted normalized state, but must not imply live infrastructure execution unless an explicitly implemented executor exists. Networking and Linux recorded-state engines plus the Phase 5A DevOps core are implemented. Phase 5B owns DevOps recorded-state investigation/context; Phase 6 owns contextual CLI execution and Phase 7 owns shared mutable scenario execution/reset.
 - Preserve one Project -> many Labs -> many Inputs/Scenarios/RunbookSteps/Evidence as the platform relationship model.
+
+
+## Linux recorded-state operations invariants
+
+- Treat `linux.v1` as recorded normalized Lab state, not live RHEL telemetry. Missing state stays UNKNOWN/empty instead of becoming a fabricated pass.
+- Health findings and remediation guidance must cite persisted state and use `RECORDED_STATE_DIAGNOSTIC`; never claim a suggested command was executed.
+- Do not disable SELinux as generic remediation. Prefer evidence-driven context/boolean/policy guidance.
+- `RHEL/...` contexts are durable selection contracts only until the shared CLI executor is implemented.
+- Linux scenario definitions may describe future mutations, but Phase 4B must not mutate, remediate, or reset Lab state.
+
+## DevOps recorded-state engine invariants
+
+- Treat `devops.v1` as persisted recorded Lab state, not live CI/CD, cloud, Terraform, Kubernetes, ArgoCD, Helm, Cilium, or observability telemetry.
+- Render only modules represented by the selected Lab. Do not add Kubernetes/GitOps views to a Terraform-only Lab by assumption.
+- Do not reintroduce browser timer-based fake pipeline execution or automatic SUCCESS transitions.
+- Recorded project-fixture values must remain identifiable as recorded state; missing health, metrics, revisions, workloads, logs, policies, or rollouts stay unknown/empty.
+- Phase 5A is read-only domain inspection. Phase 5B owns recorded-state investigation and `GITOPS/...` context; Phase 6 owns contextual command execution; Phase 7 owns shared mutable scenario execution/reset.

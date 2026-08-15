@@ -14,6 +14,7 @@ import mediaRoutes from './server/routes/media.routes.js';
 import terminalRoutes from './server/routes/terminal.routes.js';
 import networkRoutes from './server/routes/network.routes.js';
 import linuxRoutes from './server/routes/linux.routes.js';
+import devopsRoutes from './server/routes/devops.routes.js';
 import contactRoutes from './server/routes/contact.routes.js';
 import architectureRoutes from './server/routes/architecture.routes.js';
 import labsRoutes from './server/routes/labs.routes.js';
@@ -62,6 +63,7 @@ async function startServer() {
   app.use('/api/terminal', terminalRoutes);
   app.use('/api/network', networkRoutes);
   app.use('/api/linux', linuxRoutes);
+  app.use('/api/devops', devopsRoutes);
   app.use('/api/contact', contactRoutes);
   app.use('/api/architecture', architectureRoutes);
   app.use('/api/labs', labsRoutes);

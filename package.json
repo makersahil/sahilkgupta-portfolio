@@ -46,7 +46,12 @@
     "postinstall": "prisma generate",
     "test:linux:static": "tsx server/scripts/linux-engine-static-audit.ts",
     "test:linux": "tsx server/scripts/linux-engine-regression.ts",
-    "test:linux:http": "tsx server/scripts/linux-engine-http-regression.ts"
+    "test:linux:http": "tsx server/scripts/linux-engine-http-regression.ts",
+    "test:linux:operations": "tsx server/scripts/linux-operations-regression.ts",
+    "test:linux:operations:http": "tsx server/scripts/linux-operations-http-regression.ts",
+    "test:devops:static": "tsx server/scripts/devops-engine-static-audit.ts",
+    "test:devops": "tsx server/scripts/devops-engine-regression.ts",
+    "test:devops:http": "tsx server/scripts/devops-engine-http-regression.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

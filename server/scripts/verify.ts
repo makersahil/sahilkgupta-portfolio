@@ -32,6 +32,7 @@ const staticTests: Step[] = [
   { label: 'Persistent runtime static audit', command: 'npm', args: ['run', 'test:runtime:static'] },
   { label: 'Networking engine static audit', command: 'npm', args: ['run', 'test:networking:static'] },
   { label: 'Linux engine static audit', command: 'npm', args: ['run', 'test:linux:static'] },
+  { label: 'DevOps engine static audit', command: 'npm', args: ['run', 'test:devops:static'] },
   { label: 'API client regression', command: 'npm', args: ['run', 'test:api-client'] },
 ];
 
@@ -67,6 +68,10 @@ const databaseTests: Step[] = [
   { label: 'Networking operations HTTP regression', command: 'npm', args: ['run', 'test:networking:operations:http'], requiresDatabase: true },
   { label: 'Linux engine regression', command: 'npm', args: ['run', 'test:linux'], requiresDatabase: true },
   { label: 'Linux engine HTTP regression', command: 'npm', args: ['run', 'test:linux:http'], requiresDatabase: true },
+  { label: 'Linux operations regression', command: 'npm', args: ['run', 'test:linux:operations'], requiresDatabase: true },
+  { label: 'Linux operations HTTP regression', command: 'npm', args: ['run', 'test:linux:operations:http'], requiresDatabase: true },
+  { label: 'DevOps engine regression', command: 'npm', args: ['run', 'test:devops'], requiresDatabase: true },
+  { label: 'DevOps engine HTTP regression', command: 'npm', args: ['run', 'test:devops:http'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [

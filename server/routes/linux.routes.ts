@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middlewares/async-handler.js';
-import { linuxService } from '../services/linux/index.js';
+import { linuxOperationsService, linuxService } from '../services/linux/index.js';
 
 const router = Router();
 
@@ -21,6 +21,26 @@ router.get('/labs/:identifier/hosts/:hostKey', asyncHandler(async (request, resp
   response.json({
     success: true,
     data: await linuxService.getHost(request.params.identifier, request.params.hostKey),
+  });
+}));
+
+router.get('/labs/:identifier/operations', asyncHandler(async (request, response) => {
+  response.json({
+    success: true,
+    data: await linuxOperationsService.getOperations(
+      request.params.identifier,
+      optionalText(request.query.hostKey),
+    ),
+  });
+}));
+
+router.get('/labs/:identifier/context', asyncHandler(async (request, response) => {
+  response.json({
+    success: true,
+    data: await linuxOperationsService.getContext(
+      request.params.identifier,
+      optionalText(request.query.hostKey),
+    ),
   });
 }));
 

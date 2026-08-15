@@ -153,6 +153,11 @@ export class PrismaCategoryRepository implements CategoryRepository {
       }
 
       return mapCategory(row);
+    }, {
+      // Category domain changes reconcile projects, blogs, and labs in one atomic unit.
+      // Remote PostgreSQL latency can exceed Prisma's 5s interactive-transaction default.
+      maxWait: 10_000,
+      timeout: 30_000,
     });
   }
 

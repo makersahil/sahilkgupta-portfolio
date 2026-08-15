@@ -203,3 +203,83 @@ export interface LinuxLabState {
   provenance: LinuxStateProvenance;
   warnings: string[];
 }
+
+export type LinuxHealthCategory = 'HOST' | 'SERVICE' | 'STORAGE' | 'FSTAB' | 'SELINUX' | 'NETWORK' | 'LOG' | 'DATA';
+export type LinuxHealthStatus = 'PASS' | 'WARN' | 'FAIL' | 'UNKNOWN';
+
+export interface LinuxHealthCheck {
+  id: string;
+  category: LinuxHealthCategory;
+  status: LinuxHealthStatus;
+  title: string;
+  summary: string;
+  relatedUnits: string[];
+  relatedPaths: string[];
+  relatedInterfaces: string[];
+  evidence: string[];
+}
+
+export type LinuxInvestigationCategory = 'SERVICE' | 'STORAGE' | 'SELINUX' | 'NETWORK' | 'LOG';
+export type LinuxFindingSeverity = 'INFO' | 'WARN' | 'CRITICAL';
+
+export interface LinuxInvestigationFinding {
+  id: string;
+  category: LinuxInvestigationCategory;
+  severity: LinuxFindingSeverity;
+  title: string;
+  summary: string;
+  evidence: string[];
+  suggestedCommands: string[];
+  remediationGuidance: string[];
+  relatedUnit: string | null;
+  relatedPath: string | null;
+  relatedInterface: string | null;
+  interpretation: 'RECORDED_STATE_DIAGNOSTIC';
+}
+
+export interface LinuxScenarioReadiness {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  enabled: boolean;
+  observableSignals: string[];
+  executionAvailable: false;
+}
+
+export interface LinuxOperationsSnapshot {
+  schemaVersion: 'linux.operations.v1';
+  labId: string;
+  labSlug: string;
+  hostKey: string;
+  hostname: string;
+  overallStatus: 'HEALTHY' | 'DEGRADED' | 'CRITICAL' | 'UNKNOWN';
+  healthChecks: LinuxHealthCheck[];
+  findings: LinuxInvestigationFinding[];
+  scenarioReadiness: LinuxScenarioReadiness[];
+  counts: {
+    services: number;
+    failedServices: number;
+    mounts: number;
+    problemMounts: number;
+    interfaces: number;
+    downInterfaces: number;
+    recordedLogs: number;
+    findings: number;
+  };
+  executionAvailable: false;
+  note: string;
+}
+
+export interface LinuxOperatorContext {
+  contextId: string;
+  prompt: string;
+  scope: 'LAB' | 'HOST';
+  lab: { id: string; slug: string; title: string };
+  host: { key: string; hostname: string; osVersion: string | null } | null;
+  availableInspectors: Array<
+    'host' | 'services' | 'storage' | 'fstab' | 'selinux' | 'network' | 'logs' | 'configurations' | 'verification' | 'health' | 'scenarios' | 'evidence'
+  >;
+  executionAvailable: false;
+  note: string;
+}

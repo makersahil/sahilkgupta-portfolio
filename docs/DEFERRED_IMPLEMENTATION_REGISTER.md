@@ -17,7 +17,7 @@ Item: Remaining RHCSA/Linux verified/compliant counters or hard-coded check tota
 Reason Deferred: Status must be generated from actual implemented lab checks in future phases.
 Target Phase: Phase 4 — Linux Systems Console / Phase 7 Scenario Verification
 Priority: P1
-Verification: Verification status must be generated from actual implemented lab checks. Phase 4A now persists recorded Linux verification records through the canonical Linux engine, but aggregate verified/compliant counters remain intentionally unimplemented until investigation/scenario verification is authoritative.
+Verification: Verification status must be generated from actual implemented lab checks. Phase 4A persists recorded Linux verification records and Phase 4B derives recorded-state health/investigation results, but aggregate verified/compliant counters remain intentionally unimplemented until scenario verification is authoritative.
 Status: OPEN
 
 ### [PH1-DEFER-003]
@@ -173,4 +173,24 @@ Target Phase: Phase 8 — Portfolio Orchestrator
 Priority: P1
 Verification: A documented supported importer/exporter derives `LabInput`, `LabNode`, `LabLink`, and normalized Networking state from a genuine artifact or companion manifest; unsupported `.pkt` files remain clearly reference-only and never produce fabricated parsed data.
 Implementation State: OPEN. The canonical input contract and reference-only provenance remain implemented; Phase 3B does not add an unverified binary parser.
+Status: OPEN
+
+### [PH4B-DEFER-001]
+Origin Phase: Phase 4B — Linux Investigation and Operations
+Item: Complete the Linux operations path from recorded-state diagnostics through executable contextual CLI and mutable scenario remediation/reset.
+Reason Deferred: Phase 4B intentionally provides health derivation, investigation findings, suggested commands, remediation guidance, `RHEL/...` context contracts, and scenario-ready definitions without spawning shells or mutating host state.
+Target Phase: Phase 6 / Phase 7
+Priority: P1
+Verification: The unified CLI uses the same selected Lab/host context; Linux scenarios mutate canonical state consistently; visual, CLI, runbook, and evidence outputs remain synchronized and resettable.
+Implementation State: PARTIAL. Recorded-state investigation is implemented in Phase 4B. Command execution remains Phase 6 and mutable scenario execution/reset remains Phase 7.
+Status: OPEN
+
+### [PH5A-DEFER-001]
+Origin Phase: Phase 5A — Core Dynamic DevOps Engine
+Item: Complete the DevOps operations path from recorded delivery state through investigation, contextual CLI, and mutable scenario execution/reset.
+Reason Deferred: Phase 5A intentionally provides a reusable recorded-state delivery model and UI without pretending to execute pipelines, Terraform, kubectl, Helm, ArgoCD, Cilium, or cloud APIs.
+Target Phase: Phase 5B / Phase 6 / Phase 7
+Priority: P1
+Verification: Phase 5B derives evidence-backed delivery findings and `GITOPS/...` context from the same `devops.v1` state; Phase 6 executes only supported contextual commands; Phase 7 mutates and resets scenario state consistently across UI, CLI, runbook, and evidence.
+Implementation State: PARTIAL. Core `devops.v1` model, APIs, seed normalization, and dynamic UI are implemented in Phase 5A.
 Status: OPEN
