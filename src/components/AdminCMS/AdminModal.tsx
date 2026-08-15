@@ -27,7 +27,11 @@ import {
 } from 'lucide-react';
 import { usePortfolio } from '../../context/PortfolioContext.js';
 import { api } from '../../lib/api.js';
-import { Category, Project, BlogPost, Certification, Skill } from '../../types.js';
+import { AdminAuditLog, Category, ContactInquiry, Project, BlogPost } from '../../types.js';
+import { AdminAuditPanel } from './AdminAuditPanel.js';
+import { AdminCertificationManager } from './AdminCertificationManager.js';
+import { AdminLabBuilder } from './AdminLabBuilder.js';
+import { AdminSkillManager } from './AdminSkillManager.js';
 
 export const AdminModal: React.FC = () => {
   const {
@@ -53,12 +57,13 @@ export const AdminModal: React.FC = () => {
 
   // Active CMS tab
   const [activeTab, setActiveTab] = useState<
-    'projects' | 'blogs' | 'categories' | 'certifications' | 'skills' | 'inquiries' | 'audit'
+    'projects' | 'labs' | 'blogs' | 'categories' | 'certifications' | 'skills' | 'inquiries' | 'audit'
   >('projects');
 
   // Inquiries and Audit Logs state
-  const [inquiries, setInquiries] = useState<any[]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [inquiries, setInquiries] = useState<ContactInquiry[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AdminAuditLog[]>([]);
+  const [adminDataLoading, setAdminDataLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form modal states for CRUD
@@ -75,17 +80,28 @@ export const AdminModal: React.FC = () => {
   }, [user, isAdminModalOpen, activeTab]);
 
   const loadAdminData = async () => {
+    setAdminDataLoading(true);
     try {
       if (activeTab === 'inquiries') {
-        const data = await api.getInquiries();
-        setInquiries(data);
+        setInquiries(await api.getInquiries());
       } else if (activeTab === 'audit') {
-        const res = await api.getAuditLogs();
-        setAuditLogs(res.data);
+        setAuditLogs(await api.getAuditLogs());
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load admin data';
       showToast(message, 'error');
+    } finally {
+      setAdminDataLoading(false);
+    }
+  };
+
+  const handleInquiryStatus = async (id: string, status: ContactInquiry['status']) => {
+    try {
+      await api.updateInquiryStatus(id, status);
+      setInquiries(await api.getInquiries());
+      showToast(`Inquiry marked ${status}`, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to update inquiry', 'error');
     }
   };
 
@@ -240,6 +256,18 @@ export const AdminModal: React.FC = () => {
     }
   };
 
+  const handleDeleteCategory = async (id: string) => {
+    if (!window.confirm('Delete this category? Categories still referenced by portfolio content cannot be deleted.')) return;
+    try {
+      await api.deleteCategory(id);
+      showToast('Portfolio category deleted', 'info');
+      await refreshData();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Failed to delete category', 'error');
+    }
+  };
+
+
   if (!isAdminModalOpen) return null;
 
   return (
@@ -360,6 +388,17 @@ export const AdminModal: React.FC = () => {
                   <span>Projects ({projects.length})</span>
                 </button>
                 <button
+                  onClick={() => setActiveTab('labs')}
+                  className={`flex items-center space-x-1.5 pb-2.5 px-3 border-b-2 font-medium transition-colors ${
+                    activeTab === 'labs'
+                      ? 'border-[#00d4ff] text-[#00d4ff]'
+                      : 'border-transparent text-white/40 hover:text-white'
+                  }`}
+                >
+                  <Network className="w-4 h-4" />
+                  <span>Lab Builder</span>
+                </button>
+                <button
                   onClick={() => setActiveTab('blogs')}
                   className={`flex items-center space-x-1.5 pb-2.5 px-3 border-b-2 font-medium transition-colors ${
                     activeTab === 'blogs'
@@ -380,6 +419,24 @@ export const AdminModal: React.FC = () => {
                 >
                   <Database className="w-4 h-4" />
                   <span>Categories ({categories.length})</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('certifications')}
+                  className={`flex items-center space-x-1.5 pb-2.5 px-3 border-b-2 font-medium transition-colors ${
+                    activeTab === 'certifications' ? 'border-[#00d4ff] text-[#00d4ff]' : 'border-transparent text-white/40 hover:text-white'
+                  }`}
+                >
+                  <Award className="w-4 h-4" />
+                  <span>Certifications ({certifications.length})</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('skills')}
+                  className={`flex items-center space-x-1.5 pb-2.5 px-3 border-b-2 font-medium transition-colors ${
+                    activeTab === 'skills' ? 'border-[#00d4ff] text-[#00d4ff]' : 'border-transparent text-white/40 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Skills ({skills.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('inquiries')}
@@ -475,6 +532,10 @@ export const AdminModal: React.FC = () => {
                       ))}
                     </div>
                   </div>
+                )}
+
+                {activeTab === 'labs' && (
+                  <AdminLabBuilder projects={projects} categories={categories} showToast={showToast} />
                 )}
 
                 {/* 2. Blog Posts CMS Tab */}
@@ -586,11 +647,26 @@ export const AdminModal: React.FC = () => {
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
+                            <button
+                              onClick={() => void handleDeleteCategory(c.id)}
+                              className="p-1.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-300"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
+                )}
+
+                {activeTab === 'certifications' && (
+                  <AdminCertificationManager certifications={certifications} categories={categories} refreshData={refreshData} showToast={showToast} />
+                )}
+
+                {activeTab === 'skills' && (
+                  <AdminSkillManager skills={skills} categories={categories} refreshData={refreshData} showToast={showToast} />
                 )}
 
                 {/* 4. Inquiries CMS Tab */}
@@ -605,9 +681,16 @@ export const AdminModal: React.FC = () => {
                           <div key={inq.id} className="p-4 space-y-2">
                             <div className="flex items-center justify-between">
                               <span className="font-bold text-white text-sm">{inq.name} ({inq.email})</span>
-                              <span className="px-2 py-0.5 rounded text-[10px] bg-[#00ff41]/10 text-[#00ff41]">
-                                {inq.status}
-                              </span>
+                              <select
+                                value={inq.status}
+                                onChange={(e) => void handleInquiryStatus(inq.id, e.target.value as ContactInquiry['status'])}
+                                className="bg-[#111114] border border-white/10 rounded px-2 py-1 text-[10px] text-[#00ff41]"
+                              >
+                                <option value="NEW">NEW</option>
+                                <option value="READ">READ</option>
+                                <option value="RESPONDED">RESPONDED</option>
+                                <option value="ARCHIVED">ARCHIVED</option>
+                              </select>
                             </div>
                             <p className="text-white/80 text-xs">{inq.message}</p>
                           </div>
@@ -617,26 +700,9 @@ export const AdminModal: React.FC = () => {
                   </div>
                 )}
 
-                {/* 5. System Audit Log CMS Tab */}
+                {/* Persisted System Audit Log */}
                 {activeTab === 'audit' && (
-                  <div className="space-y-4">
-                    <span className="text-white/60 font-semibold block">System Architecture Audit Trail</span>
-                    <div className="divide-y divide-white/10 rounded-xl bg-black border border-white/10 overflow-hidden font-mono text-[11px]">
-                      {auditLogs.map((log) => (
-                        <div key={log.id} className="p-3 flex items-center justify-between">
-                          <div className="space-x-2">
-                            <span className="text-[#00d4ff] font-bold">[{log.action}]</span>
-                            <span className="text-white/80">{log.entity}</span>
-                            {log.entityId && <span className="text-white/40">({log.entityId})</span>}
-                            <span className="text-white/50">by {log.adminEmail}</span>
-                          </div>
-                          <span className="text-white/40">
-                            {new Date(log.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <AdminAuditPanel logs={auditLogs} loading={adminDataLoading} onRefresh={() => void loadAdminData()} />
                 )}
               </div>
             </div>
@@ -729,6 +795,21 @@ export const AdminModal: React.FC = () => {
                       }
                       className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white font-mono focus:outline-none focus:border-[#00d4ff]"
                     />
+                  </div>
+
+                  <div className="grid gap-3">
+                    <div>
+                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Mission</label>
+                      <textarea rows={2} value={editingProject.mission || ''} onChange={(e) => setEditingProject({ ...editingProject, mission: e.target.value })} className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]" />
+                    </div>
+                    <div>
+                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Architecture Summary</label>
+                      <textarea rows={2} value={editingProject.architectureSummary || ''} onChange={(e) => setEditingProject({ ...editingProject, architectureSummary: e.target.value })} className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]" />
+                    </div>
+                    <div>
+                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">What I Built</label>
+                      <textarea rows={3} value={editingProject.whatIBuilt || ''} onChange={(e) => setEditingProject({ ...editingProject, whatIBuilt: e.target.value })} className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]" />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">

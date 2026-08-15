@@ -210,9 +210,23 @@ Admin UI
 → PrismaAuthRepository
 → PostgreSQL `User` + `AuthSession`
 
+Canonical lab platform:
+Public/Admin clients
+→ `/api/labs/*`
+→ LabService / LabManifestService
+→ PrismaLabRepository
+→ PostgreSQL `Project → Labs → Inputs/State/Topology/Scenarios/Runbook/Evidence`
+
+Persistent Admin orchestration:
+Admin CMS
+→ authenticated content/Lab APIs
+→ content + Lab repositories/services
+→ PostgreSQL
+→ persisted `AuditLog` through AuditService/PrismaAuditRepository
+
 `PERSISTENCE_MODE=legacy|prisma` remains implemented for the content boundary. Production must use Prisma and must not silently fall back to in-memory persistence when PostgreSQL is unavailable. Authentication is now Prisma-backed regardless of the legacy content compatibility mode.
 
-Phase 2B content persistence and Phase 2C persistent authentication/RBAC are COMPLETE and exit-verified. Full `MockDatabaseService` retirement remains Phase 2E after the remaining Admin/media/network compatibility paths receive persistent replacements.
+Phase 2B content persistence, Phase 2C persistent authentication/RBAC, and Phase 2D Canonical Lab Platform + Admin Core are COMPLETE and exit-verified. Full `MockDatabaseService` retirement remains Phase 2E after the remaining media/network/architecture compatibility paths receive persistent replacements.
 
 ---
 
@@ -479,16 +493,16 @@ site configuration
 
 without requiring source-code edits.
 
-Full Admin persistence/orchestration belongs primarily to Phase 2D and later.
+Phase 2D-2 implements the persistent Admin core over the Phase 2D-1 Lab platform:
 
-Verified current Admin coverage is narrower than the long-term product:
+- Projects, Blogs, Categories, Skills, and Certifications use authenticated persistent content APIs.
+- Project `mission`, `architectureSummary`, and `whatIBuilt` fields round-trip through Admin, APIs, Prisma, and public project presentation.
+- Inquiries can be read and have their persisted status updated.
+- The Lab Builder manages Project-linked Labs, standardized inputs, normalized state/topology, scenarios, runbook steps, evidence metadata, and Manifest v1 preview through the canonical Lab APIs.
+- The System Audit Log reads real persisted `AuditLog` records; synthetic fallback events/timestamps are removed from the Admin UI path.
+- Admin mutations record actor/action/entity metadata without storing secrets or full request bodies.
 
-- projects, blogs, and categories: current Admin flows call authenticated content APIs and persist through the selected content repository; Prisma mode persists to PostgreSQL
-- inquiries: current Admin UI can read inquiries; broader orchestration remains later work
-- certifications, skills, and general media management: API coverage exists, but the full Portfolio Orchestrator workflow is not yet implemented
-- audit: the UI still synthesizes fallback records rather than reading persisted `AuditLog` data
-
-The frontend API client now validates HTTP status and API envelopes, and core portfolio loading distinguishes loading/error/empty/loaded. Full Admin lab/input/scenario/runbook/evidence orchestration remains Phase 2D/8.
+The frontend API client validates HTTP status and API envelopes, and core portfolio loading distinguishes loading/error/empty/loaded. General media/artifact-storage orchestration remains later work; Phase 8 expands this Admin core into the full Portfolio Orchestrator.
 
 ---
 
@@ -521,9 +535,26 @@ Production must never silently fall back from broken PostgreSQL to in-memory per
 
 Phase 2B also includes explicit API error handling, async Express forwarding, frontend HTTP/envelope validation, loading/error/empty distinction, protected persistent Packet Tracer upload behavior, database checks, and persistence/regression scripts.
 
-Phase 2B remains the content contract and Prisma parity checkpoint. Phase 2C adds a separate persistent auth repository/service boundary and revocable database sessions. Full lab/Admin orchestration remains later work. `MockDatabaseService` can be retired only in Phase 2E after all remaining runtime dependencies have persistent replacements and the complete regression baseline is verified.
+Phase 2B remains the content contract and Prisma parity checkpoint. Phase 2C adds the persistent auth repository/service boundary and revocable database sessions. Phase 2D adds the canonical Lab platform and persistent Admin core. `MockDatabaseService` can be retired only in Phase 2E after the remaining runtime compatibility dependencies have persistent replacements and the complete regression baseline is verified.
 
 ---
+
+# 15A. Canonical Lab Platform
+
+The durable lab model is now:
+
+Project
+→ 0..N Labs
+→ 0..N standardized LabInputs
+→ normalizedState
+→ nodes / links
+→ scenarios
+→ LabRunbookSteps
+→ Evidence / Artifact references
+
+`Project.domain` is canonical. Lab input types are validated by domain-specific application registries instead of project-name checks. Public lab reads require a READY Lab attached to a PUBLISHED Project. Public Lab Manifest v1 output exposes safe input descriptors, enabled scenarios, public evidence, and public artifact summaries; it does not expose raw input payloads, raw external input URLs, or internal storage keys.
+
+The three existing flagship lab fixtures are compatibility seed data normalized into this platform. They are not evidence that arbitrary Packet Tracer, Linux, or DevOps artifacts are parsed. Networking/Linux/DevOps adapters and stateful engines remain Phases 3–5. See `docs/LAB_PLATFORM_ARCHITECTURE.md`.
 
 # 16. Phase Roadmap
 
@@ -543,7 +574,13 @@ Phase 2C:
 Authentication and RBAC persistence
 
 Phase 2D:
-Admin persistence/orchestration
+Canonical Lab Platform + Admin Core
+
+Phase 2D-1:
+Canonical Lab Manifest v1, standardized LabInputs, normalized state, topology/scenario/runbook/evidence persistence, and Lab APIs
+
+Phase 2D-2:
+Admin Lab Builder, persistent Admin orchestration, Skills/Certifications management, and real AuditLog UI
 
 Phase 2E:
 Legacy MockDatabaseService retirement after content, authentication, and Admin persistence parity
@@ -709,8 +746,10 @@ The repository is authoritative.
 
 Phase 2B is COMPLETE and exit-verified. `PH2A-DEFER-001` is DONE.
 
-**Phase 2C — Persistent Authentication & RBAC is COMPLETE and exit-verified.** The migration, explicit administrator bootstrap, persisted session behavior, current-role enforcement, logout revocation, content regressions, lint, and build have passed the Phase 2C exit gate.
+**Phase 2C — Persistent Authentication & RBAC is COMPLETE and exit-verified.** The migration, explicit administrator bootstrap, persisted session behavior, current-role enforcement, logout revocation, content regressions, lint, and build passed the Phase 2C exit gate.
 
-The next implementation target is **Phase 2D — Canonical Lab Platform + Admin Core**. Existing non-auth compatibility uses of `MockDatabaseService` remain until their scheduled Phase 2E retirement.
+**Phase 2D — Canonical Lab Platform + Admin Core is COMPLETE and exit-verified.** Lab Manifest v1, standardized domain input registries, Project→many Labs, LabInputs, normalized state/topology/scenarios/runbooks/evidence, authenticated Lab Builder, persisted AuditLog UI, Skills/Certifications management, inquiry status management, and Project story-field round-tripping passed the consolidated verification baseline.
+
+Routine validation is consolidated under `npm run verify`; targeted scripts remain for debugging. The next implementation target is **Phase 2E — safe retirement of the remaining MockDatabaseService runtime paths**.
 
 Multi-Project Dynamic Lab Principle: Domain workspaces and interactive labs must be data-driven and reusable. Networking, Linux, and DevOps experiences must not be hard-coded for one flagship project. A Project may contain zero or more Labs; a Lab may contain zero or more Scenarios and Artifacts. Domain-specific adapters normalize project/lab inputs into a canonical lab state consumed by reusable renderers, CLI contexts, scenario engines, runbooks, and evidence views. Adding a supported project or lab should normally require data/artifact configuration rather than new frontend components.

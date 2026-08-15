@@ -10,7 +10,7 @@ The existing dark cyber-terminal/control-plane visual language is intentional. R
 
 ## Current architecture
 
-Phase 2B content persistence and Phase 2C persistent authentication/RBAC are exit-verified. The next implementation target is Phase 2D — canonical multi-project/multi-lab platform and Admin core.
+Phase 2B content persistence and Phase 2C persistent authentication/RBAC are exit-verified. Phase 2D-1 provides the canonical multi-project/multi-lab platform and Lab Manifest v1 API foundation. Phase 2D-1 Canonical Lab Platform and Phase 2D-2 Admin Lab Builder/Persistent Admin Core are COMPLETE and exit-verified. The next implementation target is Phase 2E — safe retirement of remaining `MockDatabaseService` runtime paths.
 
 ```text
 Browser / React
@@ -18,15 +18,21 @@ Browser / React
   │                                      ├─ legacy adapters → MockDatabaseService
   │                                      └─ Prisma adapters → PostgreSQL
   │
-  └─ admin auth → /api/auth/* → AuthService → PrismaAuthRepository
-                                  → PostgreSQL User + AuthSession
+  ├─ labs → /api/labs/* → LabService / LabManifestService → PrismaLabRepository
+  │                                               → PostgreSQL Lab platform
+  │
+  ├─ admin auth → /api/auth/* → AuthService → PrismaAuthRepository
+  │                               → PostgreSQL User + AuthSession
+  │
+  └─ admin orchestration → Admin CMS → authenticated content/lab APIs
+                         → PostgreSQL content + Lab platform + AuditLog
 ```
 
 Protected requests use a signed HttpOnly cookie whose JWT contains only user/session identity. Authorization reloads the persisted `AuthSession` and current `User` on every protected request, so role changes, revocation, expiration, and account deactivation take effect immediately. Browser auth tokens are not stored in `localStorage`.
 
 `MockDatabaseService` still exists for explicitly deferred compatibility paths such as media, architecture metrics, Packet Tracer compatibility behavior, and the legacy content adapter. Full retirement remains Phase 2E.
 
-The Prisma schema preserves the multi-project/multi-lab foundation: one Project may own multiple Labs, and later phases will standardize lab inputs, normalized state, scenarios, runbooks, evidence, and reusable domain renderers.
+The Prisma schema now implements the canonical relationship model: one Project may own multiple Labs; each Lab can own standardized LabInputs, normalized state, topology nodes/links, scenarios, LabRunbookSteps, evidence, and artifact references. Domain-specific Networking/Linux/DevOps engines remain later phases.
 
 ## Repository layout
 
@@ -36,12 +42,14 @@ server.ts                             Express/Vite entry point
 server/routes/                        HTTP routes
 server/services/content/              content application services
 server/services/auth/                 persistent authentication service/bootstrap logic
-server/repositories/contracts/        content + auth repository contracts
+server/services/labs/                 canonical lab validation, input registry, and Manifest v1 services
+server/services/admin/                persisted Admin audit application service
+server/repositories/contracts/        content + auth + lab + audit repository contracts
 server/repositories/legacy/           legacy content adapters
-server/repositories/prisma/           PostgreSQL/Prisma repositories
+server/repositories/prisma/           PostgreSQL/Prisma content, auth, and lab repositories
 server/middlewares/                   persisted auth, async, and error middleware
 server/security/                      login abuse controls
-server/scripts/                       durable DB/content/auth regression and maintenance scripts
+server/scripts/                       durable DB/content/auth/lab/admin regression, verification, and maintenance scripts
 prisma/schema.prisma                  canonical persistence schema
 prisma/migrations/                    immutable versioned migrations
 prisma/seed.ts                        idempotent public portfolio baseline seed; no users
@@ -84,27 +92,26 @@ npm run auth:bootstrap-admin
 
 The normal portfolio seed intentionally creates no administrator or other user credentials.
 
-## Durable regression baseline
+## Durable verification baseline
 
-These names are intentionally phase-neutral so they remain useful after later phases:
+Use the consolidated verifier instead of running every regression command manually:
 
 ```bash
-npm run test:content:static
-npm run test:content:legacy
-npm run test:api-client
-npm run test:content:http
-npm run test:content:smoke
-npm run test:content:prisma
-
-npm run test:content:restart -- create
-npm run test:content:restart -- verify
-npm run test:content:restart -- cleanup
-
-npm run test:auth:static
-npm run test:auth
+npm run verify
 ```
 
-`test:content:http`, `test:auth`, and other Prisma-backed checks require a migrated PostgreSQL database.
+`verify` validates/generates Prisma, typechecks, builds, checks migration status, validates the database baseline, and runs the durable auth/content/lab/Admin regression suites including restart persistence. It stops on the first failure and prints the failing step.
+
+For faster work:
+
+```bash
+npm run verify:quick   # schema + typecheck/build + static/API-client checks; no DB required
+npm run verify:tests   # all regression suites against the configured DB; skips rebuild
+```
+
+Migration deployment and seeding remain explicit one-time operations when a phase changes schema or baseline data; routine verification never mutates migration history automatically.
+
+Individual `test:*` scripts remain available for targeted debugging after the consolidated verifier identifies a failing area.
 
 Optional maintenance:
 
@@ -143,4 +150,4 @@ Git is the source of truth.
 - Run validation and inspect `git diff` before committing.
 - Read `AGENTS.md` and `docs/DEFERRED_IMPLEMENTATION_REGISTER.md` before every phase.
 
-The next implementation target is Phase 2D — canonical multi-project/multi-lab platform and Admin core.
+Phase 2D is COMPLETE and exit-verified. The next implementation target is Phase 2E — safe retirement of the remaining `MockDatabaseService` runtime paths.

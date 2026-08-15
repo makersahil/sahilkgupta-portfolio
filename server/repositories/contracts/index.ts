@@ -47,3 +47,6 @@ export type {
   SkillWritableFields,
   UpdateSkillInput,
 } from './skill.repository.js';
+export type * from './lab.repository.js';
+
+export type { AuditActorSummary, AuditLogQuery, AuditLogRecord, AuditRepository, CreateAuditLogInput } from './audit.repository.js';

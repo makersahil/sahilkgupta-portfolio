@@ -1,4 +1,4 @@
-import { Prisma, type LabKind, type PrismaClient, type ProjectFormatType } from '@prisma/client';
+import { Prisma, type Domain, type LabKind, type PrismaClient, type ProjectFormatType } from '@prisma/client';
 import { prisma } from '../../lib/prisma.js';
 import type {
   CreateProjectInput,
@@ -25,6 +25,46 @@ import {
 interface CompatibilityPayload {
   kind: LabKind;
   metadata: Prisma.InputJsonValue;
+}
+
+interface CompatibilityLabDefaults {
+  capabilities: string[];
+  inputKey: string;
+  inputType: string;
+  inputLabel: string;
+}
+
+function compatibilityLabDefaults(kind: LabKind): CompatibilityLabDefaults {
+  switch (kind) {
+    case 'NETWORK_TOPOLOGY':
+      return { capabilities: ['topology', 'device-config', 'routing-state', 'packet-flow'], inputKey: 'baseline-network-topology', inputType: 'NETWORK_TOPOLOGY', inputLabel: 'Baseline Network Topology' };
+    case 'LINUX_SYSTEM':
+      return { capabilities: ['host-state', 'storage', 'systemd', 'selinux'], inputKey: 'baseline-system-snapshot', inputType: 'SYSTEM_SNAPSHOT', inputLabel: 'Baseline System Snapshot' };
+    case 'DEVOPS_PIPELINE':
+      return { capabilities: ['pipeline', 'iac', 'gitops', 'kubernetes', 'observability'], inputKey: 'baseline-ci-pipeline', inputType: 'CI_PIPELINE', inputLabel: 'Baseline Delivery Pipeline' };
+  }
+}
+
+async function ensureCompatibilityInput(
+  transaction: Prisma.TransactionClient,
+  labId: string,
+  payload: CompatibilityPayload,
+): Promise<void> {
+  const defaults = compatibilityLabDefaults(payload.kind);
+  await transaction.labInput.upsert({
+    where: { labId_inputKey: { labId, inputKey: defaults.inputKey } },
+    update: { inputType: defaults.inputType, label: defaults.inputLabel, sourceKind: 'INLINE', schemaVersion: '1.0', payload: payload.metadata, externalUrl: null, artifactId: null, isPrimary: true, sortOrder: 0 },
+    create: { labId, inputKey: defaults.inputKey, inputType: defaults.inputType, label: defaults.inputLabel, description: 'Normalized compatibility snapshot from the project specialized payload.', sourceKind: 'INLINE', schemaVersion: '1.0', payload: payload.metadata, isPrimary: true, sortOrder: 0 },
+  });
+}
+
+
+function labKindForDomain(domain: Domain): LabKind {
+  switch (domain) {
+    case 'NETWORKING': return 'NETWORK_TOPOLOGY';
+    case 'LINUX': return 'LINUX_SYSTEM';
+    case 'DEVOPS': return 'DEVOPS_PIPELINE';
+  }
 }
 
 function labKindForFormat(formatType: ProjectFormatType): LabKind | null {
@@ -152,6 +192,9 @@ export class PrismaProjectRepository implements ProjectRepository {
           slug: requireNonEmptyString(input.slug, 'slug'),
           summary: input.summary ?? '',
           descriptionMarkdown: input.descriptionMarkdown ?? '',
+          mission: input.mission ?? null,
+          architectureSummary: input.architectureSummary ?? null,
+          whatIBuilt: input.whatIBuilt ?? null,
           domain,
           categoryId: input.categoryId,
           status: publicationStatus,
@@ -173,7 +216,8 @@ export class PrismaProjectRepository implements ProjectRepository {
       });
 
       if (payload) {
-        await transaction.lab.create({
+        const defaults = compatibilityLabDefaults(payload.kind);
+        const lab = await transaction.lab.create({
           data: {
             slug: compatibilityLabSlug(project.slug, payload.kind),
             title: `${project.title} Lab`,
@@ -181,9 +225,13 @@ export class PrismaProjectRepository implements ProjectRepository {
             kind: payload.kind,
             status: 'READY',
             projectId: project.id,
+            manifestVersion: '1.0',
+            capabilities: defaults.capabilities,
+            normalizedState: payload.metadata,
             metadata: payload.metadata,
           },
         });
+        await ensureCompatibilityInput(transaction, lab.id, payload);
       }
 
       const created = await transaction.project.findUniqueOrThrow({
@@ -240,6 +288,9 @@ export class PrismaProjectRepository implements ProjectRepository {
           ...(input.descriptionMarkdown !== undefined
             ? { descriptionMarkdown: input.descriptionMarkdown }
             : {}),
+          ...(input.mission !== undefined ? { mission: input.mission } : {}),
+          ...(input.architectureSummary !== undefined ? { architectureSummary: input.architectureSummary } : {}),
+          ...(input.whatIBuilt !== undefined ? { whatIBuilt: input.whatIBuilt } : {}),
           ...(input.categoryId !== undefined ? { categoryId, domain } : {}),
           ...(input.status !== undefined
             ? {
@@ -279,7 +330,16 @@ export class PrismaProjectRepository implements ProjectRepository {
         },
       });
 
-      if (input.categoryId !== undefined) {
+      if (input.categoryId !== undefined && domain !== existing.domain) {
+        const incompatibleLab = await transaction.lab.findFirst({
+          where: { projectId: id, kind: { not: labKindForDomain(domain) } },
+          select: { id: true, slug: true, kind: true },
+        });
+        if (incompatibleLab) {
+          throw new ValidationError('Project category change would make an existing lab incompatible with its project domain', {
+            labId: incompatibleLab.id, labSlug: incompatibleLab.slug, labKind: incompatibleLab.kind, requestedDomain: domain,
+          });
+        }
         await transaction.lab.updateMany({ where: { projectId: id }, data: { domain } });
       }
 
@@ -296,13 +356,16 @@ export class PrismaProjectRepository implements ProjectRepository {
           }));
 
         if (compatibilityLab) {
+          const defaults = compatibilityLabDefaults(payload.kind);
           await transaction.lab.update({
             where: { id: compatibilityLab.id },
-            data: { metadata: payload.metadata },
+            data: { manifestVersion: '1.0', capabilities: defaults.capabilities, normalizedState: payload.metadata, metadata: payload.metadata },
           });
+          await ensureCompatibilityInput(transaction, compatibilityLab.id, payload);
         } else {
           const persisted = await transaction.project.findUniqueOrThrow({ where: { id } });
-          await transaction.lab.create({
+          const defaults = compatibilityLabDefaults(payload.kind);
+          const lab = await transaction.lab.create({
             data: {
               slug: compatibilityLabSlug(persisted.slug, payload.kind),
               title: `${persisted.title} Lab`,
@@ -310,9 +373,13 @@ export class PrismaProjectRepository implements ProjectRepository {
               kind: payload.kind,
               status: 'READY',
               projectId: id,
+              manifestVersion: '1.0',
+              capabilities: defaults.capabilities,
+              normalizedState: payload.metadata,
               metadata: payload.metadata,
             },
           });
+          await ensureCompatibilityInput(transaction, lab.id, payload);
         }
       }
 

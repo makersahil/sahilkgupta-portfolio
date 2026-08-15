@@ -60,16 +60,15 @@ Normal portfolio seed data must not create default administrator credentials. Us
 Public simulation endpoints may remain public when they do not alter persistent state.
 
 ## Quality gate
-After meaningful implementation run:
+After meaningful implementation, prefer the consolidated durable verifier:
 
-npm run lint
-npm run build
-npx prisma validate
-npx prisma generate
+npm run verify
 
-When PostgreSQL is available also run the relevant migration and persistence tests.
+For a fast DB-free check use `npm run verify:quick`; for DB-backed regressions without rebuilding use `npm run verify:tests`.
 
-Keep durable regression scripts phase-neutral when they remain useful after a phase (for example `test:content:*`, `test:api-client`, and `test:auth*`). Do not rename or rewrite applied Prisma migration directories merely to remove phase-specific names.
+When a change introduces a new migration or changes baseline seed data, apply/review those explicitly before `npm run verify`; the verifier must not auto-deploy migrations or mutate migration history.
+
+Keep durable regression scripts phase-neutral when they remain useful after a phase (for example `test:content:*`, `test:api-client`, `test:auth*`, `test:labs*`, and `test:admin*`). Do not rename or rewrite applied Prisma migration directories merely to remove phase-specific names.
 
 ## Regression rule
 After backend changes verify:
@@ -106,3 +105,13 @@ Before finishing:
 5. report unresolved issues
 
 If a requirement conflicts with repository state, stop and explain instead of guessing.
+## Canonical lab platform invariants
+
+- Treat `Project.domain` as canonical. A Lab must match the domain of its Project; never infer domain from a project title or slug.
+- Keep Lab rendering data-driven. Do not add project-name or flagship-slug checks to reusable Lab services, manifests, future renderers, or scenario engines.
+- Validate LabInput types through the domain input registry. Do not turn every input type into a database enum.
+- Public Lab reads require `Lab.status=READY` and a published Project. Public manifests expose only public evidence and safe artifact summaries.
+- Public-shaped manifests describe input availability but do not expose raw inline LabInput payloads, raw external input URLs, or internal artifact storage keys.
+- Never claim arbitrary Packet Tracer/PCAP/config parsing unless a real adapter exists and is tested. Reference/normalized fixture metadata must be labeled truthfully.
+- Domain engines are later work. The canonical Lab platform stores and validates normalized state; it does not pretend to execute Cisco, RHEL, Kubernetes, or GitOps systems.
+- Preserve one Project -> many Labs -> many Inputs/Scenarios/RunbookSteps/Evidence as the platform relationship model.

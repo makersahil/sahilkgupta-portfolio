@@ -123,7 +123,7 @@ export const FeaturedProofOfWork: React.FC = () => {
                       Mission Scope:
                     </span>
                     <p className="text-xs text-white/80 leading-relaxed font-sans">
-                      {mission}
+                      {project.mission || mission}
                     </p>
                   </div>
 

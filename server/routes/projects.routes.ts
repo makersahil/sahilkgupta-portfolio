@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middlewares/auth.middleware.js';
 import { asyncHandler } from '../middlewares/async-handler.js';
 import { contentServices } from '../services/content/index.js';
+import { recordAdminAudit } from './admin-audit.js';
 import { optionalQueryString, parseProjectCreate, parseProjectUpdate } from './content-input.js';
 
 const router = Router();
@@ -31,6 +32,7 @@ router.post(
   requireRole('SUPER_ADMIN', 'ADMIN'),
   asyncHandler(async (request, response) => {
     const project = await contentServices.projects.create(parseProjectCreate(request.body));
+    await recordAdminAudit(request, { action: 'PROJECT_CREATE', entityType: 'Project', entityId: project.id });
     response.status(201).json({ success: true, data: project, message: 'Project created successfully' });
   }),
 );
@@ -41,6 +43,7 @@ router.put(
   requireRole('SUPER_ADMIN', 'ADMIN'),
   asyncHandler(async (request, response) => {
     const project = await contentServices.projects.update(request.params.id, parseProjectUpdate(request.body));
+    await recordAdminAudit(request, { action: 'PROJECT_UPDATE', entityType: 'Project', entityId: project.id });
     response.json({ success: true, data: project, message: 'Project updated successfully' });
   }),
 );
@@ -51,6 +54,7 @@ router.delete(
   requireRole('SUPER_ADMIN', 'ADMIN'),
   asyncHandler(async (request, response) => {
     await contentServices.projects.delete(request.params.id);
+    await recordAdminAudit(request, { action: 'PROJECT_DELETE', entityType: 'Project', entityId: request.params.id });
     response.json({ success: true, message: 'Project deleted successfully' });
   }),
 );

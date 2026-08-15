@@ -139,6 +139,9 @@ export interface Project {
   slug: string;
   summary: string;
   descriptionMarkdown: string;
+  mission?: string;
+  architectureSummary?: string;
+  whatIBuilt?: string;
   categoryId: string;
   status: ProjectStatus;
   formatType?: ProjectFormatType;
@@ -249,3 +252,24 @@ export interface ContactInquiry {
   createdAt: string;
   updatedAt: string;
 }
+
+export type {
+  CanonicalLabManifestV1,
+  LabAggregate,
+  LabArtifactReference,
+  LabDomain,
+  LabEvidenceKind,
+  LabEvidenceRecord,
+  LabInputRecord,
+  LabInputSourceKind,
+  LabKind,
+  LabLinkRecord,
+  LabManifestEvidence,
+  LabManifestInputDescriptor,
+  LabNodeRecord,
+  LabProjectIdentity,
+  LabRecord,
+  LabRunbookStepRecord,
+  LabScenarioRecord,
+  LabStatus,
+} from './lab-platform.js';
