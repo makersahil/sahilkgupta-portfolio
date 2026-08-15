@@ -1285,7 +1285,7 @@ const labIdentities: Partial<
     slug: 'rhel9-hardening-environment',
     title: 'RHEL9 Hardening Environment',
     kind: LabKind.LINUX_SYSTEM,
-    summary: 'Linux system hardening and auditing.',
+    summary: 'Data-driven RHEL 9.4 systems lab backed by canonical host, service, storage, SELinux, network, configuration, and verification state.',
   },
   devops_pipeline: {
     slug: 'gitops-k8s-cluster',
@@ -1298,7 +1298,7 @@ const labIdentities: Partial<
 
 const labCapabilities: Partial<Record<NonNullable<ApiProject['formatType']>, string[]>> = {
   cisco_pkt_lab: ['topology', 'device-inventory', 'interfaces', 'device-config', 'routing-state', 'vlans', 'acls', 'packet-path', 'control-plane', 'route-lookup', 'health-analysis', 'operator-context', 'scenario-readiness'],
-  rhcsa_matrix: ['host-state', 'storage', 'systemd', 'selinux'],
+  rhcsa_matrix: ['host-state', 'services', 'storage', 'filesystems', 'fstab', 'systemd', 'selinux', 'network', 'logs', 'configurations', 'verification'],
   devops_pipeline: ['pipeline', 'iac', 'gitops', 'kubernetes', 'observability'],
 };
 
@@ -1322,10 +1322,10 @@ const runbooks: Record<
     { order: 4, title: 'Analyze recorded forwarding state', description: 'Compare topology reachability with persisted device, interface, route, neighbor, and gateway state.' },
   ],
   'rhel-9-rhcsa-hardening-storage-selinux': [
-    { order: 1, title: 'Inspect host', description: 'Examine the RHEL 9.4 compute node baseline.' },
-    { order: 2, title: 'Select system area', description: 'Review LVM thin pools and storage volumes.' },
-    { order: 3, title: 'Review configuration', description: 'Check SELinux enforcement and firewalld rules.' },
-    { order: 4, title: 'Verify lab state', description: 'Ensure systemd sandboxed units are healthy.' },
+    { order: 1, title: 'Inspect host', description: 'Examine the persisted RHEL 9.4 host baseline and input provenance.' },
+    { order: 2, title: 'Inspect services and storage', description: 'Review normalized systemd service state, LVM metadata, mounts, and /etc/fstab entries.' },
+    { order: 3, title: 'Inspect security and network state', description: 'Review recorded SELinux mode, policy/configuration snapshots, interfaces, and routes without assuming live telemetry.' },
+    { order: 4, title: 'Review recorded checks', description: 'Compare persisted configuration and verification outputs supplied by the Lab inputs.' },
   ],
   'cloud-native-gitops-k8s-cilium-terraform': [
     { order: 1, title: 'Follow pipeline', description: 'Trace the self-healing GitOps delivery workflow.' },
@@ -1701,6 +1701,241 @@ default gateway 10.10.10.1`,
   };
 }
 
+
+type SeedLinuxHostStatus = 'UP' | 'DOWN' | 'DEGRADED' | 'UNKNOWN';
+
+interface LinuxNormalizedHostV1 {
+  key: string;
+  label: string;
+  hostname: string;
+  osName: string;
+  osVersion: string;
+  kernelVersion: string;
+  architecture: string;
+  bootTarget: string;
+  status: SeedLinuxHostStatus;
+  fipsMode: boolean;
+  timeSynchronization: string | null;
+  description: string;
+  services: Array<{
+    unit: string;
+    description: string;
+    activeState: 'ACTIVE' | 'INACTIVE' | 'FAILED' | 'UNKNOWN';
+    subState: string | null;
+    enabled: boolean | null;
+    restartPolicy: string | null;
+    user: string | null;
+    configurationSnippet: string | null;
+    source: 'NORMALIZED_INPUT';
+  }>;
+  blockDevices: Array<{
+    name: string; type: string; size: string | null; filesystem: string | null; mountPoint: string | null; parent: string | null; state: 'MOUNTED' | 'UNMOUNTED' | 'DEGRADED' | 'UNKNOWN';
+  }>;
+  volumeGroups: Array<{ name: string; size: string | null; free: string | null; physicalVolumes: string[] }>;
+  logicalVolumes: Array<{ name: string; volumeGroup: string; size: string | null; layout: string | null; filesystem: string | null; mountPoint: string | null; state: 'MOUNTED' | 'UNMOUNTED' | 'DEGRADED' | 'UNKNOWN' }>;
+  mounts: Array<{ source: string; target: string; filesystem: string; options: string[]; state: 'MOUNTED' | 'UNMOUNTED' | 'DEGRADED' | 'UNKNOWN' }>;
+  fstab: Array<{ source: string; target: string; filesystem: string; options: string[]; dump: number | null; pass: number | null }>;
+  selinux: {
+    mode: 'ENFORCING' | 'PERMISSIVE' | 'DISABLED' | 'UNKNOWN'; configuredMode: 'ENFORCING' | 'PERMISSIVE' | 'DISABLED' | 'UNKNOWN'; policy: string;
+    booleans: Array<{ name: string; enabled: boolean }>;
+    ports: Array<{ type: string; protocol: string; ports: string }>;
+    contexts: Array<{ path: string; context: string; source: 'NORMALIZED_INPUT' }>;
+    source: 'NORMALIZED_INPUT';
+  };
+  interfaces: Array<{ name: string; type: string | null; state: 'UP' | 'DOWN' | 'UNKNOWN'; addresses: string[]; gateway: string | null; dns: string[]; connection: string | null; mtu: number | null }>;
+  routes: Array<{ destination: string; gateway: string | null; interface: string | null; metric: number | null; protocol: string | null }>;
+  logs: Array<{ id: string; source: string; priority: string | null; timestamp: string | null; message: string; recorded: true }>;
+  configurations: Array<{ path: string; format: string; content: string; description: string; source: 'NORMALIZED_INPUT' }>;
+  verificationRecords: Array<{ id: string; title: string; command: string; recordedObservation: string; source: 'NORMALIZED_INPUT' }>;
+  metadata: Record<string, unknown>;
+}
+
+interface LinuxNormalizedStateV1 {
+  schemaVersion: 'linux.v1';
+  overview: string;
+  hosts: LinuxNormalizedHostV1[];
+  provenance: {
+    sourceType: 'NORMALIZED_PROJECT_FIXTURE';
+    notes: string[];
+  };
+}
+
+interface SeedLinuxFixture {
+  state: LinuxNormalizedStateV1;
+  host: LinuxNormalizedHostV1;
+  fstabText: string | null;
+  systemdUnitText: string | null;
+}
+
+function parseSeedFstab(content: string | null): LinuxNormalizedHostV1['fstab'] {
+  if (!content) return [];
+  return content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .flatMap((line) => {
+      const fields = line.split(/\s+/);
+      if (fields.length < 4) return [];
+      const dump = fields[4] !== undefined && /^\d+$/.test(fields[4]) ? Number(fields[4]) : null;
+      const pass = fields[5] !== undefined && /^\d+$/.test(fields[5]) ? Number(fields[5]) : null;
+      return [{
+        source: fields[0]!,
+        target: fields[1]!,
+        filesystem: fields[2]!,
+        options: fields[3]!.split(',').map((entry) => entry.trim()).filter(Boolean),
+        dump,
+        pass,
+      }];
+    });
+}
+
+function linuxFixture(project: ApiProject): SeedLinuxFixture | null {
+  const data = project.rhcsaMatrixData;
+  if (!data) return null;
+
+  const configs = data.objectives.flatMap((objective) =>
+    objective.configFiles.map((config) => ({
+      path: config.path,
+      format: config.language,
+      content: config.content,
+      description: config.description,
+      source: 'NORMALIZED_INPUT' as const,
+    })),
+  );
+  const fstabConfig = configs.find((config) => config.path === '/etc/fstab') ?? null;
+  const systemdConfig = configs.find((config) => config.path.endsWith('.service')) ?? null;
+  const fstab = parseSeedFstab(fstabConfig?.content ?? null);
+  const mountRecords = fstab
+    .filter((entry) => entry.target !== 'none' && entry.filesystem !== 'swap')
+    .map((entry) => ({
+      source: entry.source,
+      target: entry.target,
+      filesystem: entry.filesystem,
+      options: entry.options,
+      state: 'UNKNOWN' as const,
+    }));
+
+  const verificationRecords = data.objectives.map((objective) => ({
+    id: objective.id,
+    title: `${objective.domainCode} — ${objective.domainTitle}`,
+    command: objective.verificationCommand,
+    recordedObservation: objective.verificationOutput,
+    source: 'NORMALIZED_INPUT' as const,
+  }));
+
+  const host: LinuxNormalizedHostV1 = {
+    key: 'rhel9-lab-01',
+    label: 'RHEL9-LAB-01',
+    hostname: 'rhel9-lab-01',
+    osName: 'Red Hat Enterprise Linux',
+    osVersion: data.rhelVersion,
+    kernelVersion: data.kernelVersion,
+    architecture: 'x86_64',
+    bootTarget: 'multi-user.target',
+    status: 'UP',
+    fipsMode: data.fipsMode,
+    timeSynchronization: 'Chrony configuration and verification output are recorded in the normalized project fixture.',
+    description: 'Canonical RHEL 9.4 host representation generated from the persisted RHCSA-oriented project fixture.',
+    services: [
+      {
+        unit: 'node-exporter.service',
+        description: 'Prometheus Node Exporter systemd unit from the project configuration fixture.',
+        activeState: 'ACTIVE',
+        subState: 'running',
+        enabled: true,
+        restartPolicy: 'on-failure',
+        user: 'node_exporter',
+        configurationSnippet: systemdConfig?.content ?? null,
+        source: 'NORMALIZED_INPUT',
+      },
+      {
+        unit: 'sshd.service', description: 'OpenSSH server configuration is represented by the persisted hardening snippet.', activeState: 'ACTIVE', subState: 'running', enabled: true, restartPolicy: null, user: 'root', configurationSnippet: configs.find((entry) => entry.path.includes('sshd_config'))?.content ?? null, source: 'NORMALIZED_INPUT',
+      },
+      {
+        unit: 'firewalld.service', description: 'firewalld policy configuration is represented by the recorded project fixture.', activeState: 'ACTIVE', subState: 'running', enabled: true, restartPolicy: null, user: 'root', configurationSnippet: configs.find((entry) => entry.path.includes('/firewalld/'))?.content ?? null, source: 'NORMALIZED_INPUT',
+      },
+      {
+        unit: 'chronyd.service', description: 'Chrony time synchronization is represented by the recorded verification output.', activeState: 'ACTIVE', subState: 'running', enabled: true, restartPolicy: null, user: 'chrony', configurationSnippet: null, source: 'NORMALIZED_INPUT',
+      },
+    ],
+    blockDevices: [
+      { name: '/dev/vg_prod/lv_data', type: 'lvm', size: '50G', filesystem: 'xfs', mountPoint: '/data/db', parent: '/dev/sdb1', state: 'UNKNOWN' },
+    ],
+    volumeGroups: [{ name: 'vg_prod', size: null, free: null, physicalVolumes: ['/dev/sdb1'] }],
+    logicalVolumes: [{ name: 'lv_data', volumeGroup: 'vg_prod', size: '50G', layout: 'linear', filesystem: 'xfs', mountPoint: '/data/db', state: 'UNKNOWN' }],
+    mounts: mountRecords,
+    fstab,
+    selinux: {
+      mode: data.selinuxMode === 'Enforcing' ? 'ENFORCING' : data.selinuxMode === 'Permissive' ? 'PERMISSIVE' : 'DISABLED',
+      configuredMode: data.selinuxMode === 'Enforcing' ? 'ENFORCING' : data.selinuxMode === 'Permissive' ? 'PERMISSIVE' : 'DISABLED',
+      policy: 'targeted',
+      booleans: [{ name: 'httpd_can_network_connect', enabled: true }],
+      ports: [],
+      contexts: [{ path: '/srv/web', context: 'httpd_sys_content_t', source: 'NORMALIZED_INPUT' }],
+      source: 'NORMALIZED_INPUT',
+    },
+    interfaces: [{
+      name: 'bond0', type: 'bond', state: 'UNKNOWN', addresses: [], gateway: null, dns: [], connection: 'bond0', mtu: null,
+    }],
+    routes: [],
+    logs: [],
+    configurations: configs,
+    verificationRecords,
+    metadata: {
+      source: 'seeded-rhcsa-project-fixture',
+      objectiveCount: data.totalCompetencies,
+      note: 'Recorded project fixture; not live host telemetry.',
+    },
+  };
+
+  return {
+    host,
+    fstabText: fstabConfig?.content ?? null,
+    systemdUnitText: systemdConfig?.content ?? null,
+    state: {
+      schemaVersion: 'linux.v1',
+      overview: 'Canonical Linux host state normalized from the persisted RHEL 9.4 hardening project fixture.',
+      hosts: [host],
+      provenance: {
+        sourceType: 'NORMALIZED_PROJECT_FIXTURE',
+        notes: [
+          'The Linux engine renders persisted normalized Lab state and recorded configuration/verification inputs.',
+          'Host values are a project fixture, not live server telemetry.',
+        ],
+      },
+    },
+  };
+}
+
+async function reconcileLinuxHosts(labId: string, fixture: SeedLinuxFixture): Promise<void> {
+  const host = fixture.host;
+  await prisma.$transaction(async (tx) => {
+    await tx.labNode.upsert({
+      where: { labId_nodeKey: { labId, nodeKey: host.key } },
+      update: {
+        label: host.label,
+        kind: 'linux_host',
+        description: host.description,
+        position: jsonValue({ x: 320, y: 180 }),
+        configuration: jsonValue({ host }),
+        metadata: jsonValue({ source: 'seeded-rhcsa-project-fixture' }),
+      },
+      create: {
+        labId,
+        nodeKey: host.key,
+        label: host.label,
+        kind: 'linux_host',
+        description: host.description,
+        position: jsonValue({ x: 320, y: 180 }),
+        configuration: jsonValue({ host }),
+        metadata: jsonValue({ source: 'seeded-rhcsa-project-fixture' }),
+      },
+    });
+    await tx.labLink.deleteMany({ where: { labId } });
+    await tx.labNode.deleteMany({ where: { labId, nodeKey: { notIn: [host.key] } } });
+  }, { maxWait: 10_000, timeout: 30_000 });
+}
+
 async function reconcileNetworkingTopology(labId: string, fixture: SeedNetworkingFixture): Promise<void> {
   const nodeKeys = fixture.devices.map((device) => device.key);
   const linkKeys = fixture.links.map((link) => link.key);
@@ -1914,7 +2149,12 @@ async function upsertCompatibilityLab(
   if (!metadata) throw new Error(`Missing specialized payload for seed project: ${project.slug}`);
 
   const networkFixture = format === 'cisco_pkt_lab' ? networkingFixture(project) : null;
-  const normalizedState = networkFixture ? jsonValue(networkFixture.controlPlane) : metadata;
+  const linuxFixtureData = format === 'rhcsa_matrix' ? linuxFixture(project) : null;
+  const normalizedState = networkFixture
+    ? jsonValue(networkFixture.controlPlane)
+    : linuxFixtureData
+      ? jsonValue(linuxFixtureData.state)
+      : metadata;
   const primaryPayload = networkFixture
     ? jsonValue({
         schemaVersion: 'networking.input.v1',
@@ -1922,7 +2162,9 @@ async function upsertCompatibilityLab(
         links: networkFixture.links,
         controlPlane: networkFixture.controlPlane,
       })
-    : normalizedState;
+    : linuxFixtureData
+      ? jsonValue({ schemaVersion: 'linux.input.v1', hosts: linuxFixtureData.state.hosts })
+      : normalizedState;
 
   const capabilities = labCapabilities[format] ?? [];
   const primaryInput = primaryLabInputs[format];
@@ -1966,9 +2208,11 @@ async function upsertCompatibilityLab(
       label: primaryInput.label,
       description: networkFixture
         ? 'Canonical Networking input generated from persisted normalized topology, device, interface, configuration, and control-plane records.'
-        : 'Normalized compatibility snapshot derived from the established project fixture.',
+        : linuxFixtureData
+          ? 'Canonical Linux system snapshot generated from the persisted RHEL 9.4 project fixture.'
+          : 'Normalized compatibility snapshot derived from the established project fixture.',
       sourceKind: LabInputSourceKind.INLINE,
-      schemaVersion: networkFixture ? 'networking.input.v1' : '1.0',
+      schemaVersion: networkFixture ? 'networking.input.v1' : linuxFixtureData ? 'linux.input.v1' : '1.0',
       payload: primaryPayload,
       externalUrl: null,
       artifactId: null,
@@ -1982,9 +2226,11 @@ async function upsertCompatibilityLab(
       label: primaryInput.label,
       description: networkFixture
         ? 'Canonical Networking input generated from persisted normalized topology, device, interface, configuration, and control-plane records.'
-        : 'Normalized compatibility snapshot derived from the established project fixture.',
+        : linuxFixtureData
+          ? 'Canonical Linux system snapshot generated from the persisted RHEL 9.4 project fixture.'
+          : 'Normalized compatibility snapshot derived from the established project fixture.',
       sourceKind: LabInputSourceKind.INLINE,
-      schemaVersion: networkFixture ? 'networking.input.v1' : '1.0',
+      schemaVersion: networkFixture ? 'networking.input.v1' : linuxFixtureData ? 'linux.input.v1' : '1.0',
       payload: primaryPayload,
       isPrimary: true,
       sortOrder: 0,
@@ -2058,6 +2304,79 @@ async function upsertCompatibilityLab(
           actions: jsonValue(scenario.actions),
           expectedObservations: jsonValue(scenario.expectedObservations),
           verificationCriteria: jsonValue(scenario.verificationCriteria),
+        },
+      });
+    }
+  }
+
+  if (linuxFixtureData && project.rhcsaMatrixData) {
+    await reconcileLinuxHosts(lab.id, linuxFixtureData);
+
+    const linuxInputs = [
+      {
+        inputKey: 'fstab-snapshot',
+        inputType: 'FSTAB',
+        label: '/etc/fstab Snapshot',
+        description: 'Normalized persistent mount configuration from the recorded RHEL project fixture.',
+        schemaVersion: 'linux.fstab.v1',
+        payload: { entries: linuxFixtureData.host.fstab, content: linuxFixtureData.fstabText },
+        sortOrder: 10,
+      },
+      {
+        inputKey: 'systemd-unit-snapshot',
+        inputType: 'SYSTEMD_UNIT',
+        label: 'systemd Unit Snapshot',
+        description: 'Recorded systemd unit configuration used by the Linux Lab host model.',
+        schemaVersion: 'linux.systemd.v1',
+        payload: { services: linuxFixtureData.host.services, unitFile: linuxFixtureData.systemdUnitText },
+        sortOrder: 20,
+      },
+      {
+        inputKey: 'selinux-state',
+        inputType: 'SELINUX_AUDIT',
+        label: 'SELinux State',
+        description: 'Normalized SELinux mode, policy, boolean, and context state from the project fixture.',
+        schemaVersion: 'linux.selinux.v1',
+        payload: linuxFixtureData.host.selinux,
+        sortOrder: 30,
+      },
+      {
+        inputKey: 'configuration-bundle',
+        inputType: 'CONFIG_BUNDLE',
+        label: 'Linux Configuration Bundle',
+        description: 'Recorded configuration files and verification commands from the RHEL project fixture.',
+        schemaVersion: 'linux.config.v1',
+        payload: { configurations: linuxFixtureData.host.configurations, verificationRecords: linuxFixtureData.host.verificationRecords },
+        sortOrder: 40,
+      },
+    ] as const;
+
+    for (const input of linuxInputs) {
+      await prisma.labInput.upsert({
+        where: { labId_inputKey: { labId: lab.id, inputKey: input.inputKey } },
+        update: {
+          inputType: input.inputType,
+          label: input.label,
+          description: input.description,
+          sourceKind: LabInputSourceKind.INLINE,
+          schemaVersion: input.schemaVersion,
+          payload: jsonValue(input.payload),
+          externalUrl: null,
+          artifactId: null,
+          isPrimary: false,
+          sortOrder: input.sortOrder,
+        },
+        create: {
+          labId: lab.id,
+          inputKey: input.inputKey,
+          inputType: input.inputType,
+          label: input.label,
+          description: input.description,
+          sourceKind: LabInputSourceKind.INLINE,
+          schemaVersion: input.schemaVersion,
+          payload: jsonValue(input.payload),
+          isPrimary: false,
+          sortOrder: input.sortOrder,
         },
       });
     }

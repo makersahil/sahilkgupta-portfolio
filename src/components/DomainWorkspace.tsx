@@ -4,7 +4,7 @@ import { getDomainConfigBySlug, DOMAIN_CONFIGS, DomainSlug } from '../config/dom
 import { WorkspaceHeader } from './WorkspaceHeader.js';
 import { OperatorPath } from './OperatorPath.js';
 import { NetworkingLabExplorer } from './networking/index.js';
-import { LinuxWorkspacePreview } from './LinuxWorkspacePreview.js';
+import { LinuxLabExplorer } from './linux/index.js';
 import { DevOpsPipelineVisualizer } from './DevOpsPipelineVisualizer.js';
 import { ProjectsShowcase } from './ProjectsShowcase.js';
 import { CertificationMatrix } from './CertificationMatrix.js';
@@ -30,7 +30,7 @@ export const DomainWorkspace: React.FC<DomainWorkspaceProps> = ({ domainSlug }) 
 
       {/* 3. Domain Core Lab / Visualizer */}
       {config.slug === 'networking' && <NetworkingLabExplorer />}
-      {config.slug === 'linux' && <LinuxWorkspacePreview />}
+      {config.slug === 'linux' && <LinuxLabExplorer />}
       {config.slug === 'devops' && <DevOpsPipelineVisualizer />}
 
       {/* 4. Domain Projects */}

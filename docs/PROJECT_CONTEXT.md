@@ -226,7 +226,7 @@ Admin CMS
 
 PostgreSQL/Prisma is the only supported runtime persistence path. There is no silent in-memory fallback when PostgreSQL is unavailable. An old `PERSISTENCE_MODE=prisma` environment entry is tolerated only for local migration compatibility; `legacy` is rejected.
 
-Phase 2B content persistence, Phase 2C persistent authentication/RBAC, Phase 2D Canonical Lab Platform + Admin Core, and Phase 2E Prisma-only runtime retirement are COMPLETE and exit-verified. Phase 3A Core Networking Engine and Phase 3B Networking Investigation and Operations are COMPLETE and exit-verified. Phase 3 is complete.
+Phase 2B content persistence, Phase 2C persistent authentication/RBAC, Phase 2D Canonical Lab Platform + Admin Core, and Phase 2E Prisma-only runtime retirement are COMPLETE and exit-verified. Phase 3A Core Networking Engine is exit-verified and Phase 3B Networking Investigation and Operations is implemented in the current baseline. Phase 4A Core Linux Engine is implemented and awaiting local/full-ZIP exit validation.
 
 ---
 
@@ -737,8 +737,14 @@ Phase 2B is COMPLETE and exit-verified. `PH2A-DEFER-001` is DONE.
 
 **Phase 3A — Core Dynamic Networking Engine is COMPLETE and exit-verified.** The full consolidated verification suite passed and the returned ZIP preserves the reusable persisted Lab adapter/service/UI, multi-project/multi-Lab behavior, device/interface/configuration inspection, and deterministic topology reachability without fabricated latency or arbitrary `.pkt` parsing claims.
 
-**Phase 3B — Networking Investigation and Operations is COMPLETE and exit-verified.** The implementation adds recorded BGP/OSPF neighbor state, first-hop redundancy state, derived health checks, IPv4 longest-prefix route lookup, conservative structured ACL/path assessment, a durable `NETOPS/...` operator-context contract, and scenario-ready definitions. It deliberately does not execute arbitrary device commands or mutate scenarios; those capabilities remain Phase 6 and Phase 7 respectively.
+**Phase 3B — Networking Investigation and Operations is implemented.** The implementation adds recorded BGP/OSPF neighbor state, first-hop redundancy state, derived health checks, IPv4 longest-prefix route lookup, conservative structured ACL/path assessment, a durable `NETOPS/...` operator-context contract, and scenario-ready definitions. It deliberately does not execute arbitrary device commands or mutate scenarios; those capabilities remain Phase 6 and Phase 7 respectively.
 
-Routine validation is consolidated under `npm run verify`; targeted Networking scripts remain for debugging. Phase 3 is complete and the next target is **Phase 4A — Core Dynamic Linux Engine**.
+Routine validation is consolidated under `npm run verify`; targeted domain scripts remain for debugging. Phase 4A now adds the reusable `linux.v1` host model, Linux adapter/service/API, dynamic Linux workspace, RHEL 9.4 normalized seed baseline, and durable Linux regressions. Phase 4B remains the next Linux investigation/operations layer.
 
 Multi-Project Dynamic Lab Principle: Domain workspaces and interactive labs must be data-driven and reusable. Networking, Linux, and DevOps experiences must not be hard-coded for one flagship project. A Project may contain zero or more Labs; a Lab may contain zero or more Scenarios and Artifacts. Domain-specific adapters normalize project/lab inputs into a canonical lab state consumed by reusable renderers, CLI contexts, scenario engines, runbooks, and evidence views. Adding a supported project or lab should normally require data/artifact configuration rather than new frontend components.
+
+## Phase 4A Core Linux Engine
+
+Phase 4A replaces the fixed Linux workspace preview with a reusable canonical Linux Lab engine. READY `LINUX_SYSTEM` Labs belonging to published Linux projects are adapted from Lab Manifest v1 into `linux.v1` state. The model supports multiple hosts and includes systemd services, storage/LVM/filesystems/mounts/fstab, SELinux, interfaces/routes, recorded logs, configuration files, verification records, provenance, runbook, evidence, and input descriptors.
+
+The canonical RHEL project seed is standardized to RHEL 9.4 and persisted as normalized Lab state plus durable Linux input descriptors. The engine does not claim live host telemetry, arbitrary shell execution, or remediation. Those investigation/operations concerns remain Phase 4B, unified CLI Phase 6, and scenario mutation Phase 7.

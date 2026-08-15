@@ -43,7 +43,10 @@
     "verify:quick": "tsx server/scripts/verify.ts quick",
     "test:runtime:static": "tsx server/scripts/runtime-persistence-static-audit.ts",
     "test:runtime:http": "tsx server/scripts/runtime-persistence-http-regression.ts",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test:linux:static": "tsx server/scripts/linux-engine-static-audit.ts",
+    "test:linux": "tsx server/scripts/linux-engine-regression.ts",
+    "test:linux:http": "tsx server/scripts/linux-engine-http-regression.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

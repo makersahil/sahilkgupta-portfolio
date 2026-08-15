@@ -19,7 +19,7 @@ async function main() {
   try {
     await prisma.$queryRaw`SELECT 1`;
 
-    const [categories, projects, blogCount, certificationCount, skillCount, userCount, authSessionCount, labs, labInputCount, labRunbookCount, networkingLab] = await Promise.all([
+    const [categories, projects, blogCount, certificationCount, skillCount, userCount, authSessionCount, labs, labInputCount, labRunbookCount, networkingLab, linuxLab] = await Promise.all([
       prisma.category.findMany({
         select: {
           slug: true,
@@ -51,6 +51,10 @@ async function main() {
       prisma.lab.findUnique({
         where: { slug: 'cisco-wan-topology' },
         include: { nodes: true, links: true, inputs: true, scenarios: true },
+      }),
+      prisma.lab.findUnique({
+        where: { slug: 'rhel9-hardening-environment' },
+        include: { nodes: true, inputs: true },
       }),
     ]);
 
@@ -98,6 +102,19 @@ async function main() {
     if (!Array.isArray(networkingState.gatewayRedundancy) || networkingState.gatewayRedundancy.length < 1) throw new Error('Networking Lab is missing normalized first-hop redundancy state');
     if (networkingLab.scenarios.length < 4) throw new Error(`Expected at least 4 Networking scenario definitions, found ${networkingLab.scenarios.length}`);
 
+    if (!linuxLab) throw new Error('Missing canonical Linux Lab');
+    if (linuxLab.nodes.length < 1) throw new Error('Linux Lab is missing its persisted host record');
+    if (!linuxLab.inputs.some((input) => input.inputType === 'SYSTEM_SNAPSHOT')) throw new Error('Linux Lab is missing SYSTEM_SNAPSHOT input');
+    if (!linuxLab.inputs.some((input) => input.inputType === 'FSTAB')) throw new Error('Linux Lab is missing FSTAB input');
+    if (!linuxLab.inputs.some((input) => input.inputType === 'SYSTEMD_UNIT')) throw new Error('Linux Lab is missing SYSTEMD_UNIT input');
+    if (!linuxLab.inputs.some((input) => input.inputType === 'SELINUX_AUDIT')) throw new Error('Linux Lab is missing SELINUX_AUDIT input');
+    const linuxState = linuxLab.normalizedState as Record<string, unknown> | null;
+    if (linuxState?.schemaVersion !== 'linux.v1') throw new Error('Linux Lab normalizedState is not linux.v1');
+    if (!Array.isArray(linuxState.hosts) || linuxState.hosts.length < 1) throw new Error('Linux Lab is missing normalized host state');
+    const firstLinuxHost = linuxState.hosts[0] as Record<string, unknown> | undefined;
+    if (!Array.isArray(firstLinuxHost?.services) || firstLinuxHost.services.length < 1) throw new Error('Linux Lab is missing normalized systemd service state');
+    if (!Array.isArray(firstLinuxHost?.fstab) || firstLinuxHost.fstab.length < 1) throw new Error('Linux Lab is missing normalized fstab state');
+
     if (blogCount < 3) throw new Error(`Expected at least 3 blogs, found ${blogCount}`);
     if (certificationCount < 3) {
       throw new Error(`Expected at least 3 certification cards, found ${certificationCount}`);
@@ -109,6 +126,7 @@ async function main() {
     console.log(`AUTH SCHEMA: OK (${userCount} users, ${authSessionCount} sessions)`);
     console.log(`LAB PLATFORM: OK (${labs.length} labs, ${labInputCount} inputs, ${labRunbookCount} runbook steps)`);
     console.log(`NETWORKING ENGINE: OK (${networkingLab.nodes.length} devices, ${networkingLab.links.length} links, ${networkingLab.inputs.length} inputs, ${networkingLab.scenarios.length} scenario definitions)`);
+    console.log(`LINUX ENGINE: OK (${linuxLab.nodes.length} hosts, ${linuxLab.inputs.length} inputs)`);
     console.log(
       `CONTENT BASELINE: OK (${categories.length} categories, ${projects.length} projects, ${blogCount} blogs, ${certificationCount} certifications, ${skillCount} skills)`,
     );
