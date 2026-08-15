@@ -2,13 +2,18 @@ import { ValidationError } from '../../lib/errors.js';
 import type { CanonicalLabManifestV1, LabNodeRecord } from '../../types/lab-platform.js';
 import type {
   NetworkingAclRuleState,
+  NetworkingBgpNeighborState,
   NetworkingDeviceKind,
   NetworkingDeviceState,
+  NetworkingGatewayMemberState,
+  NetworkingGatewayRedundancyState,
   NetworkingInterfaceState,
   NetworkingLabState,
   NetworkingLabSummary,
   NetworkingLinkState,
+  NetworkingObservationSource,
   NetworkingOperationalStatus,
+  NetworkingOspfNeighborState,
   NetworkingPosition,
   NetworkingRouteState,
   NetworkingStateProvenance,
@@ -85,11 +90,18 @@ function normalizeKind(value: unknown): NetworkingDeviceKind {
 
 function normalizeStatus(value: unknown): NetworkingOperationalStatus {
   const normalized = String(value ?? '').trim().toUpperCase();
-  if (['UP', 'ONLINE', 'ACTIVE', 'READY', 'ESTABLISHED'].includes(normalized)) return 'UP';
-  if (['DOWN', 'OFFLINE', 'FAILED', 'ADMIN_DOWN', 'DISABLED'].includes(normalized)) return 'DOWN';
-  if (['STANDBY', 'BACKUP'].includes(normalized)) return 'STANDBY';
-  if (['DEGRADED', 'WARNING', 'PARTIAL'].includes(normalized)) return 'DEGRADED';
+  if (['UP', 'ONLINE', 'ACTIVE', 'READY', 'ESTABLISHED', 'FULL', 'FULL/DR', 'FULL/BDR'].includes(normalized)) return 'UP';
+  if (['DOWN', 'OFFLINE', 'FAILED', 'ADMIN_DOWN', 'DISABLED', 'IDLE'].includes(normalized)) return 'DOWN';
+  if (['STANDBY', 'BACKUP', 'LISTEN'].includes(normalized)) return 'STANDBY';
+  if (['DEGRADED', 'WARNING', 'PARTIAL', 'ACTIVE_CONNECT', '2WAY', 'EXSTART', 'EXCHANGE'].includes(normalized)) return 'DEGRADED';
   return 'UNKNOWN';
+}
+
+function observationSource(value: unknown): NetworkingObservationSource {
+  const normalized = String(value ?? '').trim().toUpperCase();
+  if (normalized === 'RECORDED_SNAPSHOT') return 'RECORDED_SNAPSHOT';
+  if (normalized === 'EXPECTED_CHECK') return 'EXPECTED_CHECK';
+  return 'NORMALIZED_INPUT';
 }
 
 function deterministicPosition(index: number, count: number): NetworkingPosition {
@@ -114,10 +126,6 @@ function position(value: unknown, index: number, count: number): NetworkingPosit
   const x = numberValue(record.x);
   const y = numberValue(record.y);
   if (x !== null && y !== null) {
-    // Admin-created layouts may use percentages, while imported/seeded layouts use
-    // the canonical 1000x560 canvas. Treat the pair as percentages only when both
-    // coordinates fit the percentage range so values such as {x: 150, y: 70}
-    // are not partially rescaled.
     const percentage = x >= 0 && x <= 100 && y >= 0 && y <= 100;
     return {
       x: normalizeCoordinate(x, 'x', percentage),
@@ -296,6 +304,7 @@ function aclRules(state: Record<string, unknown>): NetworkingAclRuleState[] {
   return asArray(state.accessControlLists ?? state.aclRules ?? state.acls).flatMap((entry, index) => {
     const record = asRecord(entry);
     const action = String(record.action ?? '').toLowerCase();
+    const direction = String(record.direction ?? '').toUpperCase();
     return [{
       id: stringValue(record.id) ?? `acl-${index + 1}`,
       name: stringValue(record.name) ?? 'Unnamed ACL',
@@ -303,6 +312,112 @@ function aclRules(state: Record<string, unknown>): NetworkingAclRuleState[] {
       protocol: stringValue(record.protocol) ?? 'ip',
       source: stringValue(record.source) ?? 'unknown',
       destination: stringValue(record.destination) ?? 'unknown',
+      deviceKey: stringValue(record.deviceKey),
+      interface: stringValue(record.interface),
+      direction: direction === 'IN' || direction === 'OUT' ? direction : 'UNKNOWN',
+      sequence: numberValue(record.sequence),
+    }];
+  });
+}
+
+function bgpNeighbors(state: Record<string, unknown>): NetworkingBgpNeighborState[] {
+  return asArray(state.bgpNeighbors ?? state.bgpSessions).flatMap((entry, index) => {
+    const record = asRecord(entry);
+    const deviceKey = stringValue(record.deviceKey);
+    const peerAddress = stringValue(record.peerAddress) ?? stringValue(record.neighbor) ?? stringValue(record.address);
+    if (!deviceKey || !peerAddress) return [];
+    const localAs = numberValue(record.localAs);
+    const remoteAs = numberValue(record.remoteAs);
+    const explicitType = String(record.sessionType ?? '').toUpperCase();
+    const sessionType = explicitType === 'EBGP' || explicitType === 'IBGP'
+      ? explicitType
+      : localAs !== null && remoteAs !== null
+        ? localAs === remoteAs ? 'IBGP' : 'EBGP'
+        : 'UNKNOWN';
+    return [{
+      id: stringValue(record.id) ?? `bgp-${index + 1}`,
+      deviceKey,
+      peerDeviceKey: stringValue(record.peerDeviceKey),
+      peerAddress,
+      localAs,
+      remoteAs,
+      sessionType,
+      state: stringValue(record.state) ?? 'UNKNOWN',
+      health: normalizeStatus(record.state ?? record.status),
+      addressFamily: stringValue(record.addressFamily),
+      prefixesReceived: numberValue(record.prefixesReceived ?? record.pfxRcd),
+      description: stringValue(record.description),
+      source: observationSource(record.source),
+    }];
+  });
+}
+
+function ospfNeighbors(state: Record<string, unknown>): NetworkingOspfNeighborState[] {
+  return asArray(state.ospfNeighbors ?? state.ospfAdjacencies).flatMap((entry, index) => {
+    const record = asRecord(entry);
+    const deviceKey = stringValue(record.deviceKey);
+    const neighborId = stringValue(record.neighborId) ?? stringValue(record.routerId);
+    const interfaceName = stringValue(record.interfaceName) ?? stringValue(record.interface);
+    if (!deviceKey || !neighborId || !interfaceName) return [];
+    return [{
+      id: stringValue(record.id) ?? `ospf-${index + 1}`,
+      deviceKey,
+      peerDeviceKey: stringValue(record.peerDeviceKey),
+      neighborId,
+      neighborAddress: stringValue(record.neighborAddress) ?? stringValue(record.address),
+      interface: interfaceName,
+      area: stringValue(record.area) ?? '0.0.0.0',
+      state: stringValue(record.state) ?? 'UNKNOWN',
+      role: stringValue(record.role),
+      health: normalizeStatus(record.state ?? record.status),
+      source: observationSource(record.source),
+    }];
+  });
+}
+
+function gatewayMembers(value: unknown): NetworkingGatewayMemberState[] {
+  return asArray(value).flatMap((entry) => {
+    const record = asRecord(entry);
+    const deviceKey = stringValue(record.deviceKey);
+    if (!deviceKey) return [];
+    const role = String(record.role ?? '').toUpperCase();
+    return [{
+      deviceKey,
+      role: role === 'ACTIVE' || role === 'STANDBY' || role === 'LISTEN' ? role : 'UNKNOWN',
+      priority: numberValue(record.priority),
+      preempt: booleanValue(record.preempt),
+      trackedInterfaces: stringArray(record.trackedInterfaces ?? record.track),
+      status: normalizeStatus(record.status ?? role),
+    }];
+  });
+}
+
+function gatewayRedundancy(state: Record<string, unknown>): NetworkingGatewayRedundancyState[] {
+  return asArray(state.gatewayRedundancy ?? state.hsrpGroups ?? state.firstHopRedundancy).flatMap((entry, index) => {
+    const record = asRecord(entry);
+    const members = gatewayMembers(record.members);
+    const protocolText = String(record.protocol ?? 'HSRP').toUpperCase();
+    const protocol = protocolText === 'HSRP' || protocolText === 'VRRP' || protocolText === 'GLBP' ? protocolText : 'UNKNOWN';
+    const explicitStatus = normalizeStatus(record.status);
+    const active = members.find((member) => member.role === 'ACTIVE');
+    const standby = members.find((member) => member.role === 'STANDBY');
+    const health = explicitStatus !== 'UNKNOWN'
+      ? explicitStatus
+      : active?.status === 'DOWN'
+        ? 'DOWN'
+        : active && standby
+          ? 'UP'
+          : active
+            ? 'DEGRADED'
+            : 'UNKNOWN';
+    return [{
+      id: stringValue(record.id) ?? `gateway-${index + 1}`,
+      protocol,
+      group: numberValue(record.group ?? record.groupId),
+      virtualIp: stringValue(record.virtualIp) ?? stringValue(record.vip),
+      members,
+      health,
+      source: observationSource(record.source),
     }];
   });
 }
@@ -413,6 +528,13 @@ export class NetworkingLabAdapter {
       warnings.push('Packet Tracer is represented as a reference input; arbitrary .pkt binary parsing is not performed.');
     }
 
+    const parsedBgp = bgpNeighbors(state).filter((entry) => deviceKeys.has(entry.deviceKey));
+    const parsedOspf = ospfNeighbors(state).filter((entry) => deviceKeys.has(entry.deviceKey));
+    const parsedGateway = gatewayRedundancy(state).map((group) => ({
+      ...group,
+      members: group.members.filter((member) => deviceKeys.has(member.deviceKey)),
+    }));
+
     return {
       schemaVersion: 'networking.v1',
       lab: {
@@ -430,11 +552,15 @@ export class NetworkingLabAdapter {
       routingTable: routingTable(state),
       vlans: vlans(state),
       aclRules: aclRules(state),
+      bgpNeighbors: parsedBgp,
+      ospfNeighbors: parsedOspf,
+      gatewayRedundancy: parsedGateway,
       verificationRecords: verificationRecords(manifest, state),
       specifications: specifications(state),
       provenance: provenance(state),
       runbook: manifest.runbook,
       evidence: manifest.evidence,
+      scenarios: manifest.scenarios,
       warnings,
     };
   }

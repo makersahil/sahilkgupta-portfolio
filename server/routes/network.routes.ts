@@ -2,7 +2,7 @@ import { Router } from 'express';
 
 import { ValidationError } from '../lib/errors.js';
 import { asyncHandler } from '../middlewares/async-handler.js';
-import { networkingService } from '../services/networking/index.js';
+import { networkingOperationsService, networkingService } from '../services/networking/index.js';
 
 const router = Router();
 
@@ -33,10 +33,50 @@ router.get('/labs/:identifier/devices/:nodeKey', asyncHandler(async (request, re
   });
 }));
 
+router.get('/labs/:identifier/operations', asyncHandler(async (request, response) => {
+  response.json({
+    success: true,
+    data: await networkingOperationsService.getOperations(request.params.identifier),
+  });
+}));
+
+router.get('/labs/:identifier/route-lookup', asyncHandler(async (request, response) => {
+  response.json({
+    success: true,
+    data: await networkingOperationsService.lookupRoute(
+      request.params.identifier,
+      requiredText(request.query.destination, 'destination'),
+      optionalText(request.query.deviceKey),
+    ),
+  });
+}));
+
+router.get('/labs/:identifier/context', asyncHandler(async (request, response) => {
+  response.json({
+    success: true,
+    data: await networkingOperationsService.getContext(
+      request.params.identifier,
+      optionalText(request.query.deviceKey),
+    ),
+  });
+}));
+
 router.post('/labs/:identifier/trace', asyncHandler(async (request, response) => {
   response.json({
     success: true,
     data: await networkingService.tracePath(
+      request.params.identifier,
+      requiredText(request.body?.sourceDeviceKey ?? request.body?.sourceId, 'sourceDeviceKey'),
+      requiredText(request.body?.targetDeviceKey ?? request.body?.targetId, 'targetDeviceKey'),
+      optionalText(request.body?.protocol) ?? 'ICMP',
+    ),
+  });
+}));
+
+router.post('/labs/:identifier/analyze-path', asyncHandler(async (request, response) => {
+  response.json({
+    success: true,
+    data: await networkingOperationsService.analyzePath(
       request.params.identifier,
       requiredText(request.body?.sourceDeviceKey ?? request.body?.sourceId, 'sourceDeviceKey'),
       requiredText(request.body?.targetDeviceKey ?? request.body?.targetId, 'targetDeviceKey'),

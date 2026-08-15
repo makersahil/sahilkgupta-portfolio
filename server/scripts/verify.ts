@@ -62,6 +62,8 @@ const databaseTests: Step[] = [
   { label: 'Persistent runtime HTTP regression', command: 'npm', args: ['run', 'test:runtime:http'], requiresDatabase: true },
   { label: 'Networking engine regression', command: 'npm', args: ['run', 'test:networking'], requiresDatabase: true },
   { label: 'Networking engine HTTP regression', command: 'npm', args: ['run', 'test:networking:http'], requiresDatabase: true },
+  { label: 'Networking operations regression', command: 'npm', args: ['run', 'test:networking:operations'], requiresDatabase: true },
+  { label: 'Networking operations HTTP regression', command: 'npm', args: ['run', 'test:networking:operations:http'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [

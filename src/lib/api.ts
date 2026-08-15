@@ -12,6 +12,10 @@ import {
   NetworkingLabState,
   NetworkingLabSummary,
   NetworkingPathTrace,
+  NetworkingOperationsSnapshot,
+  NetworkingRouteLookup,
+  NetworkingOperationalPathAnalysis,
+  NetworkingOperatorContext,
   LabAggregate,
   LabRecord,
   LabInputRecord,
@@ -540,6 +544,49 @@ class ApiClient {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sourceDeviceKey, targetDeviceKey, protocol }),
       },
+    );
+  }
+
+  async getNetworkingOperations(identifier: string): Promise<NetworkingOperationsSnapshot> {
+    return this.requestData<NetworkingOperationsSnapshot>(
+      `/api/network/labs/${encodeURIComponent(identifier)}/operations`,
+    );
+  }
+
+  async lookupNetworkingRoute(
+    identifier: string,
+    destination: string,
+    deviceKey?: string,
+  ): Promise<NetworkingRouteLookup> {
+    const params = new URLSearchParams({ destination });
+    if (deviceKey) params.set('deviceKey', deviceKey);
+    return this.requestData<NetworkingRouteLookup>(
+      `/api/network/labs/${encodeURIComponent(identifier)}/route-lookup?${params.toString()}`,
+    );
+  }
+
+  async analyzeNetworkingPath(
+    identifier: string,
+    sourceDeviceKey: string,
+    targetDeviceKey: string,
+    protocol = 'ICMP',
+  ): Promise<NetworkingOperationalPathAnalysis> {
+    return this.requestData<NetworkingOperationalPathAnalysis>(
+      `/api/network/labs/${encodeURIComponent(identifier)}/analyze-path`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceDeviceKey, targetDeviceKey, protocol }),
+      },
+    );
+  }
+
+  async getNetworkingContext(identifier: string, deviceKey?: string): Promise<NetworkingOperatorContext> {
+    const params = new URLSearchParams();
+    if (deviceKey) params.set('deviceKey', deviceKey);
+    const query = params.toString();
+    return this.requestData<NetworkingOperatorContext>(
+      `/api/network/labs/${encodeURIComponent(identifier)}/context${query ? `?${query}` : ''}`,
     );
   }
 

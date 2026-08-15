@@ -1297,7 +1297,7 @@ const labIdentities: Partial<
 
 
 const labCapabilities: Partial<Record<NonNullable<ApiProject['formatType']>, string[]>> = {
-  cisco_pkt_lab: ['topology', 'device-inventory', 'interfaces', 'device-config', 'routing-state', 'vlans', 'acls', 'packet-path'],
+  cisco_pkt_lab: ['topology', 'device-inventory', 'interfaces', 'device-config', 'routing-state', 'vlans', 'acls', 'packet-path', 'control-plane', 'route-lookup', 'health-analysis', 'operator-context', 'scenario-readiness'],
   rhcsa_matrix: ['host-state', 'storage', 'systemd', 'selinux'],
   devops_pipeline: ['pipeline', 'iac', 'gitops', 'kubernetes', 'observability'],
 };
@@ -1319,7 +1319,7 @@ const runbooks: Record<
     { order: 1, title: 'Inspect topology', description: 'Review the dual-homed WAN edge topology connecting headquarters.' },
     { order: 2, title: 'Select edge router', description: 'Identify the active AS 100 edge router.' },
     { order: 3, title: 'Review routing state', description: 'Inspect the recorded OSPF Area 0 and BGP peering snapshot.' },
-    { order: 4, title: 'Trace packet flow', description: 'Preview reachability through the persisted topology; protocol-aware forwarding follows in Phase 3B.' },
+    { order: 4, title: 'Analyze recorded forwarding state', description: 'Compare topology reachability with persisted device, interface, route, neighbor, and gateway state.' },
   ],
   'rhel-9-rhcsa-hardening-storage-selinux': [
     { order: 1, title: 'Inspect host', description: 'Examine the RHEL 9.4 compute node baseline.' },
@@ -1334,6 +1334,50 @@ const runbooks: Record<
     { order: 4, title: 'Verify runtime representation', description: 'Ensure automated canary rollouts succeeded.' },
   ],
 };
+
+
+const networkingScenarioDefinitions = [
+  {
+    slug: 'isp-failover',
+    title: 'Primary ISP Failover',
+    summary: 'Scenario contract for losing the primary carrier uplink while preserving a redundant WAN path.',
+    order: 10,
+    baselineState: { schemaVersion: 'networking.scenario.v1', requiredSignals: ['link:isp1-r1=UP', 'bgp:r1-isp1=ESTABLISHED', 'gateway:hsrp-1=ACTIVE:r1'] },
+    actions: { schemaVersion: 'networking.scenario.v1', mutations: [{ type: 'SET_LINK_STATUS', linkKey: 'isp1-r1', status: 'DOWN' }] },
+    expectedObservations: { observableSignals: ['link:isp1-r1=DOWN', 'bgp:r1-isp1!=ESTABLISHED', 'alternate-wan-path-available'] },
+    verificationCriteria: { checks: ['secondary carrier path remains represented', 'primary BGP session is no longer healthy'] },
+  },
+  {
+    slug: 'ospf-neighbor-loss',
+    title: 'OSPF Neighbor Loss',
+    summary: 'Scenario contract for an Area 0 adjacency loss between the edge routing layer.',
+    order: 20,
+    baselineState: { schemaVersion: 'networking.scenario.v1', requiredSignals: ['ospf:r1-r2=FULL'] },
+    actions: { schemaVersion: 'networking.scenario.v1', mutations: [{ type: 'SET_OSPF_NEIGHBOR_STATE', neighborId: 'r1-r2', state: 'DOWN' }] },
+    expectedObservations: { observableSignals: ['ospf:r1-r2!=FULL', 'routing-health-degraded'] },
+    verificationCriteria: { checks: ['adjacency health reflects the mutation', 'route investigation remains available'] },
+  },
+  {
+    slug: 'hsrp-gateway-failover',
+    title: 'HSRP Gateway Failover',
+    summary: 'Scenario contract for moving first-hop gateway ownership away from the baseline active edge router.',
+    order: 30,
+    baselineState: { schemaVersion: 'networking.scenario.v1', requiredSignals: ['gateway:hsrp-1=ACTIVE:r1', 'gateway:hsrp-1=STANDBY:r2'] },
+    actions: { schemaVersion: 'networking.scenario.v1', mutations: [{ type: 'SET_DEVICE_STATUS', deviceKey: 'r1', status: 'DOWN' }] },
+    expectedObservations: { observableSignals: ['gateway:hsrp-1-active-changes', 'device:r1=DOWN'] },
+    verificationCriteria: { checks: ['standby member can become the expected active gateway', 'virtual IP remains defined'] },
+  },
+  {
+    slug: 'acl-denial-investigation',
+    title: 'ACL Denial Investigation',
+    summary: 'Scenario contract for investigating a structured ACL denial without claiming full IOS packet-policy emulation.',
+    order: 40,
+    baselineState: { schemaVersion: 'networking.scenario.v1', requiredSignals: ['acl-records-present'] },
+    actions: { schemaVersion: 'networking.scenario.v1', mutations: [{ type: 'SELECT_ACL_OBSERVATION', aclId: 'acl-103' }] },
+    expectedObservations: { observableSignals: ['acl:acl-103=deny', 'policy-review-required'] },
+    verificationCriteria: { checks: ['deny rule remains inspectable', 'engine does not fabricate packet-policy enforcement'] },
+  },
+] as const;
 
 function categoryDomain(slug: string): Domain {
   switch (slug) {
@@ -1445,9 +1489,25 @@ interface NetworkingNormalizedStateV1 {
     protocolName: string;
     metric: string | null;
     administrativeDistance: number | null;
+    deviceKey: string | null;
   }>;
   vlans: Array<{ vlanId: number; name: string; ports: string[]; status: SeedNetworkStatus }>;
-  accessControlLists: Array<{ id: string; name: string; action: 'permit' | 'deny'; protocol: string; source: string; destination: string }>;
+  accessControlLists: Array<{
+    id: string; name: string; action: 'permit' | 'deny'; protocol: string; source: string; destination: string;
+    deviceKey?: string | null; interface?: string | null; direction?: 'IN' | 'OUT'; sequence?: number | null;
+  }>;
+  bgpNeighbors: Array<{
+    id: string; deviceKey: string; peerDeviceKey: string | null; peerAddress: string; localAs: number; remoteAs: number;
+    sessionType: 'EBGP' | 'IBGP'; state: string; addressFamily: string; prefixesReceived: number | null; description: string; source: 'NORMALIZED_INPUT';
+  }>;
+  ospfNeighbors: Array<{
+    id: string; deviceKey: string; peerDeviceKey: string | null; neighborId: string; neighborAddress: string | null; interfaceName: string;
+    area: string; state: string; role: string | null; source: 'NORMALIZED_INPUT';
+  }>;
+  gatewayRedundancy: Array<{
+    id: string; protocol: 'HSRP'; group: number; virtualIp: string; source: 'NORMALIZED_INPUT';
+    members: Array<{ deviceKey: string; role: 'ACTIVE' | 'STANDBY'; priority: number; preempt: boolean; trackedInterfaces: string[]; status: SeedNetworkStatus }>;
+  }>;
   verificationChecks: Array<{ id: string; title: string; command: string; expectedObservation: string; status: 'EXPECTED' }>;
   specifications: { environment: string | null; protocols: string[]; addressing: string[] };
   provenance: {
@@ -1580,6 +1640,7 @@ default gateway 10.10.10.1`,
         protocolName: route.protocolName,
         metric: route.metric,
         administrativeDistance: route.ad,
+        deviceKey: 'r1',
       })),
       vlans: data.vlanDatabase.map((vlan) => ({
         vlanId: vlan.vlanId,
@@ -1587,7 +1648,30 @@ default gateway 10.10.10.1`,
         ports: [...vlan.ports],
         status: vlan.status === 'ACTIVE' ? 'UP' : 'UNKNOWN',
       })),
-      accessControlLists: data.aclRules.map((rule) => ({ ...rule })),
+      accessControlLists: data.aclRules.map((rule, index) => ({
+        ...rule,
+        deviceKey: 'fw_asa',
+        interface: 'GigabitEthernet1/1 (Inside)',
+        direction: 'IN' as const,
+        sequence: (index + 1) * 10,
+      })),
+      bgpNeighbors: [
+        { id: 'r1-isp1', deviceKey: 'r1', peerDeviceKey: 'isp1', peerAddress: '198.51.100.1', localAs: 65001, remoteAs: 100, sessionType: 'EBGP' as const, state: 'ESTABLISHED', addressFamily: 'IPv4 Unicast', prefixesReceived: 1, description: 'Primary carrier baseline session', source: 'NORMALIZED_INPUT' as const },
+        { id: 'r1-r2', deviceKey: 'r1', peerDeviceKey: 'r2', peerAddress: '10.10.0.3', localAs: 65001, remoteAs: 65001, sessionType: 'IBGP' as const, state: 'ESTABLISHED', addressFamily: 'IPv4 Unicast', prefixesReceived: null, description: 'Internal edge peer baseline session', source: 'NORMALIZED_INPUT' as const },
+        { id: 'r2-isp2', deviceKey: 'r2', peerDeviceKey: 'isp2', peerAddress: '203.0.113.1', localAs: 65001, remoteAs: 200, sessionType: 'EBGP' as const, state: 'ESTABLISHED', addressFamily: 'IPv4 Unicast', prefixesReceived: null, description: 'Secondary carrier baseline session', source: 'NORMALIZED_INPUT' as const },
+        { id: 'r2-r1', deviceKey: 'r2', peerDeviceKey: 'r1', peerAddress: '10.10.0.2', localAs: 65001, remoteAs: 65001, sessionType: 'IBGP' as const, state: 'ESTABLISHED', addressFamily: 'IPv4 Unicast', prefixesReceived: null, description: 'Internal edge peer baseline session', source: 'NORMALIZED_INPUT' as const },
+      ].filter((entry) => keys.has(entry.deviceKey) && (!entry.peerDeviceKey || keys.has(entry.peerDeviceKey))),
+      ospfNeighbors: [
+        { id: 'r1-r2', deviceKey: 'r1', peerDeviceKey: 'r2', neighborId: '2.2.2.2', neighborAddress: '10.10.0.3', interfaceName: 'Gi0/0/1', area: '0.0.0.0', state: 'FULL/BDR', role: 'BDR', source: 'NORMALIZED_INPUT' as const },
+        { id: 'r2-r1', deviceKey: 'r2', peerDeviceKey: 'r1', neighborId: '1.1.1.1', neighborAddress: '10.10.0.2', interfaceName: 'Gi0/0/1', area: '0.0.0.0', state: 'FULL/DR', role: 'DR', source: 'NORMALIZED_INPUT' as const },
+      ].filter((entry) => keys.has(entry.deviceKey) && (!entry.peerDeviceKey || keys.has(entry.peerDeviceKey))),
+      gatewayRedundancy: keys.has('r1') && keys.has('r2') ? [{
+        id: 'hsrp-1', protocol: 'HSRP' as const, group: 1, virtualIp: '10.10.0.1', source: 'NORMALIZED_INPUT' as const,
+        members: [
+          { deviceKey: 'r1', role: 'ACTIVE' as const, priority: 110, preempt: true, trackedInterfaces: ['Gi0/0/0'], status: 'UP' as const },
+          { deviceKey: 'r2', role: 'STANDBY' as const, priority: 90, preempt: false, trackedInterfaces: [], status: 'STANDBY' as const },
+        ],
+      }] : [],
       verificationChecks: data.verificationTasks.map((check, index) => ({
         id: `network-check-${index + 1}`,
         title: check.task,
@@ -1947,6 +2031,36 @@ async function upsertCompatibilityLab(
         sortOrder: 10,
       },
     });
+
+    for (const scenario of networkingScenarioDefinitions) {
+      await prisma.labScenario.upsert({
+        where: { labId_slug: { labId: lab.id, slug: scenario.slug } },
+        update: {
+          title: scenario.title,
+          summary: scenario.summary,
+          description: 'Scenario definition only. Generic mutation, remediation, verification, and reset execution is implemented by the later Scenario Engine.',
+          order: scenario.order,
+          isEnabled: true,
+          baselineState: jsonValue(scenario.baselineState),
+          actions: jsonValue(scenario.actions),
+          expectedObservations: jsonValue(scenario.expectedObservations),
+          verificationCriteria: jsonValue(scenario.verificationCriteria),
+        },
+        create: {
+          labId: lab.id,
+          slug: scenario.slug,
+          title: scenario.title,
+          summary: scenario.summary,
+          description: 'Scenario definition only. Generic mutation, remediation, verification, and reset execution is implemented by the later Scenario Engine.',
+          order: scenario.order,
+          isEnabled: true,
+          baselineState: jsonValue(scenario.baselineState),
+          actions: jsonValue(scenario.actions),
+          expectedObservations: jsonValue(scenario.expectedObservations),
+          verificationCriteria: jsonValue(scenario.verificationCriteria),
+        },
+      });
+    }
   }
 
   for (const step of runbooks[project.slug] ?? []) {

@@ -190,7 +190,7 @@ export class NetworkingService {
       linkKeys,
       traversesFirewall: hops.some((key) => deviceByKey.get(key)?.kind === 'firewall'),
       interpretation: 'TOPOLOGY_REACHABILITY',
-      note: 'Path is calculated deterministically from active persisted Lab links. Protocol policy and failure-state evaluation are added in Phase 3B/7.',
+      note: 'This compatibility trace reports deterministic topology reachability across active persisted links. Use the Networking operations analysis endpoint for recorded-state route and structured ACL assessment.',
     };
   }
 
