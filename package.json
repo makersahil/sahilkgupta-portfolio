@@ -34,6 +34,8 @@
     "test:networking:static": "tsx server/scripts/networking-engine-static-audit.ts",
     "test:networking": "tsx server/scripts/networking-engine-regression.ts",
     "test:networking:http": "tsx server/scripts/networking-engine-http-regression.ts",
+    "test:networking:operations": "tsx server/scripts/networking-operations-regression.ts",
+    "test:networking:operations:http": "tsx server/scripts/networking-operations-http-regression.ts",
     "test:admin:static": "tsx server/scripts/admin-static-audit.ts",
     "test:admin:http": "tsx server/scripts/admin-http-regression.ts",
     "verify": "tsx server/scripts/verify.ts full",

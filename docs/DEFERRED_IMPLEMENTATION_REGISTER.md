@@ -155,12 +155,12 @@ Status: OPEN
 
 ### [PH3A-DEFER-001]
 Origin Phase: Phase 3A — Core Networking Engine
-Item: Add protocol-aware forwarding decisions, ACL policy evaluation, operational command integration, and mutable failure-state behavior to the Networking Engine.
-Reason Deferred: Phase 3A intentionally provides authoritative persisted topology/control-plane inspection and deterministic topology reachability. Protocol behavior, operational CLI output, and failure mutations require the Phase 3B investigation layer and generic scenario engine.
-Target Phase: Phase 3B / Phase 6 / Phase 7
+Item: Complete the Networking operations path from persisted snapshots through operator context and future mutable scenario/CLI execution.
+Reason Deferred: Phase 3B now implements recorded-state route lookup, health analysis, structured path/ACL assessment, `NETOPS/...` operator-context contracts, and scenario-ready definitions. A full device CLI emulator is intentionally not claimed, and scenario mutation/reset belongs to the shared engines rather than the Networking core.
+Target Phase: Phase 6 / Phase 7
 Priority: P1
-Verification: Network traces evaluate relevant forwarding and policy state; Networking CLI reads the same selected Lab state; failure scenarios mutate state consistently; visual, CLI, runbook, and evidence outputs remain synchronized.
-Implementation State: OPEN. Phase 3A exposes the extension points and explicitly labels current traces as topology reachability.
+Verification: The unified CLI consumes the same selected Lab/operator context; failure scenarios mutate canonical state consistently; visual, CLI, runbook, and evidence outputs remain synchronized and resettable.
+Implementation State: PARTIAL. Phase 3B satisfies the recorded-state investigation and policy-analysis portion. Command execution remains Phase 6 and mutable scenario execution/reset remains Phase 7.
 Status: OPEN
 
 
@@ -169,8 +169,8 @@ Status: OPEN
 Origin Phase: Phase 3A — Core Networking Engine
 Item: Implement a genuinely supported Packet Tracer ingestion/export workflow that can create canonical Lab records from an actual supported artifact format.
 Reason Deferred: Phase 3A deliberately treats `.pkt` as reference metadata and renders from normalized persisted topology/configuration records. Arbitrary Packet Tracer binary parsing must not be claimed without a verified parser or companion exporter.
-Target Phase: Phase 3B and/or Phase 8 — Portfolio Orchestrator
+Target Phase: Phase 8 — Portfolio Orchestrator
 Priority: P1
 Verification: A documented supported importer/exporter derives `LabInput`, `LabNode`, `LabLink`, and normalized Networking state from a genuine artifact or companion manifest; unsupported `.pkt` files remain clearly reference-only and never produce fabricated parsed data.
-Implementation State: OPEN. The canonical input contract and reference-only provenance are implemented.
+Implementation State: OPEN. The canonical input contract and reference-only provenance remain implemented; Phase 3B does not add an unverified binary parser.
 Status: OPEN

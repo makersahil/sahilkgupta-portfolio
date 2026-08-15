@@ -24,9 +24,10 @@ import type {
   NetworkingPathTrace,
 } from '../../types.js';
 import { NetworkDeviceInspector } from './NetworkDeviceInspector.js';
+import { NetworkOperationsPanel } from './NetworkOperationsPanel.js';
 import { NetworkTopologyCanvas } from './NetworkTopologyCanvas.js';
 
-type ViewTab = 'topology' | 'routing' | 'vlans' | 'security' | 'verification';
+type ViewTab = 'topology' | 'operations' | 'routing' | 'vlans' | 'security' | 'verification';
 
 const sleep = (duration: number) => new Promise((resolve) => window.setTimeout(resolve, duration));
 
@@ -138,6 +139,7 @@ export const NetworkingLabExplorer: React.FC = () => {
 
   const tabs: Array<{ id: ViewTab; label: string; icon: React.ReactNode; count?: number }> = [
     { id: 'topology', label: 'Topology', icon: <Network className="h-3.5 w-3.5" />, count: state?.devices.length },
+    { id: 'operations', label: 'Operations', icon: <Activity className="h-3.5 w-3.5" />, count: state ? state.bgpNeighbors.length + state.ospfNeighbors.length + state.gatewayRedundancy.length : undefined },
     { id: 'routing', label: 'Routing', icon: <Route className="h-3.5 w-3.5" />, count: state?.routingTable.length },
     { id: 'vlans', label: 'VLANs', icon: <Layers3 className="h-3.5 w-3.5" />, count: state?.vlans.length },
     { id: 'security', label: 'ACLs', icon: <ShieldCheck className="h-3.5 w-3.5" />, count: state?.aclRules.length },
@@ -244,6 +246,10 @@ export const NetworkingLabExplorer: React.FC = () => {
               </div>
             )}
 
+            {activeTab === 'operations' && (
+              <NetworkOperationsPanel state={state} selectedDeviceKey={selectedDeviceKey} />
+            )}
+
             {activeTab === 'routing' && (
               <div className="overflow-hidden rounded-xl border border-white/10 bg-[#111114]">
                 <div className="border-b border-white/10 px-5 py-4 font-mono text-xs font-bold uppercase tracking-wider text-white">Recorded Routing State</div>
@@ -317,7 +323,7 @@ export const NetworkingLabExplorer: React.FC = () => {
               <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                 <div>
                   <div className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-[#00d4ff]"><Send className="h-3.5 w-3.5" /> Topology Reachability Preview</div>
-                  <p className="mt-1 text-xs text-white/45">Uses active persisted links only. Protocol-aware forwarding and scenario mutations are Phase 3B.</p>
+                  <p className="mt-1 text-xs text-white/45">Uses active persisted links only. Open Operations for recorded-state route, neighbor, gateway, health, and path analysis.</p>
                 </div>
                 {trace && <span className="font-mono text-[9px] uppercase tracking-wider text-[#00ff41]">{trace.status}</span>}
               </div>

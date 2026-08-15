@@ -50,7 +50,7 @@ async function main() {
       prisma.labRunbookStep.count(),
       prisma.lab.findUnique({
         where: { slug: 'cisco-wan-topology' },
-        include: { nodes: true, links: true, inputs: true },
+        include: { nodes: true, links: true, inputs: true, scenarios: true },
       }),
     ]);
 
@@ -93,6 +93,10 @@ async function main() {
     if (!networkingLab.inputs.some((input) => input.inputType === 'PACKET_TRACER')) throw new Error('Networking Lab is missing its truthful Packet Tracer reference input');
     const networkingState = networkingLab.normalizedState as Record<string, unknown> | null;
     if (networkingState?.schemaVersion !== 'networking.v1') throw new Error('Networking Lab normalizedState is not networking.v1');
+    if (!Array.isArray(networkingState.bgpNeighbors) || networkingState.bgpNeighbors.length < 1) throw new Error('Networking Lab is missing normalized BGP neighbor state');
+    if (!Array.isArray(networkingState.ospfNeighbors) || networkingState.ospfNeighbors.length < 1) throw new Error('Networking Lab is missing normalized OSPF adjacency state');
+    if (!Array.isArray(networkingState.gatewayRedundancy) || networkingState.gatewayRedundancy.length < 1) throw new Error('Networking Lab is missing normalized first-hop redundancy state');
+    if (networkingLab.scenarios.length < 4) throw new Error(`Expected at least 4 Networking scenario definitions, found ${networkingLab.scenarios.length}`);
 
     if (blogCount < 3) throw new Error(`Expected at least 3 blogs, found ${blogCount}`);
     if (certificationCount < 3) {
@@ -104,7 +108,7 @@ async function main() {
     console.log('DATABASE SCHEMA: OK');
     console.log(`AUTH SCHEMA: OK (${userCount} users, ${authSessionCount} sessions)`);
     console.log(`LAB PLATFORM: OK (${labs.length} labs, ${labInputCount} inputs, ${labRunbookCount} runbook steps)`);
-    console.log(`NETWORKING ENGINE: OK (${networkingLab.nodes.length} devices, ${networkingLab.links.length} links, ${networkingLab.inputs.length} inputs)`);
+    console.log(`NETWORKING ENGINE: OK (${networkingLab.nodes.length} devices, ${networkingLab.links.length} links, ${networkingLab.inputs.length} inputs, ${networkingLab.scenarios.length} scenario definitions)`);
     console.log(
       `CONTENT BASELINE: OK (${categories.length} categories, ${projects.length} projects, ${blogCount} blogs, ${certificationCount} certifications, ${skillCount} skills)`,
     );

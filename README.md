@@ -10,7 +10,7 @@ The dark cyber-terminal/control-plane visual language is intentional. Representa
 
 ## Current architecture
 
-Phase 2 is complete and exit-verified. PostgreSQL/Prisma is the only supported runtime persistence path. Phase 3A Core Dynamic Networking Engine is complete and exit-verified.
+Phase 2 is complete and exit-verified. Phase 3 — Dynamic Networking Engine is complete and exit-verified, including the reusable Core Networking Engine and the recorded-state Networking Investigation and Operations layer.
 
 ```text
 Browser / React
@@ -39,7 +39,7 @@ Domain
       → artifact references
 ```
 
-The Networking workspace is now driven by persisted canonical Lab data through the Phase 3A Networking Engine. Linux and DevOps visualizers remain representative until their domain engines are implemented.
+The Networking workspace is driven by persisted canonical Lab data through the Networking Engine and its recorded-state operations layer. Linux and DevOps visualizers remain representative until their domain engines are implemented.
 
 ## Repository layout
 
@@ -53,7 +53,7 @@ server/services/labs/                 canonical lab validation, input registry, 
 server/services/admin/                persisted Admin audit service
 server/services/media/                persisted artifact-reference service
 server/services/system/               truthful runtime metrics service
-server/services/networking/           dynamic Networking Lab adapter/service
+server/services/networking/           dynamic Networking adapter, engine, and operations services
 server/repositories/contracts/        repository contracts
 server/repositories/prisma/           PostgreSQL/Prisma repositories
 server/middlewares/                   persisted auth, async, and error middleware
@@ -71,12 +71,15 @@ Copy `.env.example` to `.env`. Never commit `.env` or real credentials.
 ```dotenv
 NODE_ENV=development
 PORT=3000
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
+DATABASE_URL=postgresql://USER:PASSWORD@POOLED_HOST:5432/DATABASE
+DIRECT_URL=postgresql://USER:PASSWORD@DIRECT_HOST:5432/DATABASE
 JWT_SECRET=replace-with-at-least-32-random-characters
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=replace-with-a-strong-password-at-least-12-characters
 ADMIN_DISPLAY_NAME=Sahil K Gupta
 ```
+
+`DATABASE_URL` is the runtime connection. When available, `DIRECT_URL` is preferred by Prisma CLI commands such as migrate/status/introspection.
 
 `PERSISTENCE_MODE` is no longer required. If an old local `.env` still contains `PERSISTENCE_MODE=prisma`, it is tolerated for migration compatibility; `legacy` is rejected.
 
@@ -109,7 +112,7 @@ npm run verify:quick
 npm run verify:tests
 ```
 
-The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, and the Dynamic Networking Engine.
+The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, the Dynamic Networking Engine, and recorded-state Networking operations regressions.
 
 ## Media and Packet Tracer truthfulness
 
@@ -120,9 +123,9 @@ The old synthetic `/api/network/upload-pkt` parser has been retired. Packet Trac
 
 ## Dynamic Networking Engine
 
-Published Networking Labs are rendered from `Lab`, `LabInput`, `LabNode`, `LabLink`, runbook, evidence, and normalized `networking.v1` control-plane state. The same engine supports multiple projects and multiple Labs per project. It includes dynamic topology, device/interface/configuration inspection, routing/VLAN/ACL snapshots, deterministic topology reachability, standardized input provenance, and compatibility APIs backed by the same persisted state.
+Published Networking Labs are rendered from `Lab`, `LabInput`, `LabNode`, `LabLink`, runbook, evidence, scenarios, and normalized `networking.v1` state. The same engine supports multiple projects and multiple Labs per project. Core inspection includes dynamic topology, device/interface/configuration views, routing/VLAN/ACL snapshots, and deterministic topology reachability. The operations layer adds recorded BGP/OSPF neighbor inspection, first-hop redundancy state, health derivation, IPv4 longest-prefix route lookup, conservative recorded-state forwarding/ACL analysis, a durable `NETOPS/...` context contract, and scenario-ready definitions.
 
-Packet Tracer remains a truthful reference input; arbitrary `.pkt` binary parsing is not claimed. See `docs/NETWORKING_ENGINE_ARCHITECTURE.md`.
+These operations are derived from persisted snapshots, not live device telemetry or a full IOS/ASA emulator. CLI command execution remains Phase 6 and mutable scenario execution/reset remains Phase 7. Packet Tracer remains a truthful reference input; arbitrary `.pkt` binary parsing is not claimed. See `docs/NETWORKING_ENGINE_ARCHITECTURE.md`.
 
 ## Git workflow
 
@@ -136,4 +139,4 @@ Git is the source of truth.
 - Run `npm run verify` and inspect `git diff` before committing.
 - Read `AGENTS.md` and `docs/DEFERRED_IMPLEMENTATION_REGISTER.md` before every phase.
 
-Phase 2 is complete. Phase 3A — Core Dynamic Networking Engine is COMPLETE and exit-verified. The next target is Phase 3B — Networking Investigation and Operations.
+Phase 2 is complete and Phase 3 — Dynamic Networking Engine is complete and exit-verified. The next target is Phase 4A — Core Dynamic Linux Engine.
