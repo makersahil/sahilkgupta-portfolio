@@ -102,8 +102,8 @@ Reason Deferred: Content, authentication, and Admin persistence parity were prer
 Target Phase: Phase 2E
 Priority: P1
 Verification: Content, authentication, and Admin persistence parity are complete; no runtime route imports legacy persistence; no fallback selects in-memory persistence; persistent media/system replacements are active; and the full regression baseline passes using PostgreSQL.
-Implementation State: IMPLEMENTED / AWAITING EXIT VALIDATION. `MockDatabaseService`, legacy repositories, legacy regression mode, synthetic Packet Tracer parser attachment, and fake architecture telemetry are removed. Media reference metadata uses `Artifact`, system metrics use PostgreSQL counts, and a dedicated persistent-runtime regression suite is included.
-Status: OPEN
+Implementation State: DONE. `MockDatabaseService`, legacy repositories, legacy regression mode, synthetic Packet Tracer parser attachment, and fake architecture telemetry are removed. Media reference metadata uses `Artifact`, system metrics use PostgreSQL counts, and the complete PostgreSQL regression baseline passed the Phase 2E exit gate.
+Status: DONE
 
 ### [PH2A-FIX-003]
 Origin Phase: Phase 2A Documentation Reconciliation
@@ -151,4 +151,26 @@ Reason Deferred: The current cPanel/single-process deployment can use the implem
 Target Phase: Phase 9 — Production Security, Testing, Performance and Deployment
 Priority: P2
 Verification: Production deployment architecture is reviewed; if multiple instances are used, login throttling is enforced through shared storage or an upstream gateway/WAF and covered by security tests.
+Status: OPEN
+
+### [PH3A-DEFER-001]
+Origin Phase: Phase 3A — Core Networking Engine
+Item: Add protocol-aware forwarding decisions, ACL policy evaluation, operational command integration, and mutable failure-state behavior to the Networking Engine.
+Reason Deferred: Phase 3A intentionally provides authoritative persisted topology/control-plane inspection and deterministic topology reachability. Protocol behavior, operational CLI output, and failure mutations require the Phase 3B investigation layer and generic scenario engine.
+Target Phase: Phase 3B / Phase 6 / Phase 7
+Priority: P1
+Verification: Network traces evaluate relevant forwarding and policy state; Networking CLI reads the same selected Lab state; failure scenarios mutate state consistently; visual, CLI, runbook, and evidence outputs remain synchronized.
+Implementation State: OPEN. Phase 3A exposes the extension points and explicitly labels current traces as topology reachability.
+Status: OPEN
+
+
+
+### [PH3A-DEFER-002]
+Origin Phase: Phase 3A — Core Networking Engine
+Item: Implement a genuinely supported Packet Tracer ingestion/export workflow that can create canonical Lab records from an actual supported artifact format.
+Reason Deferred: Phase 3A deliberately treats `.pkt` as reference metadata and renders from normalized persisted topology/configuration records. Arbitrary Packet Tracer binary parsing must not be claimed without a verified parser or companion exporter.
+Target Phase: Phase 3B and/or Phase 8 — Portfolio Orchestrator
+Priority: P1
+Verification: A documented supported importer/exporter derives `LabInput`, `LabNode`, `LabLink`, and normalized Networking state from a genuine artifact or companion manifest; unsupported `.pkt` files remain clearly reference-only and never produce fabricated parsed data.
+Implementation State: OPEN. The canonical input contract and reference-only provenance are implemented.
 Status: OPEN

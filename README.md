@@ -10,7 +10,7 @@ The dark cyber-terminal/control-plane visual language is intentional. Representa
 
 ## Current architecture
 
-Phases 2B, 2C, and 2D are exit-verified. Phase 2E removes the remaining legacy in-memory runtime paths and makes PostgreSQL/Prisma the only supported persistence path.
+Phase 2 is complete and exit-verified. PostgreSQL/Prisma is the only supported runtime persistence path. Phase 3A Core Dynamic Networking Engine is complete and exit-verified.
 
 ```text
 Browser / React
@@ -39,7 +39,7 @@ Domain
       → artifact references
 ```
 
-Networking/Linux/DevOps stateful domain engines are later phases. Existing visualizers remain representative until those engines replace them.
+The Networking workspace is now driven by persisted canonical Lab data through the Phase 3A Networking Engine. Linux and DevOps visualizers remain representative until their domain engines are implemented.
 
 ## Repository layout
 
@@ -53,6 +53,7 @@ server/services/labs/                 canonical lab validation, input registry, 
 server/services/admin/                persisted Admin audit service
 server/services/media/                persisted artifact-reference service
 server/services/system/               truthful runtime metrics service
+server/services/networking/           dynamic Networking Lab adapter/service
 server/repositories/contracts/        repository contracts
 server/repositories/prisma/           PostgreSQL/Prisma repositories
 server/middlewares/                   persisted auth, async, and error middleware
@@ -108,13 +109,20 @@ npm run verify:quick
 npm run verify:tests
 ```
 
-The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, and legacy-runtime retirement.
+The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, and the Dynamic Networking Engine.
 
 ## Media and Packet Tracer truthfulness
 
 `POST /api/media/upload` is retained as a compatibility API name, but it **registers metadata for an already-stored media/artifact reference**. It does not claim to upload bytes to S3/Cloudinary/local disk.
 
 The old synthetic `/api/network/upload-pkt` parser has been retired. Packet Tracer files/references belong in the canonical Lab Builder using the `PACKET_TRACER` input type. Arbitrary `.pkt` binary parsing is not claimed.
+
+
+## Dynamic Networking Engine
+
+Published Networking Labs are rendered from `Lab`, `LabInput`, `LabNode`, `LabLink`, runbook, evidence, and normalized `networking.v1` control-plane state. The same engine supports multiple projects and multiple Labs per project. It includes dynamic topology, device/interface/configuration inspection, routing/VLAN/ACL snapshots, deterministic topology reachability, standardized input provenance, and compatibility APIs backed by the same persisted state.
+
+Packet Tracer remains a truthful reference input; arbitrary `.pkt` binary parsing is not claimed. See `docs/NETWORKING_ENGINE_ARCHITECTURE.md`.
 
 ## Git workflow
 
@@ -128,4 +136,4 @@ Git is the source of truth.
 - Run `npm run verify` and inspect `git diff` before committing.
 - Read `AGENTS.md` and `docs/DEFERRED_IMPLEMENTATION_REGISTER.md` before every phase.
 
-After Phase 2E exit verification, the next implementation target is Phase 3 — Dynamic Networking Lab Engine.
+Phase 2 is complete. Phase 3A — Core Dynamic Networking Engine is COMPLETE and exit-verified. The next target is Phase 3B — Networking Investigation and Operations.

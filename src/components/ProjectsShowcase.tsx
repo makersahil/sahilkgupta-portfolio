@@ -336,7 +336,7 @@ export const ProjectsShowcase: React.FC = () => {
                         </div>
                         <p className="text-white/80 font-sans text-xs leading-relaxed">
                           {activeProjectModal.mission || (activeProjectModal.formatType === 'cisco_pkt_lab'
-                            ? 'Engineer and validate an enterprise-grade, dual-homed WAN edge topology connecting headquarters to redundant Tier-1 transit providers (AS 100 / AS 200). Guarantee deterministic inbound/outbound path selection, sub-2-second failover via HSRP gateway tracking, and zero lateral pivot between segmented departmental VLANs.'
+                            ? 'Engineer and inspect an enterprise-style, dual-homed WAN edge topology connecting headquarters to redundant transit providers, with explicit BGP policy, HSRP gateway redundancy, and segmented departmental VLANs.'
                             : activeProjectModal.formatType === 'rhcsa_matrix'
                             ? 'Deploy, harden, and audit an enterprise Red Hat Enterprise Linux 9.4 compute node in a security-hardening lab covering SELinux, firewalld, permissions, and benchmark-oriented configuration practices. Deliver immutable storage volumes via thin LVM, full targeted SELinux policy confinement, and automated rootless container lifecycle via systemd Quadlets.'
                             : 'Architect a self-healing GitOps delivery workflow and cloud-native Kubernetes cluster with Cilium eBPF network security and modular Terraform IaC. Eliminate manual cluster drift, enforce kernel-level L7 security policies, and achieve automated canary rollouts.')}

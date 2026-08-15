@@ -113,6 +113,7 @@ model Artifact {
 │   │   ├── auth/
 │   │   ├── content/
 │   │   ├── labs/
+│   │   ├── networking/          # canonical Networking adapter/service
 │   │   ├── admin/
 │   │   ├── media/
 │   │   └── system/
@@ -120,12 +121,14 @@ model Artifact {
 │   └── scripts/                  # durable verification/regression tools
 ├── src/
 │   ├── components/
-│   │   └── AdminCMS/             # persistent Admin + Lab Builder
+│   │   ├── AdminCMS/             # persistent Admin + Lab Builder
+│   │   └── networking/           # dynamic Networking explorer/inspectors
 │   ├── context/
 │   ├── lib/api.ts
 │   └── types.ts
 ├── docs/
 │   ├── LAB_PLATFORM_ARCHITECTURE.md
+│   ├── NETWORKING_ENGINE_ARCHITECTURE.md
 │   ├── ADMIN_ORCHESTRATOR.md
 │   ├── AUTHENTICATION_RUNBOOK.md
 │   └── PERSISTENCE_ARCHITECTURE.md

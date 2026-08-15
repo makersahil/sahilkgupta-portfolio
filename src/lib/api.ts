@@ -8,6 +8,10 @@ import {
   AuthUser,
   ContactInquiry,
   TopologyData,
+  NetworkingDeviceState,
+  NetworkingLabState,
+  NetworkingLabSummary,
+  NetworkingPathTrace,
   LabAggregate,
   LabRecord,
   LabInputRecord,
@@ -505,13 +509,56 @@ class ApiClient {
     return payload as { output: string; exitCode: number };
   }
 
-  // Network Topology
-  async getTopology(): Promise<TopologyData> {
-    return this.requestData<TopologyData>('/api/network/topology');
+  // Dynamic Networking Lab Engine
+  async getNetworkingLabs(projectSlug?: string): Promise<NetworkingLabSummary[]> {
+    const params = new URLSearchParams();
+    if (projectSlug) params.set('projectSlug', projectSlug);
+    const query = params.toString();
+    return this.requestArray<NetworkingLabSummary>(`/api/network/labs${query ? `?${query}` : ''}`);
   }
 
-  async simulatePacket(sourceId: string, targetId: string, protocol?: string): Promise<any> {
-    return this.requestData<any>('/api/network/simulate-packet', {
+  async getNetworkingLab(identifier: string): Promise<NetworkingLabState> {
+    return this.requestData<NetworkingLabState>(`/api/network/labs/${encodeURIComponent(identifier)}`);
+  }
+
+  async getNetworkingDevice(identifier: string, deviceKey: string): Promise<NetworkingDeviceState> {
+    return this.requestData<NetworkingDeviceState>(
+      `/api/network/labs/${encodeURIComponent(identifier)}/devices/${encodeURIComponent(deviceKey)}`,
+    );
+  }
+
+  async traceNetworkingPath(
+    labIdentifier: string,
+    sourceDeviceKey: string,
+    targetDeviceKey: string,
+    protocol = 'ICMP',
+  ): Promise<NetworkingPathTrace> {
+    return this.requestData<NetworkingPathTrace>(
+      `/api/network/labs/${encodeURIComponent(labIdentifier)}/trace`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceDeviceKey, targetDeviceKey, protocol }),
+      },
+    );
+  }
+
+  // Compatibility methods retained for existing integrations.
+  async getTopology(labIdentifier?: string): Promise<TopologyData> {
+    const params = new URLSearchParams();
+    if (labIdentifier) params.set('lab', labIdentifier);
+    const query = params.toString();
+    return this.requestData<TopologyData>(`/api/network/topology${query ? `?${query}` : ''}`);
+  }
+
+  async simulatePacket(
+    sourceId: string,
+    targetId: string,
+    protocol?: string,
+    labIdentifier?: string,
+  ): Promise<NetworkingPathTrace> {
+    if (labIdentifier) return this.traceNetworkingPath(labIdentifier, sourceId, targetId, protocol ?? 'ICMP');
+    return this.requestData<NetworkingPathTrace>('/api/network/simulate-packet', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sourceId, targetId, protocol }),

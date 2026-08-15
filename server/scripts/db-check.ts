@@ -19,7 +19,7 @@ async function main() {
   try {
     await prisma.$queryRaw`SELECT 1`;
 
-    const [categories, projects, blogCount, certificationCount, skillCount, userCount, authSessionCount, labs, labInputCount, labRunbookCount] = await Promise.all([
+    const [categories, projects, blogCount, certificationCount, skillCount, userCount, authSessionCount, labs, labInputCount, labRunbookCount, networkingLab] = await Promise.all([
       prisma.category.findMany({
         select: {
           slug: true,
@@ -48,6 +48,10 @@ async function main() {
       prisma.lab.findMany({ select: { slug: true, projectId: true, status: true, manifestVersion: true, capabilities: true, normalizedState: true } }),
       prisma.labInput.count(),
       prisma.labRunbookStep.count(),
+      prisma.lab.findUnique({
+        where: { slug: 'cisco-wan-topology' },
+        include: { nodes: true, links: true, inputs: true },
+      }),
     ]);
 
     for (const slug of EXPECTED_CATEGORY_SLUGS) {
@@ -82,6 +86,13 @@ async function main() {
     }
     if (labInputCount < 3) throw new Error(`Expected at least 3 lab inputs, found ${labInputCount}`);
     if (labRunbookCount < 12) throw new Error(`Expected at least 12 lab runbook steps, found ${labRunbookCount}`);
+    if (!networkingLab) throw new Error('Missing canonical Networking Lab');
+    if (networkingLab.nodes.length < 8) throw new Error(`Expected at least 8 persisted Networking devices, found ${networkingLab.nodes.length}`);
+    if (networkingLab.links.length < 8) throw new Error(`Expected at least 8 persisted Networking links, found ${networkingLab.links.length}`);
+    if (!networkingLab.inputs.some((input) => input.inputType === 'NETWORK_TOPOLOGY')) throw new Error('Networking Lab is missing its normalized topology input');
+    if (!networkingLab.inputs.some((input) => input.inputType === 'PACKET_TRACER')) throw new Error('Networking Lab is missing its truthful Packet Tracer reference input');
+    const networkingState = networkingLab.normalizedState as Record<string, unknown> | null;
+    if (networkingState?.schemaVersion !== 'networking.v1') throw new Error('Networking Lab normalizedState is not networking.v1');
 
     if (blogCount < 3) throw new Error(`Expected at least 3 blogs, found ${blogCount}`);
     if (certificationCount < 3) {
@@ -93,6 +104,7 @@ async function main() {
     console.log('DATABASE SCHEMA: OK');
     console.log(`AUTH SCHEMA: OK (${userCount} users, ${authSessionCount} sessions)`);
     console.log(`LAB PLATFORM: OK (${labs.length} labs, ${labInputCount} inputs, ${labRunbookCount} runbook steps)`);
+    console.log(`NETWORKING ENGINE: OK (${networkingLab.nodes.length} devices, ${networkingLab.links.length} links, ${networkingLab.inputs.length} inputs)`);
     console.log(
       `CONTENT BASELINE: OK (${categories.length} categories, ${projects.length} projects, ${blogCount} blogs, ${certificationCount} certifications, ${skillCount} skills)`,
     );

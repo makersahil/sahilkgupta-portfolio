@@ -3,7 +3,7 @@ import { usePortfolio } from '../context/PortfolioContext.js';
 import { getDomainConfigBySlug, DOMAIN_CONFIGS, DomainSlug } from '../config/domainConfig.js';
 import { WorkspaceHeader } from './WorkspaceHeader.js';
 import { OperatorPath } from './OperatorPath.js';
-import { CiscoTopologyVisualizer } from './CiscoTopologyVisualizer.js';
+import { NetworkingLabExplorer } from './networking/index.js';
 import { LinuxWorkspacePreview } from './LinuxWorkspacePreview.js';
 import { DevOpsPipelineVisualizer } from './DevOpsPipelineVisualizer.js';
 import { ProjectsShowcase } from './ProjectsShowcase.js';
@@ -29,7 +29,7 @@ export const DomainWorkspace: React.FC<DomainWorkspaceProps> = ({ domainSlug }) 
       </div>
 
       {/* 3. Domain Core Lab / Visualizer */}
-      {config.slug === 'networking' && <CiscoTopologyVisualizer />}
+      {config.slug === 'networking' && <NetworkingLabExplorer />}
       {config.slug === 'linux' && <LinuxWorkspacePreview />}
       {config.slug === 'devops' && <DevOpsPipelineVisualizer />}
 

@@ -30,6 +30,7 @@ const staticTests: Step[] = [
   { label: 'Lab platform static audit', command: 'npm', args: ['run', 'test:labs:static'] },
   { label: 'Admin orchestration static audit', command: 'npm', args: ['run', 'test:admin:static'] },
   { label: 'Persistent runtime static audit', command: 'npm', args: ['run', 'test:runtime:static'] },
+  { label: 'Networking engine static audit', command: 'npm', args: ['run', 'test:networking:static'] },
   { label: 'API client regression', command: 'npm', args: ['run', 'test:api-client'] },
 ];
 
@@ -59,6 +60,8 @@ const databaseTests: Step[] = [
   { label: 'Lab HTTP regression', command: 'npm', args: ['run', 'test:labs:http'], requiresDatabase: true },
   { label: 'Admin orchestration HTTP regression', command: 'npm', args: ['run', 'test:admin:http'], requiresDatabase: true },
   { label: 'Persistent runtime HTTP regression', command: 'npm', args: ['run', 'test:runtime:http'], requiresDatabase: true },
+  { label: 'Networking engine regression', command: 'npm', args: ['run', 'test:networking'], requiresDatabase: true },
+  { label: 'Networking engine HTTP regression', command: 'npm', args: ['run', 'test:networking:http'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [

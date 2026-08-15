@@ -51,7 +51,7 @@ async function main(): Promise<void> {
 
   const apiClient = await text('src/lib/api.ts');
   const admin = await text('src/components/AdminCMS/AdminModal.tsx');
-  const networkingUi = await text('src/components/CiscoTopologyVisualizer.tsx');
+  const networkingUi = await text('src/components/networking/NetworkingLabExplorer.tsx');
   assert.doesNotMatch(apiClient, /uploadPktFile/);
   assert.doesNotMatch(admin, /Parse \.PKT|uploadPktFile/);
   assert.doesNotMatch(networkingUi, /uploadPktFile|Successfully parsed|Parsing Cisco Packet Tracer structure/);
