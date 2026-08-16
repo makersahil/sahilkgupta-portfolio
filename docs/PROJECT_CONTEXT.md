@@ -597,7 +597,7 @@ Production Security, Testing, Performance and Deployment
 
 Phase 3 is complete in two layers. Phase 3A provides the persisted multi-project/multi-Lab Networking adapter, reusable topology/device rendering, recorded control-plane snapshots, and deterministic topology reachability. Phase 3B adds recorded BGP/OSPF and first-hop redundancy inspection, derived health, longest-prefix route lookup, conservative structured ACL/path analysis, durable `NETOPS/...` context contracts, and scenario-ready definitions.
 
-The Networking engine does not claim arbitrary Packet Tracer binary parsing or live device execution. Unified command execution remains Phase 6 and shared scenario mutation/reset remains Phase 7.
+The Networking engine does not claim arbitrary Packet Tracer binary parsing or live device execution. Phase 6 now provides unified read-only recorded-state CLI inspection; shared scenario mutation/reset remains Phase 7.
 
 ---
 
@@ -605,7 +605,7 @@ The Networking engine does not claim arbitrary Packet Tracer binary parsing or l
 
 Phase 4 is complete in two layers. Phase 4A provides reusable `linux.v1` state for RHEL 9.4 hosts, services, storage/LVM/mount/fstab, SELinux, networking, logs/configuration, verification, and multi-project/multi-Lab rendering. Phase 4B adds recorded-state service/storage/SELinux/network/log investigation, remediation guidance, durable `RHEL/...` context contracts, and scenario-ready definitions.
 
-The Linux engine does not execute shell commands or mutate scenarios. Unified command execution remains Phase 6 and shared scenario mutation/reset remains Phase 7.
+The Linux engine does not execute shell commands or mutate scenarios. Phase 6 now provides unified read-only recorded-state CLI inspection; shared scenario mutation/reset remains Phase 7.
 
 ---
 
@@ -624,33 +624,34 @@ ARGOCD_DRIFT
 CANARY_FAILURE
 CILIUM_POLICY_REGRESSION
 
-Phase 5 does not execute provider commands or mutate scenarios. Phase 6 owns unified contextual command execution and Phase 7 owns shared scenario mutation/remediation/reset.
+Phase 5 does not execute provider commands or mutate scenarios. Phase 6 now provides unified contextual read-only recorded-state commands, while Phase 7 owns shared scenario mutation/remediation/reset.
 
 ---
 
-# 20. Unified CLI Vision
+# 20. Unified Context-Aware CLI
 
-Later phases should support contextual commands.
+Phase 6 implements contextual recorded-state commands across all three domain engines.
 
 Examples:
 
-CTX: NETOPS/R1-HQ
+CTX: NETOPS/<LAB>/<DEVICE>
 
-CTX: RHEL/RHEL9-LAB-01
+CTX: RHEL/<LAB>/<HOST>
 
-CTX: GITOPS/LAB-CLUSTER
+CTX: GITOPS/<LAB>/<PIPELINE>
 
-Potential portfolio-level commands:
+Implemented portfolio-level commands include:
 
 help
 ctx
 inspect
+show <area>
+show health
 scenario list
-scenario run <id>
-scenario reset
 evidence
+clear
 
-CLI output must eventually come from synchronized lab state rather than disconnected hard-coded text.
+CLI output now comes from persisted normalized Lab state or explicit CLI metadata. The CLI does not execute shell/provider binaries. `scenario run`, remediation, verification, and reset are deliberately rejected until the shared mutable Scenario Engine in Phase 7.
 
 ---
 
@@ -717,9 +718,9 @@ The repository is authoritative.
 
 **Phase 4 — Dynamic Linux Engine is COMPLETE.** The reusable `linux.v1` model supports RHEL 9.4 hosts, services, storage/LVM/mount/fstab, SELinux, networking, logs/configuration, and verification records. `LinuxOperationsService` adds recorded-state diagnostics, remediation guidance, `RHEL/...` contexts, and scenario-ready definitions without shell execution or mutation.
 
-**Phase 5A — Core Dynamic DevOps Engine is the current verified/code-audited baseline.** It replaces the static pipeline visualizer with canonical `devops.v1` state, multi-project/multi-Lab DevOps APIs, and a Delivery Control Plane that renders only represented modules.
+**Phase 5 — Dynamic DevOps Engine is COMPLETE.** The reusable `devops.v1` model supports repositories, pipelines, Terraform/IaC, Kubernetes, GitOps/ArgoCD, Helm, network-policy observations, observability, and capability-aware recorded-state operations with `GITOPS/...` contexts and scenario readiness.
 
-**Phase 5B — DevOps Investigation and Operations is implemented in the current package pending local/full-ZIP exit verification.** It adds capability-aware health analysis, evidence-backed delivery findings, non-executing remediation guidance, `GITOPS/...` Lab/pipeline contexts, and non-mutating scenario readiness.
+**Phase 6 — Unified Context-Aware CLI is implemented in the current package pending exit verification.** `UnifiedCliService` resolves `NETOPS/...`, `RHEL/...`, and `GITOPS/...` contexts and executes read-only inspection commands against persisted domain state. The legacy hard-coded terminal runtime is retired. External shell/provider execution and scenario mutation remain disabled.
 
 Routine validation is consolidated under `npm run verify`; targeted domain scripts remain durable debugging/regression tools.
 
@@ -746,4 +747,8 @@ The canonical GitOps project is a recorded project fixture, not live production 
 
 The public operations contract adds `/operations` and `/context` endpoints. Context identifiers use `GITOPS/<LAB>` and optional `GITOPS/<LAB>/<PIPELINE>` forms and always report `executionAvailable: false` in Phase 5B. Persisted scenario definitions are surfaced with observable signals but are never applied.
 
-Phase 6 is the next major phase after Phase 5 exit verification and owns the unified contextual CLI. Phase 7 owns shared scenario mutation, remediation, verification, and reset.
+## Phase 6 Unified Context-Aware CLI
+
+`UnifiedCliService` is the single command interpreter for all domains. The browser stores only the selected context identifier and sends it with each command; the backend resolves that context against public persisted Lab state. Lab/device/host/pipeline prompts reuse the domain context contracts. Global commands cover context switching, inspection, health, scenario listing, evidence, and clearing the transcript. Domain commands expose recorded routing/protocol state, RHEL host state, and DevOps delivery state. Familiar `cisco`, `systemctl`, `kubectl`, and `terraform` forms are read aliases only where supported.
+
+The CLI never spawns a shell, SSH session, network probe, IOS process, kubectl/Terraform/Helm/ArgoCD command, or scenario mutation. Phase 7 owns shared scenario mutation, remediation, verification, and reset.

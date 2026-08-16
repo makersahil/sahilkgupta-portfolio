@@ -9,6 +9,7 @@ Reason Deferred: CLI output must come from lab state or be clearly marked repres
 Target Phase: Phase 6 — Context-Aware CLI
 Priority: P1
 Verification: All CLI output must come from lab state or be clearly marked representative/simulated.
+Implementation State: Phase 6 replaces the legacy hard-coded terminal route with `UnifiedCliService`, removes fabricated runtime/ping/deployment/benchmark output, and maps supported familiar command forms to persisted recorded-state inspectors. Final Phase 6 consolidated verification and exit audit are still required before closure.
 Status: OPEN
 
 ### [PH1-DEFER-002]
@@ -160,7 +161,7 @@ Reason Deferred: Phase 3B now implements recorded-state route lookup, health ana
 Target Phase: Phase 6 / Phase 7
 Priority: P1
 Verification: The unified CLI consumes the same selected Lab/operator context; failure scenarios mutate canonical state consistently; visual, CLI, runbook, and evidence outputs remain synchronized and resettable.
-Implementation State: PARTIAL. Phase 3B satisfies the recorded-state investigation and policy-analysis portion. Command execution remains Phase 6 and mutable scenario execution/reset remains Phase 7.
+Implementation State: PARTIAL. Phase 3B satisfies the recorded-state investigation and policy-analysis portion. Phase 6 now exposes that state through the unified read-only CLI; mutable scenario execution/reset remains Phase 7.
 Status: OPEN
 
 
@@ -182,7 +183,7 @@ Reason Deferred: Phase 4B intentionally provides health derivation, investigatio
 Target Phase: Phase 6 / Phase 7
 Priority: P1
 Verification: The unified CLI uses the same selected Lab/host context; Linux scenarios mutate canonical state consistently; visual, CLI, runbook, and evidence outputs remain synchronized and resettable.
-Implementation State: PARTIAL. Recorded-state investigation is implemented in Phase 4B. Command execution remains Phase 6 and mutable scenario execution/reset remains Phase 7.
+Implementation State: PARTIAL. Recorded-state investigation is implemented in Phase 4B. Phase 6 now exposes it through the unified read-only CLI; mutable scenario execution/reset remains Phase 7.
 Status: OPEN
 
 ### [PH5A-DEFER-001]
@@ -192,5 +193,5 @@ Reason Deferred: Phase 5A intentionally provides a reusable recorded-state deliv
 Target Phase: Phase 5B / Phase 6 / Phase 7
 Priority: P1
 Verification: Phase 5B derives evidence-backed delivery findings and `GITOPS/...` context from the same `devops.v1` state; Phase 6 executes only supported contextual commands; Phase 7 mutates and resets scenario state consistently across UI, CLI, runbook, and evidence.
-Implementation State: PARTIAL. Phase 5A provides the core `devops.v1` model, APIs, seed normalization, and dynamic UI. Phase 5B now provides capability-aware recorded-state health/diagnostics, remediation guidance, durable `GITOPS/...` context contracts, and non-mutating scenario readiness. Command execution remains Phase 6 and mutable scenario execution/reset remains Phase 7.
+Implementation State: PARTIAL. Phase 5A provides the core `devops.v1` model, APIs, seed normalization, and dynamic UI. Phase 5B provides capability-aware recorded-state health/diagnostics, remediation guidance, durable `GITOPS/...` context contracts, and non-mutating scenario readiness. Phase 6 now exposes this state through the unified read-only CLI; mutable scenario execution/reset remains Phase 7.
 Status: OPEN

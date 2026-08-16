@@ -67,13 +67,13 @@ The Lab/host operations summary becomes `HEALTHY`, `DEGRADED`, `CRITICAL`, or `U
 
 ## Operator context
 
-The engine exposes a durable operator-context contract for later unified CLI work:
+The engine exposes durable Lab/host context metadata. Phase 6 canonicalizes it into CLI contexts such as:
 
 ```text
-RHEL/RHEL9-LAB-01>
+RHEL/RHEL9-HARDENING-ENVIRONMENT/RHEL9-LAB-01>
 ```
 
-The context lists the inspectors available for the selected host, but `executionAvailable` remains false in Phase 4B. Command execution belongs to Phase 6.
+The Phase 4B context API itself keeps `executionAvailable=false`. Phase 6 consumes the same Lab/host metadata through the unified read-only recorded-state CLI; arbitrary shell execution remains disabled.
 
 ## Scenario-ready contracts
 
@@ -134,4 +134,4 @@ Phase 4A provides the normalized host model and dynamic inspection workspace.
 
 Phase 4B provides recorded-state health analysis, investigation findings, remediation guidance, RHEL operator-context contracts, and scenario-ready definitions.
 
-Unified command execution remains Phase 6. Stateful scenario mutation/remediation/reset remains Phase 7.
+Phase 6 now provides the unified read-only recorded-state CLI over this Linux state. Stateful scenario mutation/remediation/reset remains Phase 7.

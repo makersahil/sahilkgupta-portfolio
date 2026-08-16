@@ -88,7 +88,7 @@ Findings contain recorded evidence, a related resource, suggested inspection com
 
 ## Operator contexts
 
-Phase 5B publishes stable context identifiers for Phase 6:
+Phase 5B publishes stable Lab/pipeline context metadata consumed by Phase 6:
 
 ```text
 GITOPS/<LAB>
@@ -160,6 +160,6 @@ Phase 5B never executes pipelines, `terraform`, `kubectl`, `helm`, `argocd`, Cil
 
 - **Phase 5A:** reusable `devops.v1` recorded-state model and Delivery Inspector.
 - **Phase 5B:** recorded-state investigation, health, remediation guidance, `GITOPS/...` contexts, and scenario readiness.
-- **Phase 6:** unified contextual CLI execution over supported domain commands.
+- **Phase 6:** implemented unified read-only recorded-state CLI over supported domain inspectors and familiar read aliases.
 - **Phase 7:** shared scenario mutation, remediation, verification, and reset.
 - **Phase 8/9:** broader artifact orchestration/import/storage and production hardening where appropriate.

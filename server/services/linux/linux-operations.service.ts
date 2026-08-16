@@ -573,7 +573,7 @@ export class LinuxOperationsService {
       host: host ? { key: host.key, hostname: host.hostname, osVersion: host.osVersion } : null,
       availableInspectors: ['host', 'services', 'storage', 'fstab', 'selinux', 'network', 'logs', 'configurations', 'verification', 'health', 'scenarios', 'evidence'],
       executionAvailable: false,
-      note: 'This is a durable RHEL operator-context contract for the future unified CLI. Arbitrary shell execution is not available in Phase 4B.',
+      note: 'This durable RHEL operator-context contract is consumed by the Phase 6 unified recorded-state CLI. The operations API itself does not execute arbitrary shell commands.',
     };
   }
 }

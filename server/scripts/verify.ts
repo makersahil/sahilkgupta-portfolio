@@ -33,6 +33,7 @@ const staticTests: Step[] = [
   { label: 'Networking engine static audit', command: 'npm', args: ['run', 'test:networking:static'] },
   { label: 'Linux engine static audit', command: 'npm', args: ['run', 'test:linux:static'] },
   { label: 'DevOps engine static audit', command: 'npm', args: ['run', 'test:devops:static'] },
+  { label: 'Unified CLI static audit', command: 'npm', args: ['run', 'test:cli:static'] },
   { label: 'API client regression', command: 'npm', args: ['run', 'test:api-client'] },
 ];
 
@@ -74,6 +75,8 @@ const databaseTests: Step[] = [
   { label: 'DevOps engine HTTP regression', command: 'npm', args: ['run', 'test:devops:http'], requiresDatabase: true },
   { label: 'DevOps operations regression', command: 'npm', args: ['run', 'test:devops:operations'], requiresDatabase: true },
   { label: 'DevOps operations HTTP regression', command: 'npm', args: ['run', 'test:devops:operations:http'], requiresDatabase: true },
+  { label: 'Unified CLI regression', command: 'npm', args: ['run', 'test:cli'], requiresDatabase: true },
+  { label: 'Unified CLI HTTP regression', command: 'npm', args: ['run', 'test:cli:http'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [

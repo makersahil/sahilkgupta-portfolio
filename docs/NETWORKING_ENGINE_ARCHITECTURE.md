@@ -71,14 +71,14 @@ Phase 3B adds recorded-state investigation rather than pretending to be a live I
 
 ## Operator context contract
 
-The engine exposes durable contexts such as:
+The engine exposes durable Lab/device context metadata. Phase 6 canonicalizes it into CLI contexts such as:
 
 ```text
 NETOPS/CISCO-WAN-TOPOLOGY>
-NETOPS/R1>
+NETOPS/CISCO-WAN-TOPOLOGY/R1>
 ```
 
-The context lists available inspectors (`routes`, `bgp`, `ospf`, `gateway`, `health`, and so on) but `executionAvailable` remains `false`. Phase 6 will attach the unified CLI to this same contract instead of creating a separate networking state model.
+The Phase 3B context API itself keeps `executionAvailable=false`. Phase 6 consumes the same Lab/device metadata through the unified read-only recorded-state CLI instead of creating a second networking state model.
 
 ## Scenario-ready state
 

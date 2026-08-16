@@ -70,6 +70,35 @@ async function main(): Promise<void> {
     exitCode: 0,
   });
 
+  respond(200, {
+    success: true,
+    data: {
+      schemaVersion: 'cli.v1',
+      context: {
+        contextId: 'PORTFOLIO', prompt: 'PORTFOLIO>', domain: 'PORTFOLIO', scope: 'ROOT', lab: null, target: null,
+        availableInspectors: ['contexts'], executionMode: 'RECORDED_STATE', mutable: false, note: 'mock',
+      },
+      contexts: [],
+      commandHints: ['help', 'ctx list'],
+      note: 'mock',
+    },
+  });
+  const cliBootstrap = await api.getCliBootstrap();
+  assert.equal(cliBootstrap.schemaVersion, 'cli.v1');
+  assert.equal(cliBootstrap.context.contextId, 'PORTFOLIO');
+
+  respond(200, {
+    schemaVersion: 'cli.v1', command: 'help', output: 'context-aware help', exitCode: 0, type: 'banner',
+    context: {
+      contextId: 'PORTFOLIO', prompt: 'PORTFOLIO>', domain: 'PORTFOLIO', scope: 'ROOT', lab: null, target: null,
+      availableInspectors: ['contexts'], executionMode: 'RECORDED_STATE', mutable: false, note: 'mock',
+    },
+    contextChanged: false, clear: false, note: 'mock',
+  });
+  const cliResult = await api.execCli('help', 'PORTFOLIO');
+  assert.equal(cliResult.schemaVersion, 'cli.v1');
+  assert.equal(cliResult.output, 'context-aware help');
+
   respond(201, { success: true, data: { id: 'inquiry-test' }, message: 'accepted' });
   const contact = await api.sendContact({
     name: 'Visitor',
