@@ -14,6 +14,7 @@ import type {
   NetworkingScenarioReadiness,
 } from '../../types/networking.js';
 import type { NetworkingService } from './networking.service.js';
+import { buildOperationalNetworkingTopology, networkingInterfaceForLink } from './networking-topology.js';
 
 function ipv4ToNumber(value: string): number | null {
   const parts = value.trim().split('.');
@@ -46,14 +47,6 @@ function routeMatches(route: NetworkingRouteState, destination: number): number 
   return ((destination & mask) >>> 0) === parsed.network ? parsed.prefixLength : null;
 }
 
-function interfaceForLink(device: NetworkingDeviceState, interfaceName: string | null) {
-  if (!interfaceName) return null;
-  const normalized = interfaceName.trim().toLowerCase();
-  return device.interfaces.find((entry) => {
-    const current = entry.name.trim().toLowerCase();
-    return current === normalized || current.startsWith(`${normalized} `) || current.startsWith(`${normalized}(`);
-  }) ?? null;
-}
 
 function interfaceNameMatches(left: string | null, right: string | null): boolean {
   if (!left || !right) return false;
@@ -363,8 +356,8 @@ function overallStatus(checks: NetworkingHealthCheck[]): NetworkingOperationsSna
 export class NetworkingOperationsService {
   constructor(private readonly networking: NetworkingService) {}
 
-  async getOperations(identifier: string): Promise<NetworkingOperationsSnapshot> {
-    const state = await this.networking.getPublic(identifier);
+  async getOperations(identifier: string, sessionKey?: string): Promise<NetworkingOperationsSnapshot> {
+    const state = await this.networking.getPublic(identifier, sessionKey);
     const healthChecks = buildHealthChecks(state);
     const scenarioReadiness: NetworkingScenarioReadiness[] = state.scenarios.map((scenario) => ({
       id: scenario.id,
@@ -373,7 +366,7 @@ export class NetworkingOperationsService {
       summary: scenario.summary,
       enabled: scenario.isEnabled,
       observableSignals: scenarioSignals(scenario.expectedObservations),
-      executionAvailable: false,
+      executionAvailable: scenario.isEnabled,
     }));
     return {
       schemaVersion: 'networking.operations.v1',
@@ -398,8 +391,8 @@ export class NetworkingOperationsService {
     };
   }
 
-  async lookupRoute(identifier: string, destination: string, deviceKey?: string): Promise<NetworkingRouteLookup> {
-    const state = await this.networking.getPublic(identifier);
+  async lookupRoute(identifier: string, destination: string, deviceKey?: string, sessionKey?: string): Promise<NetworkingRouteLookup> {
+    const state = await this.networking.getPublic(identifier, sessionKey);
     const destinationNumber = ipv4ToNumber(destination);
     if (destinationNumber === null) throw new ValidationError('destination must be a valid IPv4 address', { field: 'destination' });
     if (deviceKey && !state.devices.some((device) => device.key === deviceKey)) {
@@ -435,8 +428,9 @@ export class NetworkingOperationsService {
     sourceKey: string,
     targetKey: string,
     protocol = 'ICMP',
+    sessionKey?: string,
   ): Promise<NetworkingOperationalPathAnalysis> {
-    const state = await this.networking.getPublic(identifier);
+    const state = await this.networking.getPublic(identifier, sessionKey);
     const source = state.devices.find((device) => device.key === sourceKey);
     const target = state.devices.find((device) => device.key === targetKey);
     if (!source) throw new ValidationError('Invalid source device', { field: 'sourceDeviceKey' });
@@ -446,24 +440,7 @@ export class NetworkingOperationsService {
     if (source.status === 'DOWN') blockers.push({ type: 'DEVICE_DOWN', key: source.key, message: `${source.label} is recorded DOWN.` });
     if (target.status === 'DOWN') blockers.push({ type: 'DEVICE_DOWN', key: target.key, message: `${target.label} is recorded DOWN.` });
 
-    const deviceByKey = new Map(state.devices.map((device) => [device.key, device]));
-    const usableLinks = state.links.filter((link) => {
-      const left = deviceByKey.get(link.sourceDeviceKey);
-      const right = deviceByKey.get(link.targetDeviceKey);
-      if (!left || !right || left.status === 'DOWN' || right.status === 'DOWN') return false;
-      if (link.status === 'DOWN') return false;
-      const leftInterface = interfaceForLink(left, link.sourceInterface);
-      const rightInterface = interfaceForLink(right, link.targetInterface);
-      return leftInterface?.status !== 'DOWN' && rightInterface?.status !== 'DOWN';
-    });
-
-    const adjacency = new Map<string, Array<{ neighbor: string; linkKey: string }>>();
-    for (const device of state.devices.filter((entry) => entry.status !== 'DOWN')) adjacency.set(device.key, []);
-    for (const link of usableLinks) {
-      adjacency.get(link.sourceDeviceKey)?.push({ neighbor: link.targetDeviceKey, linkKey: link.key });
-      adjacency.get(link.targetDeviceKey)?.push({ neighbor: link.sourceDeviceKey, linkKey: link.key });
-    }
-    for (const entries of adjacency.values()) entries.sort((a, b) => a.neighbor.localeCompare(b.neighbor) || a.linkKey.localeCompare(b.linkKey));
+    const { deviceByKey, adjacency } = buildOperationalNetworkingTopology(state);
 
     const queue = blockers.length ? [] : [source.key];
     const previous = new Map<string, { device: string | null; linkKey: string | null }>();
@@ -491,7 +468,7 @@ export class NetworkingOperationsService {
             if (device.status === 'DOWN' && !blockers.some((entry) => entry.type === 'DEVICE_DOWN' && entry.key === device.key)) {
               blockers.push({ type: 'DEVICE_DOWN', key: device.key, message: `${device.label} is recorded DOWN.` });
             }
-            const linkedInterface = interfaceForLink(device, interfaceName);
+            const linkedInterface = networkingInterfaceForLink(device, interfaceName);
             if (linkedInterface?.status === 'DOWN') {
               blockers.push({ type: 'INTERFACE_DOWN', key: `${device.key}:${linkedInterface.name}`, message: `${device.label} ${linkedInterface.name} is recorded DOWN.` });
             }
@@ -548,7 +525,7 @@ export class NetworkingOperationsService {
       .map((key) => deviceByKey.get(key))
       .find((device) => device?.kind === 'router' || device?.kind === 'multilayer_switch');
     if (targetIp && firstRoutingDevice && state.routingTable.length > 0) {
-      routeLookup = await this.lookupRoute(identifier, targetIp, firstRoutingDevice.key);
+      routeLookup = await this.lookupRoute(identifier, targetIp, firstRoutingDevice.key, sessionKey);
       const scopedRoutes = state.routingTable.filter((route) => route.deviceKey === firstRoutingDevice.key || route.deviceKey === null);
       if (scopedRoutes.length > 0 && routeLookup.status === 'NO_MATCH') {
         blockers.push({
@@ -588,8 +565,8 @@ export class NetworkingOperationsService {
     };
   }
 
-  async getContext(identifier: string, deviceKey?: string): Promise<NetworkingOperatorContext> {
-    const state = await this.networking.getPublic(identifier);
+  async getContext(identifier: string, deviceKey?: string, sessionKey?: string): Promise<NetworkingOperatorContext> {
+    const state = await this.networking.getPublic(identifier, sessionKey);
     const device = deviceKey ? state.devices.find((entry) => entry.key === deviceKey) : null;
     if (deviceKey && !device) throw new NotFoundError('Networking device not found');
 

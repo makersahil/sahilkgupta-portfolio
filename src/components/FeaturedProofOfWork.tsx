@@ -72,7 +72,7 @@ export const FeaturedProofOfWork: React.FC = () => {
               Featured Domain Blueprints
             </h2>
             <p className="text-sm text-white/60 max-w-2xl mt-1">
-              One flagship implementation for each engineering discipline. Each blueprint includes verified architectures, configuration files, and lab runbooks.
+              One flagship implementation for each engineering discipline. Each blueprint includes recorded architecture context, configuration excerpts, lab runbooks, and scenario-driven verification where implemented.
             </p>
           </div>
         </div>

@@ -37,6 +37,8 @@ async function main(): Promise<void> {
   respond(200, { success: true, data: [] });
   assert.deepEqual(await api.getProjects(), [], 'a genuine successful empty collection is valid');
   assert.equal(captured?.init?.credentials, 'same-origin');
+  const initialHeaders = new Headers(captured?.init?.headers);
+  assert.match(initialHeaders.get('X-Lab-Session') ?? '', /^lab-[A-Za-z0-9_-]{12,}$/);
 
   respond(503, {
     success: false,
@@ -121,8 +123,9 @@ async function main(): Promise<void> {
   assert.equal(login.success, true);
   assert.equal(login.user.role, 'ADMIN');
   assert.equal(captured?.init?.credentials, 'same-origin');
-  const loginHeaders = captured?.init?.headers as Record<string, string> | undefined;
-  assert.equal(loginHeaders?.Authorization, undefined, 'browser auth must not send a stored bearer token');
+  const loginHeaders = new Headers(captured?.init?.headers);
+  assert.equal(loginHeaders.get('Authorization'), null, 'browser auth must not send a stored bearer token');
+  assert.ok(loginHeaders.get('X-Lab-Session'), 'all browser API calls should carry the opaque Lab session identifier');
 
   respond(200, { success: true, message: 'Logged out successfully' });
   await api.logout();

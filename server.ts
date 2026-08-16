@@ -18,6 +18,7 @@ import devopsRoutes from './server/routes/devops.routes.js';
 import contactRoutes from './server/routes/contact.routes.js';
 import architectureRoutes from './server/routes/architecture.routes.js';
 import labsRoutes from './server/routes/labs.routes.js';
+import scenarioRoutes from './server/routes/scenario.routes.js';
 import adminRoutes from './server/routes/admin.routes.js';
 import { env } from './server/config/env.js';
 import { ConfigurationError } from './server/lib/errors.js';
@@ -67,6 +68,7 @@ async function startServer() {
   app.use('/api/contact', contactRoutes);
   app.use('/api/architecture', architectureRoutes);
   app.use('/api/labs', labsRoutes);
+  app.use('/api/scenarios', scenarioRoutes);
   app.use('/api/admin', adminRoutes);
 
   // Global Error Handler for API

@@ -73,7 +73,7 @@ The engine exposes durable Lab/host context metadata. Phase 6 canonicalizes it i
 RHEL/RHEL9-HARDENING-ENVIRONMENT/RHEL9-LAB-01>
 ```
 
-The Phase 4B context API itself keeps `executionAvailable=false`. Phase 6 consumes the same Lab/host metadata through the unified read-only recorded-state CLI; arbitrary shell execution remains disabled.
+The Phase 4B context API itself remains a recorded-state contract. Phase 6 consumes the same Lab/host metadata through the unified CLI; arbitrary shell execution remains disabled. Phase 7 session overlays are resolved by the Linux service before operations/CLI inspection.
 
 ## Scenario-ready contracts
 
@@ -84,7 +84,7 @@ Phase 4B surfaces persisted Lab scenario definitions without mutating them. The 
 - persistent mount failure
 - network interface loss
 
-Each scenario exposes expected observable signals and clearly reports that execution is unavailable. Generic mutation, remediation verification, and reset belong to Phase 7.
+Each scenario exposes expected observable signals. The Phase 4B operations view remains non-executing, while Phase 7 consumes enabled definitions through the shared session runtime for whitelisted mutation, active-scenario/recovery verification, remediation, and reset.
 
 ## Standardized Linux inputs
 
@@ -134,4 +134,4 @@ Phase 4A provides the normalized host model and dynamic inspection workspace.
 
 Phase 4B provides recorded-state health analysis, investigation findings, remediation guidance, RHEL operator-context contracts, and scenario-ready definitions.
 
-Phase 6 now provides the unified read-only recorded-state CLI over this Linux state. Stateful scenario mutation/remediation/reset remains Phase 7.
+Phase 6 provides the unified contextual CLI over Linux state. Phase 7 adds session-scoped scenario overlays that are visible to both the Linux workspace and CLI without spawning a shell or rewriting canonical state.

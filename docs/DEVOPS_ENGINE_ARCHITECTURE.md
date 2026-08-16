@@ -115,7 +115,7 @@ Persisted enabled Lab scenarios are exposed as non-mutating contracts with obser
 - `canary-failure`
 - `cilium-policy-regression`
 
-Phase 5B does not apply the declared mutations. Phase 7 owns scenario run, remediation, verification, and reset against shared canonical state.
+Phase 5B does not apply declared mutations itself. Phase 7 consumes enabled definitions through the shared Scenario Engine and applies whitelisted mutations to a session-scoped clone of canonical state; canonical PostgreSQL Lab state remains unchanged.
 
 ## Public API
 
@@ -160,6 +160,6 @@ Phase 5B never executes pipelines, `terraform`, `kubectl`, `helm`, `argocd`, Cil
 
 - **Phase 5A:** reusable `devops.v1` recorded-state model and Delivery Inspector.
 - **Phase 5B:** recorded-state investigation, health, remediation guidance, `GITOPS/...` contexts, and scenario readiness.
-- **Phase 6:** implemented unified read-only recorded-state CLI over supported domain inspectors and familiar read aliases.
-- **Phase 7:** shared scenario mutation, remediation, verification, and reset.
+- **Phase 6:** implemented unified contextual CLI over supported recorded-state inspectors and familiar read aliases.
+- **Phase 7:** implemented session-scoped scenario mutation, remediation, active-scenario/recovery verification, and reset with provider execution disabled.
 - **Phase 8/9:** broader artifact orchestration/import/storage and production hardening where appropriate.

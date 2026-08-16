@@ -181,7 +181,7 @@ export interface NetworkingScenarioReadiness {
   summary: string;
   enabled: boolean;
   observableSignals: string[];
-  executionAvailable: false;
+  executionAvailable: boolean;
 }
 
 export interface NetworkingOperationsSnapshot {
@@ -269,7 +269,7 @@ export interface NetworkingOperatorContext {
     | 'scenarios'
     | 'evidence'
   >;
-  executionAvailable: false;
+  executionAvailable: boolean;
   note: string;
 }
 

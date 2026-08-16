@@ -442,7 +442,7 @@ export interface NetworkingScenarioReadiness {
   summary: string;
   enabled: boolean;
   observableSignals: string[];
-  executionAvailable: false;
+  executionAvailable: boolean;
 }
 
 export interface NetworkingOperationsSnapshot {
@@ -940,7 +940,7 @@ export interface LinuxScenarioReadiness {
   summary: string;
   enabled: boolean;
   observableSignals: string[];
-  executionAvailable: false;
+  executionAvailable: boolean;
 }
 export interface LinuxOperationsSnapshot {
   schemaVersion: 'linux.operations.v1';
@@ -1145,7 +1145,7 @@ export interface DevOpsScenarioReadiness {
   summary: string;
   enabled: boolean;
   observableSignals: string[];
-  executionAvailable: false;
+  executionAvailable: boolean;
 }
 
 export interface DevOpsOperationsSnapshot {
@@ -1182,6 +1182,61 @@ export interface DevOpsOperatorContext {
   note: string;
 }
 
+export type ScenarioRuntimeStatus = 'ACTIVE' | 'REMEDIATED' | 'VERIFIED';
+export type ScenarioVerificationPhase = 'SCENARIO_STATE' | 'RECOVERY';
+
+export interface ScenarioVerificationCheck {
+  id: string;
+  passed: boolean;
+  summary: string;
+  evidence: string[];
+}
+
+export interface ScenarioVerificationResult {
+  phase: ScenarioVerificationPhase;
+  passed: boolean;
+  checks: ScenarioVerificationCheck[];
+  verifiedAt: string;
+}
+
+export interface ScenarioCatalogItem {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  description: string | null;
+  order: number;
+  isEnabled: boolean;
+  expectedObservations: unknown;
+  verificationCriteria: unknown;
+}
+
+export interface ScenarioRuntimeView {
+  id: string;
+  labId: string;
+  scenarioId: string;
+  scenarioSlug: string;
+  scenarioTitle: string;
+  status: ScenarioRuntimeStatus;
+  verification: ScenarioVerificationResult | null;
+  startedAt: string;
+  remediatedAt: string | null;
+  verifiedAt: string | null;
+  updatedAt: string;
+  executionMode: 'SESSION_SCOPED_SIMULATION';
+  note: string;
+}
+
+export interface ScenarioOverview {
+  schemaVersion: 'scenario.runtime.v1';
+  lab: { id: string; slug: string; title: string; domain: LabDomain };
+  scenarios: ScenarioCatalogItem[];
+  runtime: ScenarioRuntimeView | null;
+  mutationScope: 'SESSION_ONLY';
+  canonicalStateMutable: false;
+  note: string;
+}
+
 export type UnifiedCliDomain = 'PORTFOLIO' | 'NETWORKING' | 'LINUX' | 'DEVOPS';
 export type UnifiedCliScope = 'ROOT' | 'LAB' | 'DEVICE' | 'HOST' | 'PIPELINE';
 export type UnifiedCliOutputType = 'stdout' | 'stderr' | 'table' | 'banner' | 'system';
@@ -1201,8 +1256,8 @@ export interface UnifiedCliContext {
   lab: { id: string; slug: string; title: string } | null;
   target: UnifiedCliTarget | null;
   availableInspectors: string[];
-  executionMode: 'RECORDED_STATE';
-  mutable: false;
+  executionMode: 'RECORDED_STATE' | 'SCENARIO_RUNTIME';
+  mutable: boolean;
   note: string;
 }
 

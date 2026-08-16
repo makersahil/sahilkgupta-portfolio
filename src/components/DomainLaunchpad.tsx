@@ -52,7 +52,7 @@ export const DomainLaunchpad: React.FC = () => {
               Domain Launchpad
             </h2>
             <p className="text-sm text-white/60 max-w-2xl mt-1">
-              Select a specialized infrastructure workspace to explore hands-on labs, architectural blueprints, live configurations, and verification evidence.
+              Select a specialized infrastructure workspace to explore hands-on labs, architectural blueprints, recorded configurations, and traceable evidence.
             </p>
           </div>
           <div className="hidden sm:flex items-center space-x-2 text-xs font-mono text-white/40">

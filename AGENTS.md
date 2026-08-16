@@ -113,7 +113,7 @@ If a requirement conflicts with repository state, stop and explain instead of gu
 - Public Lab reads require `Lab.status=READY` and a published Project. Public manifests expose only public evidence and safe artifact summaries.
 - Public-shaped manifests describe input availability but do not expose raw inline LabInput payloads, raw external input URLs, or internal artifact storage keys.
 - Never claim arbitrary Packet Tracer/PCAP/config parsing unless a real adapter exists and is tested. Reference/normalized fixture metadata must be labeled truthfully.
-- Domain engines may inspect and reason over persisted normalized state, but must not imply live infrastructure execution. Networking, Linux, DevOps, and the Phase 6 unified recorded-state CLI are implemented. The CLI executes portfolio inspection commands only; it must never spawn shells/provider binaries. Phase 7 owns shared mutable scenario execution/reset.
+- Domain engines may inspect and reason over persisted normalized state, but must not imply live infrastructure execution. Networking, Linux, DevOps, the Phase 6 unified CLI, and the Phase 7 session-scoped Scenario Engine are implemented. The CLI and Scenario Engine must never spawn shells/provider binaries or claim external infrastructure execution.
 - Preserve one Project -> many Labs -> many Inputs/Scenarios/RunbookSteps/Evidence as the platform relationship model.
 
 
@@ -123,7 +123,7 @@ If a requirement conflicts with repository state, stop and explain instead of gu
 - Health findings and remediation guidance must cite persisted state and use `RECORDED_STATE_DIAGNOSTIC`; never claim a suggested command was executed.
 - Do not disable SELinux as generic remediation. Prefer evidence-driven context/boolean/policy guidance.
 - `RHEL/...` contexts are consumed by the Phase 6 unified recorded-state CLI; no shell/process execution is implied.
-- Linux scenario definitions may describe future mutations, but Phase 4B must not mutate, remediate, or reset Lab state.
+- Linux scenario definitions may be consumed by the Phase 7 session overlay only through the safe mutation whitelist. Never write a scenario fault into canonical `Lab.normalizedState` or execute the suggested shell commands.
 
 ## DevOps recorded-state engine invariants
 
@@ -131,14 +131,29 @@ If a requirement conflicts with repository state, stop and explain instead of gu
 - Render only modules represented by the selected Lab. Do not add Kubernetes/GitOps views to a Terraform-only Lab by assumption.
 - Do not reintroduce browser timer-based fake pipeline execution or automatic SUCCESS transitions.
 - Recorded project-fixture values must remain identifiable as recorded state; missing health, metrics, revisions, workloads, logs, policies, or rollouts stay unknown/empty.
-- Phase 5A owns the read-only `devops.v1` domain model and explorer. Phase 5B owns recorded-state diagnostics, `GITOPS/...` context, remediation guidance, and non-mutating scenario readiness. Phase 6 owns the unified read-only recorded-state CLI. Phase 7 owns shared mutable scenario execution/reset.
+- Phase 5A owns the `devops.v1` domain model and explorer. Phase 5B owns recorded-state diagnostics, `GITOPS/...` context, and remediation guidance. Phase 6 owns the unified contextual CLI. Phase 7 may overlay only whitelisted scenario mutations for the selected browser session; provider execution remains prohibited.
 
 
 ## Unified CLI invariants
 
-- `UnifiedCliService` is read-only and must derive output from persisted normalized Lab state or explicit CLI metadata.
+- `UnifiedCliService` derives output from canonical normalized Lab state, an optional Phase 7 session scenario overlay, or explicit CLI metadata. It must never mutate canonical Lab state.
 - Never import `child_process`, SSH/shell runners, or provider command executors into the portfolio CLI.
 - Never fabricate ping/traceroute latency, uptime, process metrics, deployment success, benchmark results, or provider output.
 - Familiar commands (`cisco`, `systemctl`, `kubectl`, `terraform`, etc.) may only act as aliases to recorded-state inspectors and must clearly preserve the non-executing boundary.
-- `scenario list` is read-only in Phase 6. Scenario run/remediation/verification/reset belongs to Phase 7.
+- `scenario list/status/run/verify/remediate/reset` may call the Phase 7 Scenario Engine. Those commands mutate only `LabScenarioRuntime` session metadata/overlay state, never external infrastructure or canonical Lab state.
 - Context resolution must remain data-driven; do not hard-code flagship Lab slugs in the CLI.
+
+
+## Phase 7 Scenario Engine invariants
+
+- `Lab.normalizedState` is the immutable canonical baseline. Never store injected scenario faults back into that field.
+- A runtime is scoped by opaque `sessionKey + labId`. `X-Lab-Session` selects a simulation session; it is not authentication or authorization.
+- The client sends a scenario slug only. Load the persisted `LabScenario.actions` server-side; never accept arbitrary client mutation objects for execution.
+- Apply only explicitly whitelisted mutation types in `scenario-mutators.ts`. Unknown action types must fail validation.
+- Apply an ACTIVE runtime to a fresh cloned baseline on each read so visual workspaces, operations APIs, and CLI resolve the same session state.
+- `REMEDIATED` and `VERIFIED` runtimes must resolve to the canonical baseline. `reset` deletes the runtime; it does not need to restore canonical state because canonical state was never changed.
+- Scenario verification may assert the injected recorded-state condition and the recovery boundary. It must not claim an external command succeeded.
+- Never import `child_process`, SSH clients, network/device executors, Kubernetes/cloud provider clients, or arbitrary evaluation into the Scenario Engine.
+- If a stored runtime action no longer matches the canonical Lab model, fail safe to the canonical baseline with a warning; do not corrupt public Lab reads.
+- Keep scenario behavior data-driven across projects/Labs. Do not branch on flagship project names or slugs inside the reusable engine.
+- Scenario runtimes have a basic 24-hour opportunistic retention cleanup on new scenario starts. Stronger distributed abuse controls, quotas, and scheduled cleanup remain Phase 9 deployment hardening.

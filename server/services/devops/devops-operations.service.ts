@@ -439,15 +439,15 @@ function scenarioReadiness(state: DevOpsLabState): DevOpsScenarioReadiness[] {
       summary: scenario.summary,
       enabled: scenario.isEnabled,
       observableSignals: scenarioSignals(scenario.expectedObservations),
-      executionAvailable: false as const,
+      executionAvailable: scenario.isEnabled,
     }));
 }
 
 export class DevOpsOperationsService {
   constructor(private readonly devOps: DevOpsService) {}
 
-  async getOperations(identifier: string): Promise<DevOpsOperationsSnapshot> {
-    const state = await this.devOps.getPublic(identifier);
+  async getOperations(identifier: string, sessionKey?: string): Promise<DevOpsOperationsSnapshot> {
+    const state = await this.devOps.getPublic(identifier, sessionKey);
     const healthChecks = buildHealthChecks(state);
     const findings = buildFindings(state);
     const failedPipelines = state.pipelines.filter((pipeline) => pipeline.status === 'FAILED' || pipeline.stages.some((stage) => stage.status === 'FAILED')).length;
@@ -479,8 +479,8 @@ export class DevOpsOperationsService {
     };
   }
 
-  async getContext(identifier: string, pipelineId?: string): Promise<DevOpsOperatorContext> {
-    const state = await this.devOps.getPublic(identifier);
+  async getContext(identifier: string, pipelineId?: string, sessionKey?: string): Promise<DevOpsOperatorContext> {
+    const state = await this.devOps.getPublic(identifier, sessionKey);
     const pipeline = pipelineId ? state.pipelines.find((entry) => entry.id === pipelineId) : null;
     if (pipelineId && !pipeline) throw new NotFoundError('DevOps pipeline not found');
 

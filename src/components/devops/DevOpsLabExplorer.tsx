@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
+import { ScenarioControlPanel } from '../scenarios/index.js';
 import type { DevOpsLabState, DevOpsLabSummary, DevOpsPipelineStageState } from '../../types.js';
 import { DevOpsOperationsPanel } from './DevOpsOperationsPanel.js';
 
@@ -119,6 +120,7 @@ export const DevOpsLabExplorer: React.FC = () => {
 
         {state && (
           <>
+            <ScenarioControlPanel labSlug={state.lab.slug} onStateChange={loadLabs} />
             <div className="mb-5 grid gap-3 rounded-2xl border border-white/10 bg-[#111114] p-4 lg:grid-cols-[1.4fr_1fr_1fr]">
               <label>
                 <span className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-white/35">DevOps Lab</span>

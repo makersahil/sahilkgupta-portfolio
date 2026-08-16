@@ -128,7 +128,7 @@ export const LinuxOperationsPanel: React.FC<LinuxOperationsPanelProps> = ({ labS
           <div className={`mt-2 inline-flex rounded border px-2.5 py-1.5 font-mono text-xs font-bold ${statusClasses(operations.overallStatus)}`}>{operations.overallStatus}</div>
           <div className="mt-5 text-[9px] uppercase tracking-wider text-white/35">Operator context</div>
           <div className="mt-2 rounded-lg border border-[#00ff41]/20 bg-black p-3 font-mono text-xs font-bold text-[#00ff41]">{context?.prompt ?? 'RHEL/CONTEXT>'}</div>
-          <p className="mt-2 text-[10px] leading-relaxed text-white/35">Context is reserved for the future unified CLI. Phase 4B exposes inspection contracts only.</p>
+          <p className="mt-2 text-[10px] leading-relaxed text-white/35">This context is active in the Unified CLI. Scenario overlays are session-scoped, while this Operations view remains read-only and does not execute host commands.</p>
         </div>
       </div>
 
@@ -190,10 +190,10 @@ export const LinuxOperationsPanel: React.FC<LinuxOperationsPanelProps> = ({ labS
           <div className="grid gap-3 md:grid-cols-2">
             {operations.scenarioReadiness.map((scenario) => (
               <div key={scenario.id} className="rounded-xl border border-white/10 bg-black/30 p-4">
-                <div className="flex items-center justify-between gap-2"><div className="font-mono text-xs font-bold text-white">{scenario.title}</div><span className={`rounded border px-2 py-1 font-mono text-[8px] uppercase ${scenario.enabled ? 'border-[#00ff41]/20 text-[#00ff41]' : 'border-white/10 text-white/30'}`}>{scenario.enabled ? 'ready contract' : 'disabled'}</span></div>
+                <div className="flex items-center justify-between gap-2"><div className="font-mono text-xs font-bold text-white">{scenario.title}</div><span className={`rounded border px-2 py-1 font-mono text-[8px] uppercase ${scenario.enabled ? 'border-[#00ff41]/20 text-[#00ff41]' : 'border-white/10 text-white/30'}`}>{scenario.executionAvailable ? 'session runnable' : scenario.enabled ? 'ready contract' : 'disabled'}</span></div>
                 <p className="mt-2 text-xs leading-relaxed text-white/45">{scenario.summary}</p>
                 {scenario.observableSignals.length > 0 && <div className="mt-3 flex flex-wrap gap-1.5">{scenario.observableSignals.map((signal) => <span key={signal} className="rounded border border-violet-400/15 bg-violet-400/5 px-2 py-1 font-mono text-[8px] text-violet-200/70">{signal}</span>)}</div>}
-                <div className="mt-3 font-mono text-[8px] uppercase tracking-wider text-amber-300/60">Execution unavailable until Scenario Engine</div>
+                <div className="mt-3 font-mono text-[8px] uppercase tracking-wider text-amber-300/60">{scenario.executionAvailable ? 'Run from the Scenario Runtime panel' : 'Execution unavailable'}</div>
               </div>
             ))}
           </div>

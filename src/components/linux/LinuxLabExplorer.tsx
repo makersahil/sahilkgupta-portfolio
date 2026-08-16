@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
+import { ScenarioControlPanel } from '../scenarios/index.js';
 import type { LinuxHostState, LinuxLabState, LinuxLabSummary } from '../../types.js';
 import { LinuxHostInspector } from './LinuxHostInspector.js';
 import { LinuxOperationsPanel } from './LinuxOperationsPanel.js';
@@ -100,6 +101,7 @@ export const LinuxLabExplorer: React.FC = () => {
 
         {state && (
           <>
+            <ScenarioControlPanel labSlug={state.lab.slug} onStateChange={loadLabs} />
             <div className="mb-5 grid gap-3 rounded-2xl border border-white/10 bg-[#111114] p-4 lg:grid-cols-[1.4fr_1fr_1fr]">
               <label className="block">
                 <span className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-white/35">Linux Lab</span>
@@ -148,7 +150,7 @@ export const LinuxLabExplorer: React.FC = () => {
 
             {state.warnings.length > 0 && <div className="mt-4 space-y-2">{state.warnings.map((warning) => <div key={warning} className="flex items-start gap-2 rounded-lg border border-amber-400/20 bg-amber-400/5 p-3 text-xs text-amber-100/70"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />{warning}</div>)}</div>}
 
-            <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-white/40"><HardDrive className="mr-2 inline h-3.5 w-3.5 text-[#00ff41]" />Phase 4B derives investigation findings and remediation guidance from persisted recorded state. Suggested commands are not executed here; contextual command execution remains Phase 6 and mutable scenario execution remains Phase 7.</div>
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/30 p-4 text-xs text-white/40"><HardDrive className="mr-2 inline h-3.5 w-3.5 text-[#00ff41]" />Diagnostics are derived from persisted recorded state. The Unified CLI reads the same state, while the Scenario Runtime can apply session-scoped simulation overlays. Suggested host commands remain guidance only and are not executed.</div>
           </>
         )}
       </div>

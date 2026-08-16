@@ -10,7 +10,7 @@ The dark cyber-terminal/control-plane visual language is intentional. Representa
 
 ## Current architecture
 
-Phase 2 through Phase 5 are complete platform/domain baselines. Phase 6 implements the unified context-aware recorded-state CLI across Networking, Linux, and DevOps and is pending the Phase 6 exit verification gate.
+Phase 2 through Phase 6 are complete and exit-verified platform/domain baselines. Phase 7 implements the session-scoped Scenario Engine and is the current closeout candidate; after any Phase 7 code change, rerun the canonical 45-step verifier and the browser/session-isolation runbook before marking the phase complete.
 
 ```text
 Browser / React
@@ -18,7 +18,8 @@ Browser / React
   ├─ labs → /api/labs/* → LabService / LabManifestService → PrismaLabRepository → PostgreSQL
   ├─ auth → /api/auth/* → AuthService → PrismaAuthRepository → User + AuthSession
   ├─ admin → authenticated content/lab APIs → PostgreSQL + persisted AuditLog
-  ├─ unified CLI → /api/terminal/* → UnifiedCliService → domain engines → persisted Lab state
+  ├─ unified CLI → /api/terminal/* → UnifiedCliService → domain engines → recorded/session state
+  ├─ scenarios → /api/scenarios/* → ScenarioEngineService → LabScenarioRuntime → session overlay
   ├─ media references → MediaService → PrismaArtifactRepository → Artifact
   └─ architecture metrics → SystemMetricsService → PrismaSystemRepository → PostgreSQL counts
 ```
@@ -57,7 +58,8 @@ server/services/system/               truthful runtime metrics service
 server/services/networking/           dynamic Networking adapter, engine, and operations services
 server/services/linux/                dynamic Linux adapter and core host-state engine
 server/services/devops/               dynamic DevOps adapter, delivery-state engine, and recorded-state operations
-server/services/cli/                  unified context-aware recorded-state command interpreter
+server/services/cli/                  unified context-aware recorded-state + scenario command interpreter
+server/services/scenarios/            session-scoped scenario lifecycle and safe state overlays
 server/repositories/contracts/        repository contracts
 server/repositories/prisma/           PostgreSQL/Prisma repositories
 server/middlewares/                   persisted auth, async, and error middleware
@@ -75,8 +77,8 @@ Copy `.env.example` to `.env`. Never commit `.env` or real credentials.
 ```dotenv
 NODE_ENV=development
 PORT=3000
-DATABASE_URL=postgresql://USER:PASSWORD@POOLED_HOST:5432/DATABASE
-DIRECT_URL=postgresql://USER:PASSWORD@DIRECT_HOST:5432/DATABASE
+DATABASE_URL=postgresql://USER:PASSWORD@POOLED_HOST:5432/DATABASE?sslmode=verify-full
+DIRECT_URL=postgresql://USER:PASSWORD@DIRECT_HOST:5432/DATABASE?sslmode=verify-full
 JWT_SECRET=replace-with-at-least-32-random-characters
 ADMIN_EMAIL=admin@example.com
 ADMIN_PASSWORD=replace-with-a-strong-password-at-least-12-characters
@@ -116,7 +118,7 @@ npm run verify:quick
 npm run verify:tests
 ```
 
-The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, all three dynamic domain engines and operations layers, plus the unified CLI static/service/HTTP regressions.
+The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, all three dynamic domain engines and operations layers, unified CLI regressions, and the Phase 7 Scenario Engine static/service/HTTP regressions.
 
 ## Media and Packet Tracer truthfulness
 
@@ -129,13 +131,13 @@ The old synthetic `/api/network/upload-pkt` parser has been retired. Packet Trac
 
 Published Networking Labs are rendered from `Lab`, `LabInput`, `LabNode`, `LabLink`, runbook, evidence, scenarios, and normalized `networking.v1` state. The same engine supports multiple projects and multiple Labs per project. Core inspection includes dynamic topology, device/interface/configuration views, routing/VLAN/ACL snapshots, and deterministic topology reachability. The operations layer adds recorded BGP/OSPF neighbor inspection, first-hop redundancy state, health derivation, IPv4 longest-prefix route lookup, conservative recorded-state forwarding/ACL analysis, a durable `NETOPS/...` context contract, and scenario-ready definitions.
 
-These operations are derived from persisted snapshots, not live device telemetry or a full IOS/ASA emulator. Phase 6 now provides read-only contextual CLI commands over the same recorded state; mutable scenario execution/reset remains Phase 7. Packet Tracer remains a truthful reference input; arbitrary `.pkt` binary parsing is not claimed. See `docs/NETWORKING_ENGINE_ARCHITECTURE.md`.
+These operations are derived from persisted snapshots, not live device telemetry or a full IOS/ASA emulator. Phase 6 provides contextual CLI inspection over the same state. Phase 7 can apply a safe session-only scenario overlay that is visible to the Networking workspace, operations layer, and CLI without rewriting canonical Lab state. Packet Tracer remains a truthful reference input; arbitrary `.pkt` binary parsing is not claimed. See `docs/NETWORKING_ENGINE_ARCHITECTURE.md` and `docs/SCENARIO_ENGINE_ARCHITECTURE.md`.
 
 ## Dynamic Linux Engine
 
 Published Linux Labs are rendered from canonical Lab Manifest v1 data and normalized `linux.v1` host state. The same engine supports multiple Linux projects and multiple Labs per project. Core inspection covers persisted host identity, RHEL release/kernel, systemd service snapshots, block/LVM/filesystem/mount state, `/etc/fstab`, SELinux, network state, recorded logs, configuration files, and verification records.
 
-The engine renders recorded state only. Phase 4B derives service/storage/SELinux/network/log health, evidence-backed investigation findings, suggested remediation guidance, `RHEL/...` operator contexts, and scenario-ready definitions without executing shell commands. Phase 6 now exposes safe read-only CLI commands over that state; mutable scenario execution/reset is Phase 7. See `docs/LINUX_ENGINE_ARCHITECTURE.md`.
+The engine renders recorded state only. Phase 4B derives service/storage/SELinux/network/log health, evidence-backed investigation findings, suggested remediation guidance, and `RHEL/...` contexts. Phase 6 exposes safe CLI inspection over that state. Phase 7 can apply whitelisted Linux faults to a cloned session snapshot and restore the canonical baseline without executing shell commands. See `docs/LINUX_ENGINE_ARCHITECTURE.md` and `docs/SCENARIO_ENGINE_ARCHITECTURE.md`.
 
 ## Dynamic DevOps Engine
 
@@ -143,13 +145,29 @@ Published DevOps Labs are rendered from canonical Lab Manifest v1 data and norma
 
 Phase 5B layers `DevOpsOperationsService` over that same state. It derives capability-aware health checks and evidence-backed findings for recorded pipeline failures, Terraform drift/errors, Kubernetes readiness/rollout problems, ArgoCD reconciliation issues, Helm state, Cilium/network-policy verification gaps, and observability warnings/failures. Missing modules are not invented and do not poison unrelated Labs with synthetic health checks. Suggested commands/remediation are guidance only.
 
-The operations API also publishes durable `GITOPS/...` Lab/pipeline contexts and scenario-ready definitions. Phase 6 uses those contexts in the unified recorded-state CLI. Familiar commands such as `terraform plan` or `kubectl get` are read aliases over recorded state only; the browser never invokes provider binaries or mutates scenario state. Shared scenario mutation/remediation/reset remains Phase 7. See `docs/DEVOPS_ENGINE_ARCHITECTURE.md`.
+The operations API also publishes durable `GITOPS/...` Lab/pipeline contexts and scenario definitions. Phase 6 uses those contexts in the unified CLI. Familiar commands such as `terraform plan` or `kubectl get` remain read aliases only. Phase 7 can overlay supported persisted DevOps scenario mutations for the browser session, while provider binaries/APIs remain disabled. See `docs/DEVOPS_ENGINE_ARCHITECTURE.md` and `docs/SCENARIO_ENGINE_ARCHITECTURE.md`.
 
 ## Unified Context-Aware CLI
 
-Phase 6 replaces the legacy representative terminal with `UnifiedCliService`, a shared read-only command interpreter over the same persisted state used by the three domain workspaces. Stable contexts use `NETOPS/...`, `RHEL/...`, and `GITOPS/...` identifiers. Global commands include `ctx`, `inspect`, `show`, `scenario list`, and `evidence`, with domain-specific recorded-state inspectors for routing/BGP/OSPF, RHEL services/storage/SELinux, and DevOps pipelines/Terraform/Kubernetes/GitOps.
+Phase 6 replaces the legacy representative terminal with `UnifiedCliService`, a shared context-aware interpreter over the same persisted state used by the three domain workspaces. Stable contexts use `NETOPS/...`, `RHEL/...`, and `GITOPS/...` identifiers. Recorded-state commands include `ctx`, `inspect`, `show`, `show health`, `evidence`, and the supported domain inspectors.
 
-The CLI does **not** spawn a shell, SSH to devices, send ICMP packets, invoke IOS, run `kubectl`, run Terraform, or mutate scenarios. Familiar command forms are accepted only as read aliases where a corresponding normalized state model exists. Missing evidence remains unknown/not recorded. See `docs/UNIFIED_CLI_ARCHITECTURE.md`.
+Phase 7 extends the same CLI with `scenario list`, `scenario status`, `scenario run <slug>`, `scenario verify`, `scenario remediate`, and `scenario reset`. When a scenario is active, the context reports `SCENARIO_RUNTIME`; otherwise it reports `RECORDED_STATE`.
+
+The CLI does **not** spawn a shell, SSH to devices, send ICMP packets, invoke IOS, run `kubectl`, run Terraform, Helm, ArgoCD, or provider APIs. Familiar command forms remain read aliases only. See `docs/UNIFIED_CLI_ARCHITECTURE.md`.
+
+## Session-Scoped Scenario Engine
+
+Phase 7 adds `ScenarioEngineService`, `ScenarioStateService`, `LabScenarioRuntime`, a safe mutation whitelist, the `/api/scenarios/*` lifecycle API, and a shared `ScenarioControlPanel` across Networking, Linux, and DevOps.
+
+A scenario affects only the browser session identified by the opaque `X-Lab-Session` header. `Lab.normalizedState` remains the immutable canonical baseline. Running a scenario stores a server-side snapshot of the persisted scenario action contract; domain reads clone the canonical state and apply only whitelisted mutations. Remediation disables the overlay, verification records active-scenario/recovery checks, and reset deletes the runtime. No client-supplied arbitrary mutation code is accepted.
+
+Lifecycle:
+
+```text
+RUN → OBSERVE/TROUBLESHOOT → VERIFY SCENARIO STATE → REMEDIATE → VERIFY RECOVERY → RESET
+```
+
+See `docs/SCENARIO_ENGINE_ARCHITECTURE.md`.
 
 ## Git workflow
 
@@ -163,4 +181,4 @@ Git is the source of truth.
 - Run `npm run verify` and inspect `git diff` before committing.
 - Read `AGENTS.md` and `docs/DEFERRED_IMPLEMENTATION_REGISTER.md` before every phase.
 
-Phase 2 through Phase 5 are complete. Phase 6 — Unified Context-Aware CLI is implemented in this package and must pass the consolidated verifier plus full-ZIP exit audit before Phase 7 begins.
+Phase 2 through Phase 6 are complete and exit-verified. Phase 7 is code-complete in this closeout candidate but must be revalidated after closeout changes; do not start Phase 8 until the canonical `npm run verify` and `docs/PHASE7_VALIDATION_RUNBOOK.md` browser/session-isolation checks pass.

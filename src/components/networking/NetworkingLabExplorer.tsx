@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { api } from '../../lib/api.js';
+import { ScenarioControlPanel } from '../scenarios/index.js';
 import type {
   NetworkingDeviceState,
   NetworkingLabState,
@@ -208,6 +209,7 @@ export const NetworkingLabExplorer: React.FC = () => {
           </div>
         ) : state ? (
           <>
+            <ScenarioControlPanel labSlug={state.lab.slug} onStateChange={() => loadLab(state.lab.slug)} />
             <div className="mb-5 flex flex-wrap gap-2">
               {state.lab.capabilities.map((capability) => (
                 <span key={capability} className="rounded border border-white/10 bg-white/5 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-white/55">

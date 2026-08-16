@@ -31,7 +31,7 @@ function welcome(context: UnifiedCliContext, note?: string): string {
   return [
     'Unified Infrastructure CLI v1',
     `Context: ${context.contextId}${target}`,
-    'Mode: RECORDED_STATE • mutable operations disabled • external command execution disabled',
+    `Mode: ${context.executionMode} • session scenario mutations: ${context.mutable ? 'enabled' : 'unavailable'} • external command execution disabled`,
     note ?? context.note,
     "Type 'help' for commands or 'ctx list' to switch Labs.",
   ].join('\n');
@@ -248,7 +248,7 @@ export const TerminalEmulator: React.FC = () => {
               </div>
               <div className="flex min-w-0 items-center gap-2 text-xs text-white/90">
                 <TerminalIcon className="h-4 w-4 shrink-0 text-[#00ff41]" />
-                <span className="truncate">Unified Recorded-State CLI</span>
+                <span className="truncate">Unified Recorded-State + Scenario CLI</span>
                 <span className="hidden text-white/35 md:inline">{context?.contextId ?? 'loading context...'}</span>
               </div>
             </div>
@@ -272,7 +272,7 @@ export const TerminalEmulator: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto border-b border-white/10 bg-[#16161a] px-3 py-2 text-xs no-scrollbar">
-            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-white/35">Recorded-state shortcuts:</span>
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-white/35">Context shortcuts:</span>
             {presets.map((command) => (
               <button
                 key={command}
@@ -312,7 +312,7 @@ export const TerminalEmulator: React.FC = () => {
                 onKeyDown={handleKeyDown}
                 disabled={isBusy || !context}
                 className="min-w-0 flex-1 border-none bg-transparent p-0 font-mono text-xs text-white outline-none placeholder:text-white/20 focus:ring-0 disabled:opacity-50"
-                placeholder={isBusy ? 'Reading persisted Lab state...' : "Try 'help', 'ctx list', 'inspect', or 'show health'"}
+                placeholder={isBusy ? 'Resolving Lab/session state...' : "Try 'help', 'scenario status', 'inspect', or 'show health'"}
                 autoComplete="off"
                 spellCheck={false}
               />
@@ -323,7 +323,7 @@ export const TerminalEmulator: React.FC = () => {
           <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#111114] px-4 py-2 text-[10px] text-white/40 sm:text-[11px]">
             <div className="flex min-w-0 items-center gap-2">
               <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#00ff41]" />
-              <span className="truncate">MODE: RECORDED_STATE • shell/provider execution: disabled • mutations: disabled</span>
+              <span className="truncate">MODE: {context?.executionMode ?? 'RECORDED_STATE'} • shell/provider execution: disabled • session scenario mutations: {context?.mutable ? 'enabled' : 'unavailable'}</span>
             </div>
             <span className="shrink-0 text-[#00d4ff]">{context?.domain ?? 'PORTFOLIO'}</span>
           </div>

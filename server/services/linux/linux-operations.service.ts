@@ -512,15 +512,15 @@ function scenarioReadiness(state: LinuxLabState): LinuxScenarioReadiness[] {
     summary: scenario.summary,
     enabled: scenario.isEnabled,
     observableSignals: scenarioSignals(scenario.expectedObservations),
-    executionAvailable: false,
+    executionAvailable: scenario.isEnabled,
   }));
 }
 
 export class LinuxOperationsService {
   constructor(private readonly linux: LinuxService) {}
 
-  async getOperations(identifier: string, hostKey?: string): Promise<LinuxOperationsSnapshot> {
-    const state = await this.linux.getPublic(identifier);
+  async getOperations(identifier: string, hostKey?: string, sessionKey?: string): Promise<LinuxOperationsSnapshot> {
+    const state = await this.linux.getPublic(identifier, sessionKey);
     const host = hostKey
       ? state.hosts.find((entry) => entry.key === hostKey)
       : state.hosts[0];
@@ -556,8 +556,8 @@ export class LinuxOperationsService {
     };
   }
 
-  async getContext(identifier: string, hostKey?: string): Promise<LinuxOperatorContext> {
-    const state = await this.linux.getPublic(identifier);
+  async getContext(identifier: string, hostKey?: string, sessionKey?: string): Promise<LinuxOperatorContext> {
+    const state = await this.linux.getPublic(identifier, sessionKey);
     const host = hostKey ? state.hosts.find((entry) => entry.key === hostKey) : null;
     if (hostKey && !host) throw new NotFoundError('Linux host not found');
 

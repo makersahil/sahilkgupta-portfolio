@@ -107,12 +107,12 @@ async function main(): Promise<void> {
       ready.id,
       [
         { nodeKey: 'client', label: 'Client', kind: 'workstation', position: { x: 100, y: 280 }, configuration: { device: { status: 'UP', managementIp: '10.10.10.10', interfaces: [{ name: 'eth0', ipAddress: '10.10.10.10', status: 'UP', vlan: '10' }] } } },
-        { nodeKey: 'router', label: 'Edge Router', kind: 'router', position: { x: 500, y: 280 }, configuration: { device: { status: 'UP', managementIp: '10.0.0.1', routingProtocols: ['OSPF'], configurationText: 'router ospf 1' } } },
-        { nodeKey: 'server', label: 'Server', kind: 'server', position: { x: 900, y: 280 }, configuration: { device: { status: 'UP', managementIp: '10.20.0.10' } } },
+        { nodeKey: 'router', label: 'Edge Router', kind: 'router', position: { x: 500, y: 280 }, configuration: { device: { status: 'UP', managementIp: '10.0.0.1', routingProtocols: ['OSPF'], configurationText: 'router ospf 1', interfaces: [{ name: 'Gi0/0', status: 'UP' }, { name: 'Gi0/1', status: 'UP' }] } } },
+        { nodeKey: 'server', label: 'Server', kind: 'server', position: { x: 900, y: 280 }, configuration: { device: { status: 'UP', managementIp: '10.20.0.10', interfaces: [{ name: 'eth0', status: 'UP' }] } } },
       ],
       [
-        { linkKey: 'client-router', sourceNodeKey: 'client', targetNodeKey: 'router', kind: 'access', configuration: { status: 'UP', protocol: 'Ethernet' } },
-        { linkKey: 'router-server', sourceNodeKey: 'router', targetNodeKey: 'server', kind: 'routed', configuration: { status: 'UP', protocol: 'OSPF' } },
+        { linkKey: 'client-router', sourceNodeKey: 'client', targetNodeKey: 'router', kind: 'access', configuration: { status: 'UP', protocol: 'Ethernet', sourceInterface: 'eth0', targetInterface: 'Gi0/0' } },
+        { linkKey: 'router-server', sourceNodeKey: 'router', targetNodeKey: 'server', kind: 'routed', configuration: { status: 'UP', protocol: 'OSPF', sourceInterface: 'Gi0/1', targetInterface: 'eth0' } },
       ],
     );
 
@@ -158,6 +158,22 @@ async function main(): Promise<void> {
     assert.equal(trace.status, 'PATH_FOUND');
     assert.deepEqual(trace.hops, ['client', 'router', 'server']);
     assert.deepEqual(trace.linkKeys, ['client-router', 'router-server']);
+
+    await labService.replaceTopology(
+      ready.id,
+      [
+        { nodeKey: 'client', label: 'Client', kind: 'workstation', position: { x: 100, y: 280 }, configuration: { device: { status: 'UP', managementIp: '10.10.10.10', interfaces: [{ name: 'eth0', ipAddress: '10.10.10.10', status: 'UP', vlan: '10' }] } } },
+        { nodeKey: 'router', label: 'Edge Router', kind: 'router', position: { x: 500, y: 280 }, configuration: { device: { status: 'UP', managementIp: '10.0.0.1', routingProtocols: ['OSPF'], configurationText: 'router ospf 1', interfaces: [{ name: 'Gi0/0', status: 'UP' }, { name: 'Gi0/1', status: 'DOWN' }] } } },
+        { nodeKey: 'server', label: 'Server', kind: 'server', position: { x: 900, y: 280 }, configuration: { device: { status: 'UP', managementIp: '10.20.0.10', interfaces: [{ name: 'eth0', status: 'UP' }] } } },
+      ],
+      [
+        { linkKey: 'client-router', sourceNodeKey: 'client', targetNodeKey: 'router', kind: 'access', configuration: { status: 'UP', protocol: 'Ethernet', sourceInterface: 'eth0', targetInterface: 'Gi0/0' } },
+        { linkKey: 'router-server', sourceNodeKey: 'router', targetNodeKey: 'server', kind: 'routed', configuration: { status: 'UP', protocol: 'OSPF', sourceInterface: 'Gi0/1', targetInterface: 'eth0' } },
+      ],
+    );
+    const interfaceDown = await networkingService.tracePath(ready.slug, 'client', 'server', 'ICMP');
+    assert.equal(interfaceDown.status, 'UNREACHABLE', 'core topology trace must exclude links attached to DOWN endpoint interfaces');
+    assert.deepEqual(interfaceDown.hops, []);
 
     const unreachable = await networkingService.tracePath(secondary.slug, 'left', 'right', 'ICMP');
     assert.equal(unreachable.status, 'UNREACHABLE');

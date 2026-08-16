@@ -53,6 +53,7 @@ async function main(): Promise<void> {
   assert.match(explorer, /LinuxOperationsPanel/);
   assert.match(explorer, /persisted Lab manifests/i);
   assert.doesNotMatch(explorer, /rhel9-hardening-environment|proj-rhel|Math\.random/i);
+  assert.doesNotMatch(explorer, /contextual command execution remains Phase 6|mutable scenario execution remains Phase 7/i);
 
   assert.match(inspector, /systemd|Services/i);
   assert.match(inspector, /SELinux/);
@@ -96,7 +97,10 @@ async function main(): Promise<void> {
   assert.match(operationsPanel, /getLinuxOperations/);
   assert.match(operationsPanel, /getLinuxContext/);
   assert.match(operationsPanel, /Suggested inspection commands/i);
-  assert.match(operationsPanel, /Execution unavailable until Scenario Engine/i);
+  assert.match(operationsPanel, /session runnable/i);
+  assert.match(operationsPanel, /Run from the Scenario Runtime panel/i);
+  assert.match(operationsPanel, /Unified CLI/i);
+  assert.doesNotMatch(operationsPanel, /Execution unavailable until Scenario Engine|future unified CLI|Phase 4B exposes/i);
   assert.doesNotMatch(operationsPanel, /rhel9-hardening-environment|proj-rhel|Math\.random/i);
 
   assert.match(apiClient, /getLinuxOperations/);

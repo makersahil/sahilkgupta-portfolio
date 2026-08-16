@@ -74,6 +74,12 @@ enum EvidenceKind {
   OTHER
 }
 
+enum ScenarioRuntimeStatus {
+  ACTIVE
+  REMEDIATED
+  VERIFIED
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -262,6 +268,7 @@ model Lab {
   nodes        LabNode[]
   links        LabLink[]
   scenarios    LabScenario[]
+  scenarioRuntimes LabScenarioRuntime[]
   runbookSteps LabRunbookStep[]
   evidence     Evidence[]
   artifacts    Artifact[]       @relation("LabArtifact")
@@ -349,10 +356,34 @@ model LabScenario {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  lab Lab @relation(fields: [labId], references: [id], onDelete: Cascade)
+  lab      Lab                  @relation(fields: [labId], references: [id], onDelete: Cascade)
+  runtimes LabScenarioRuntime[]
 
   @@unique([labId, slug])
   @@index([labId, order])
+}
+
+model LabScenarioRuntime {
+  id             String                @id @default(cuid())
+  sessionKey     String
+  labId          String
+  scenarioId     String
+  status         ScenarioRuntimeStatus @default(ACTIVE)
+  appliedActions Json?
+  verification   Json?
+  startedAt      DateTime              @default(now())
+  remediatedAt   DateTime?
+  verifiedAt     DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  lab      Lab         @relation(fields: [labId], references: [id], onDelete: Cascade)
+  scenario LabScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionKey, labId])
+  @@index([labId, status])
+  @@index([sessionKey, updatedAt])
+  @@index([scenarioId])
 }
 
 model LabRunbookStep {
