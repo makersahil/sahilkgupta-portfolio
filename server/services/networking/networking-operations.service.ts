@@ -611,7 +611,7 @@ export class NetworkingOperationsService {
       device: device ? { key: device.key, label: device.label, kind: device.kind } : null,
       availableInspectors: [...new Set(inspectors)],
       executionAvailable: false,
-      note: 'This is a durable context contract for the future unified CLI. Phase 3B exposes inspection context only and does not execute arbitrary device commands.',
+      note: 'This durable NETOPS context contract is consumed by the Phase 6 unified recorded-state CLI. The operations API itself does not execute arbitrary device commands.',
     };
   }
 }

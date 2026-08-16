@@ -38,6 +38,8 @@ import {
   CanonicalLabManifestV1,
   AdminAuditLog,
   LabDomain,
+  UnifiedCliBootstrap,
+  UnifiedCliExecutionResult,
 } from '../types.js';
 
 export type ApiErrorCode =
@@ -509,7 +511,34 @@ class ApiClient {
     return true;
   }
 
-  // Terminal Exec
+  // Unified recorded-state CLI. execTerminal is retained as a small compatibility wrapper.
+  async getCliBootstrap(category?: string): Promise<UnifiedCliBootstrap> {
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    const query = params.toString();
+    return this.requestData<UnifiedCliBootstrap>(`/api/terminal/bootstrap${query ? `?${query}` : ''}`);
+  }
+
+  async execCli(command: string, contextId?: string, category?: string): Promise<UnifiedCliExecutionResult> {
+    const endpoint = '/api/terminal/exec';
+    const { payload, status } = await this.requestWithMeta<UnifiedCliExecutionResult>(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command, contextId, category }),
+    });
+    if (
+      !isRecord(payload) ||
+      payload.schemaVersion !== 'cli.v1' ||
+      typeof payload.output !== 'string' ||
+      typeof payload.exitCode !== 'number' ||
+      !isRecord(payload.context) ||
+      typeof payload.context.contextId !== 'string'
+    ) {
+      return this.invalidPayload(endpoint, payload, 'The CLI response was incomplete.', 'POST', status);
+    }
+    return payload as unknown as UnifiedCliExecutionResult;
+  }
+
   async execTerminal(command: string, category?: string): Promise<{ output: string; exitCode: number }> {
     const endpoint = '/api/terminal/exec';
     const { payload, status } = await this.requestWithMeta<{ output: string; exitCode: number }>(endpoint, {
@@ -520,7 +549,7 @@ class ApiClient {
     if (!isRecord(payload) || typeof payload.output !== 'string' || typeof payload.exitCode !== 'number') {
       return this.invalidPayload(endpoint, payload, 'The terminal response was incomplete.', 'POST', status);
     }
-    return payload as { output: string; exitCode: number };
+    return { output: payload.output, exitCode: payload.exitCode };
   }
 
   // Dynamic Networking Lab Engine

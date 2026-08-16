@@ -10,7 +10,7 @@ The dark cyber-terminal/control-plane visual language is intentional. Representa
 
 ## Current architecture
 
-Phase 2, Phase 3, and Phase 4 are complete platform/domain baselines. Phase 5A provides the reusable Core Dynamic DevOps Engine. Phase 5B adds recorded-state DevOps Investigation and Operations and is implemented in this package pending local/full-ZIP exit verification.
+Phase 2 through Phase 5 are complete platform/domain baselines. Phase 6 implements the unified context-aware recorded-state CLI across Networking, Linux, and DevOps and is pending the Phase 6 exit verification gate.
 
 ```text
 Browser / React
@@ -18,6 +18,7 @@ Browser / React
   ├─ labs → /api/labs/* → LabService / LabManifestService → PrismaLabRepository → PostgreSQL
   ├─ auth → /api/auth/* → AuthService → PrismaAuthRepository → User + AuthSession
   ├─ admin → authenticated content/lab APIs → PostgreSQL + persisted AuditLog
+  ├─ unified CLI → /api/terminal/* → UnifiedCliService → domain engines → persisted Lab state
   ├─ media references → MediaService → PrismaArtifactRepository → Artifact
   └─ architecture metrics → SystemMetricsService → PrismaSystemRepository → PostgreSQL counts
 ```
@@ -56,6 +57,7 @@ server/services/system/               truthful runtime metrics service
 server/services/networking/           dynamic Networking adapter, engine, and operations services
 server/services/linux/                dynamic Linux adapter and core host-state engine
 server/services/devops/               dynamic DevOps adapter, delivery-state engine, and recorded-state operations
+server/services/cli/                  unified context-aware recorded-state command interpreter
 server/repositories/contracts/        repository contracts
 server/repositories/prisma/           PostgreSQL/Prisma repositories
 server/middlewares/                   persisted auth, async, and error middleware
@@ -114,7 +116,7 @@ npm run verify:quick
 npm run verify:tests
 ```
 
-The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, the Dynamic Networking Engine and operations, the Dynamic Linux Engine and operations, and the Dynamic DevOps Engine plus recorded-state DevOps operations regressions.
+The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, all three dynamic domain engines and operations layers, plus the unified CLI static/service/HTTP regressions.
 
 ## Media and Packet Tracer truthfulness
 
@@ -127,13 +129,13 @@ The old synthetic `/api/network/upload-pkt` parser has been retired. Packet Trac
 
 Published Networking Labs are rendered from `Lab`, `LabInput`, `LabNode`, `LabLink`, runbook, evidence, scenarios, and normalized `networking.v1` state. The same engine supports multiple projects and multiple Labs per project. Core inspection includes dynamic topology, device/interface/configuration views, routing/VLAN/ACL snapshots, and deterministic topology reachability. The operations layer adds recorded BGP/OSPF neighbor inspection, first-hop redundancy state, health derivation, IPv4 longest-prefix route lookup, conservative recorded-state forwarding/ACL analysis, a durable `NETOPS/...` context contract, and scenario-ready definitions.
 
-These operations are derived from persisted snapshots, not live device telemetry or a full IOS/ASA emulator. CLI command execution remains Phase 6 and mutable scenario execution/reset remains Phase 7. Packet Tracer remains a truthful reference input; arbitrary `.pkt` binary parsing is not claimed. See `docs/NETWORKING_ENGINE_ARCHITECTURE.md`.
+These operations are derived from persisted snapshots, not live device telemetry or a full IOS/ASA emulator. Phase 6 now provides read-only contextual CLI commands over the same recorded state; mutable scenario execution/reset remains Phase 7. Packet Tracer remains a truthful reference input; arbitrary `.pkt` binary parsing is not claimed. See `docs/NETWORKING_ENGINE_ARCHITECTURE.md`.
 
 ## Dynamic Linux Engine
 
 Published Linux Labs are rendered from canonical Lab Manifest v1 data and normalized `linux.v1` host state. The same engine supports multiple Linux projects and multiple Labs per project. Core inspection covers persisted host identity, RHEL release/kernel, systemd service snapshots, block/LVM/filesystem/mount state, `/etc/fstab`, SELinux, network state, recorded logs, configuration files, and verification records.
 
-The engine renders recorded state only. Phase 4B derives service/storage/SELinux/network/log health, evidence-backed investigation findings, suggested remediation guidance, `RHEL/...` operator contexts, and scenario-ready definitions without executing shell commands. Contextual CLI execution is Phase 6, and mutable scenario execution/reset is Phase 7. See `docs/LINUX_ENGINE_ARCHITECTURE.md`.
+The engine renders recorded state only. Phase 4B derives service/storage/SELinux/network/log health, evidence-backed investigation findings, suggested remediation guidance, `RHEL/...` operator contexts, and scenario-ready definitions without executing shell commands. Phase 6 now exposes safe read-only CLI commands over that state; mutable scenario execution/reset is Phase 7. See `docs/LINUX_ENGINE_ARCHITECTURE.md`.
 
 ## Dynamic DevOps Engine
 
@@ -141,7 +143,13 @@ Published DevOps Labs are rendered from canonical Lab Manifest v1 data and norma
 
 Phase 5B layers `DevOpsOperationsService` over that same state. It derives capability-aware health checks and evidence-backed findings for recorded pipeline failures, Terraform drift/errors, Kubernetes readiness/rollout problems, ArgoCD reconciliation issues, Helm state, Cilium/network-policy verification gaps, and observability warnings/failures. Missing modules are not invented and do not poison unrelated Labs with synthetic health checks. Suggested commands/remediation are guidance only.
 
-The operations API also publishes durable, non-executing `GITOPS/...` Lab/pipeline contexts and scenario-ready definitions. The browser never replays a fake pipeline, runs Terraform/kubectl/Helm/ArgoCD/Cilium commands, or mutates scenario state. Unified contextual command execution remains Phase 6 and shared scenario mutation/remediation/reset remains Phase 7. See `docs/DEVOPS_ENGINE_ARCHITECTURE.md`.
+The operations API also publishes durable `GITOPS/...` Lab/pipeline contexts and scenario-ready definitions. Phase 6 uses those contexts in the unified recorded-state CLI. Familiar commands such as `terraform plan` or `kubectl get` are read aliases over recorded state only; the browser never invokes provider binaries or mutates scenario state. Shared scenario mutation/remediation/reset remains Phase 7. See `docs/DEVOPS_ENGINE_ARCHITECTURE.md`.
+
+## Unified Context-Aware CLI
+
+Phase 6 replaces the legacy representative terminal with `UnifiedCliService`, a shared read-only command interpreter over the same persisted state used by the three domain workspaces. Stable contexts use `NETOPS/...`, `RHEL/...`, and `GITOPS/...` identifiers. Global commands include `ctx`, `inspect`, `show`, `scenario list`, and `evidence`, with domain-specific recorded-state inspectors for routing/BGP/OSPF, RHEL services/storage/SELinux, and DevOps pipelines/Terraform/Kubernetes/GitOps.
+
+The CLI does **not** spawn a shell, SSH to devices, send ICMP packets, invoke IOS, run `kubectl`, run Terraform, or mutate scenarios. Familiar command forms are accepted only as read aliases where a corresponding normalized state model exists. Missing evidence remains unknown/not recorded. See `docs/UNIFIED_CLI_ARCHITECTURE.md`.
 
 ## Git workflow
 
@@ -155,4 +163,4 @@ Git is the source of truth.
 - Run `npm run verify` and inspect `git diff` before committing.
 - Read `AGENTS.md` and `docs/DEFERRED_IMPLEMENTATION_REGISTER.md` before every phase.
 
-Phase 2 through Phase 4 are complete. Phase 5A is the Core Dynamic DevOps baseline. Phase 5B — DevOps Investigation and Operations is implemented in this package and must pass the consolidated verifier plus full-ZIP exit audit before Phase 5 is closed and Phase 6 begins.
+Phase 2 through Phase 5 are complete. Phase 6 — Unified Context-Aware CLI is implemented in this package and must pass the consolidated verifier plus full-ZIP exit audit before Phase 7 begins.

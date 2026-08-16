@@ -1,268 +1,228 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import {
-  Terminal as TerminalIcon,
-  X,
+  Check,
+  Copy,
+  Download,
   Maximize2,
   Minimize2,
-  Copy,
+  Terminal as TerminalIcon,
   Trash2,
-  Play,
-  Download,
-  Check,
-  ChevronRight,
-  Shield,
-  Network,
-  Server,
-  Sparkles,
+  X,
 } from 'lucide-react';
-import { api } from '../lib/api.js';
+
 import { usePortfolio } from '../context/PortfolioContext.js';
+import { api } from '../lib/api.js';
+import type { UnifiedCliContext } from '../types.js';
 
 interface TerminalLine {
   id: string;
+  prompt?: string;
   command?: string;
   output: string;
   type: 'input' | 'output' | 'system' | 'error';
   timestamp: string;
 }
 
-function parseAnsi(text: string): React.ReactNode {
-  if (!text) return null;
+const now = () => new Date().toLocaleTimeString();
 
-  const lines = text.split('\n');
-
-  return lines.map((line, lIdx) => {
-    const parts = line.split(/(\x1b\[[0-9;]*m)/g);
-    let currentColorClass = '';
-    let customColorStyle: React.CSSProperties = {};
-
-    const lineContent = parts.map((part, pIdx) => {
-      if (part.startsWith('\x1b[')) {
-        if (part === '\x1b[0m') {
-          currentColorClass = '';
-          customColorStyle = {};
-        } else if (part.includes('38;2;6,182,212')) {
-          customColorStyle = { color: '#06b6d4' };
-        } else if (part.includes('38;2;16,185,129')) {
-          customColorStyle = { color: '#10b981' };
-        } else if (part.includes('38;2;59,130,246')) {
-          customColorStyle = { color: '#3b82f6' };
-        } else if (part.includes('38;2;245,158,11')) {
-          customColorStyle = { color: '#f59e0b' };
-        } else if (part.includes('38;2;139,92,246')) {
-          customColorStyle = { color: '#8b5cf6' };
-        } else if (part.includes('38;2;156,163,175')) {
-          customColorStyle = { color: '#9ca3af' };
-        } else if (part === '\x1b[32m') {
-          customColorStyle = { color: '#10b981' };
-        } else if (part === '\x1b[33m') {
-          customColorStyle = { color: '#fbbf24' };
-        } else if (part === '\x1b[31m') {
-          customColorStyle = { color: '#ef4444' };
-        }
-        return null;
-      }
-
-      return (
-        <span key={pIdx} className={currentColorClass} style={customColorStyle}>
-          {part}
-        </span>
-      );
-    });
-
-    return (
-      <div key={lIdx} className="min-h-[1.25rem] leading-relaxed">
-        {lineContent}
-      </div>
-    );
-  });
+function welcome(context: UnifiedCliContext, note?: string): string {
+  const target = context.target ? ` • ${context.target.kind.toLowerCase()}: ${context.target.label}` : '';
+  return [
+    'Unified Infrastructure CLI v1',
+    `Context: ${context.contextId}${target}`,
+    'Mode: RECORDED_STATE • mutable operations disabled • external command execution disabled',
+    note ?? context.note,
+    "Type 'help' for commands or 'ctx list' to switch Labs.",
+  ].join('\n');
 }
 
-const COMMAND_AUTOCOMPLETE = [
-  'help',
-  'neofetch',
-  'uname -a',
-  'sestatus',
-  'getenforce',
-  'systemctl status nginx',
-  'systemctl list-units',
-  'ip a',
-  'ip route',
-  'lsblk',
-  'cisco show run',
-  'cisco show ip route',
-  'cisco show vlan',
-  'kubectl get nodes',
-  'kubectl get pods -A',
-  'docker ps',
-  'ping 1.1.1.1',
-  'traceroute 8.8.8.8',
-  './deploy_k8s.sh',
-  './configure_ospf.sh',
-  './selinux_audit.sh',
-  './benchmark_storage.sh',
-  'whoami',
-  'uptime',
-  'clear',
-];
+function presetCommands(context: UnifiedCliContext | null): string[] {
+  if (!context || context.domain === 'PORTFOLIO') return ['ctx list', 'help'];
+  if (context.domain === 'NETWORKING') return ['inspect', 'show health', 'show topology', 'show routes', 'scenario list', 'evidence'];
+  if (context.domain === 'LINUX') return ['inspect', 'show health', 'show services', 'show selinux', 'show storage', 'scenario list', 'evidence'];
+  return ['inspect', 'show health', 'show pipelines', 'show terraform', 'show kubernetes', 'scenario list', 'evidence'];
+}
 
 export const TerminalEmulator: React.FC = () => {
   const { isTerminalOpen, setIsTerminalOpen, activeCategory } = usePortfolio();
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [inputVal, setInputVal] = useState('');
   const [history, setHistory] = useState<string[]>([]);
-  const [historyIdx, setHistoryIdx] = useState<number>(-1);
+  const [historyIdx, setHistoryIdx] = useState(-1);
   const [copied, setCopied] = useState(false);
-
-  const [lines, setLines] = useState<TerminalLine[]>([
-    {
-      id: 'init-1',
-      output: `\x1b[38;2;6,182,212mSahil K Gupta - Enterprise Systems & Network CLI (RHCSA | CCNA | DevOps)\x1b[0m
-Kernel: 5.14.0-427.18.1.el9_4.x86_64 | SELinux: Enforcing | WAN BGP: AS 65001
-Type '\x1b[33mhelp\x1b[0m' or click any of the automation preset badges below.`,
-      type: 'system',
-      timestamp: new Date().toLocaleTimeString(),
-    },
-  ]);
+  const [isBusy, setIsBusy] = useState(false);
+  const [context, setContext] = useState<UnifiedCliContext | null>(null);
+  const [commandHints, setCommandHints] = useState<string[]>(['help', 'ctx list', 'inspect', 'show health', 'scenario list', 'evidence', 'clear']);
+  const [lines, setLines] = useState<TerminalLine[]>([]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastBootstrapKey = useRef<string | null>(null);
+
+  const prompt = context?.prompt ?? 'PORTFOLIO>';
+  const presets = useMemo(() => presetCommands(context), [context]);
 
   useEffect(() => {
-    if (isTerminalOpen) {
-      setTimeout(() => {
-        inputRef.current?.focus();
-        bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
-    }
-  }, [isTerminalOpen, lines]);
-
-  const handleCommand = async (cmdToRun?: string) => {
-    const rawCmd = cmdToRun !== undefined ? cmdToRun : inputVal;
-    const cmd = rawCmd.trim();
-    if (!cmd) return;
-
-    setHistory((prev) => [...prev, cmd]);
-    setHistoryIdx(-1);
-    setInputVal('');
-
-    if (cmd.toLowerCase() === 'clear') {
-      setLines([]);
+    if (!isTerminalOpen) {
+      lastBootstrapKey.current = null;
       return;
     }
 
-    const userLineId = `line-${Date.now()}`;
-    setLines((prev) => [
-      ...prev,
-      {
-        id: userLineId,
-        command: cmd,
-        output: '',
-        type: 'input',
-        timestamp: new Date().toLocaleTimeString(),
-      },
-    ]);
+    const key = activeCategory?.slug ?? 'portfolio';
+    if (lastBootstrapKey.current === key && context) return;
+    lastBootstrapKey.current = key;
 
-    try {
-      const res = await api.execTerminal(cmd, activeCategory?.slug);
-      if (res.output === '__CLEAR__') {
-        setLines([]);
-      } else {
-        setLines((prev) => [
-          ...prev,
+    let cancelled = false;
+    setIsBusy(true);
+    api.getCliBootstrap(activeCategory?.slug)
+      .then((bootstrap) => {
+        if (cancelled) return;
+        setContext(bootstrap.context);
+        setCommandHints(bootstrap.commandHints);
+        setLines((previous) => [
+          ...previous,
           {
-            id: `res-${Date.now()}`,
-            output: res.output,
-            type: res.exitCode === 0 ? 'output' : 'error',
-            timestamp: new Date().toLocaleTimeString(),
+            id: `bootstrap-${Date.now()}`,
+            output: welcome(bootstrap.context, bootstrap.note),
+            type: 'system',
+            timestamp: now(),
           },
         ]);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : 'Unable to load CLI context';
+        setLines((previous) => [
+          ...previous,
+          { id: `bootstrap-error-${Date.now()}`, output: `CLI bootstrap failed: ${message}`, type: 'error', timestamp: now() },
+        ]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsBusy(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isTerminalOpen, activeCategory?.slug]);
+
+  useEffect(() => {
+    if (!isTerminalOpen) return;
+    const timer = window.setTimeout(() => {
+      inputRef.current?.focus();
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [isTerminalOpen, lines, isBusy]);
+
+  const handleCommand = async (commandOverride?: string) => {
+    const raw = commandOverride ?? inputVal;
+    const command = raw.trim();
+    if (!command || isBusy) return;
+
+    setHistory((previous) => [...previous, command]);
+    setHistoryIdx(-1);
+    setInputVal('');
+    const commandPrompt = prompt;
+    setLines((previous) => [
+      ...previous,
+      { id: `input-${Date.now()}`, prompt: commandPrompt, command, output: '', type: 'input', timestamp: now() },
+    ]);
+
+    setIsBusy(true);
+    try {
+      const response = await api.execCli(command, context?.contextId, activeCategory?.slug);
+      setContext(response.context);
+      if (response.clear) {
+        setLines([]);
+      } else {
+        const responseLines: TerminalLine[] = [];
+        if (response.contextChanged) {
+          responseLines.push({
+            id: `context-${Date.now()}`,
+            output: `Context: ${response.context.contextId}\n${response.context.note}`,
+            type: 'system',
+            timestamp: now(),
+          });
+        }
+        if (response.output) {
+          responseLines.push({
+            id: `output-${Date.now()}-${responseLines.length}`,
+            output: response.output,
+            type: response.exitCode === 0 ? 'output' : 'error',
+            timestamp: now(),
+          });
+        }
+        setLines((previous) => [...previous, ...responseLines]);
       }
-    } catch (err: any) {
-      setLines((prev) => [
-        ...prev,
-        {
-          id: `err-${Date.now()}`,
-          output: `Execution error: ${err.message || 'Server connection lost'}`,
-          type: 'error',
-          timestamp: new Date().toLocaleTimeString(),
-        },
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Backend request failed';
+      setLines((previous) => [
+        ...previous,
+        { id: `error-${Date.now()}`, output: `CLI request failed: ${message}`, type: 'error', timestamp: now() },
       ]);
+    } finally {
+      setIsBusy(false);
     }
   };
 
-  const getPromptUser = () => {
-    if (!activeCategory) return 'sahil@infra-cli';
-    const slug = activeCategory.slug.toLowerCase();
-    if (slug.includes('network')) return 'sahil@netops-cli';
-    if (slug.includes('linux')) return 'sahil@rhel9-infra';
-    if (slug.includes('devops')) return 'sahil@devops-runner';
-    return 'sahil@infra-cli';
-  };
-
-  const getTerminalColors = () => {
-    if (!activeCategory) return { text: 'text-[#00ff41]', label: 'text-[#00ff41]' };
-    const slug = activeCategory.slug.toLowerCase();
-    if (slug.includes('network')) return { text: 'text-[#00d4ff]', label: 'text-[#00d4ff]' };
-    if (slug.includes('devops')) return { text: 'text-[#06b6d4]', label: 'text-[#06b6d4]' };
-    return { text: 'text-[#00ff41]', label: 'text-[#00ff41]' }; // Linux default
-  };
-
-  const colors = getTerminalColors();
-  const promptUser = getPromptUser();
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleCommand();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (history.length === 0) return;
-      const nextIdx = historyIdx === -1 ? history.length - 1 : Math.max(0, historyIdx - 1);
-      setHistoryIdx(nextIdx);
-      setInputVal(history[nextIdx] || '');
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      void handleCommand();
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!history.length) return;
+      const next = historyIdx === -1 ? history.length - 1 : Math.max(0, historyIdx - 1);
+      setHistoryIdx(next);
+      setInputVal(history[next] ?? '');
+      return;
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
       if (historyIdx === -1) return;
-      const nextIdx = historyIdx + 1;
-      if (nextIdx >= history.length) {
+      const next = historyIdx + 1;
+      if (next >= history.length) {
         setHistoryIdx(-1);
         setInputVal('');
       } else {
-        setHistoryIdx(nextIdx);
-        setInputVal(history[nextIdx] || '');
+        setHistoryIdx(next);
+        setInputVal(history[next] ?? '');
       }
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      const current = inputVal.toLowerCase().trim();
+      return;
+    }
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      const current = inputVal.trim().toLowerCase();
       if (!current) return;
-      const match = COMMAND_AUTOCOMPLETE.find((c) => c.startsWith(current));
-      if (match) {
-        setInputVal(match);
-      }
+      const match = commandHints.find((hint) => hint.toLowerCase().startsWith(current) && !hint.includes('<'));
+      if (match) setInputVal(match);
     }
   };
 
-  const copyTranscript = () => {
-    const transcript = lines
-      .map((l) => (l.command ? `[sahil@rhel9-node01 ~]# ${l.command}` : l.output))
-      .join('\n');
-    navigator.clipboard.writeText(transcript);
+  const transcript = () => lines.map((line) => {
+    if (line.command) return `${line.prompt ?? prompt} ${line.command}`;
+    return line.output;
+  }).join('\n');
+
+  const copyTranscript = async () => {
+    await navigator.clipboard.writeText(transcript());
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    window.setTimeout(() => setCopied(false), 1800);
   };
 
   const downloadTranscript = () => {
-    const transcript = lines
-      .map((l) => (l.command ? `[sahil@rhel9-node01 ~]# ${l.command}` : l.output))
-      .join('\n');
-    const blob = new Blob([transcript], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([transcript()], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sahil-gupta-terminal-transcript-${Date.now()}.log`;
-    a.click();
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `portfolio-cli-${new Date().toISOString().replaceAll(':', '-')}.log`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
     URL.revokeObjectURL(url);
   };
 
@@ -270,198 +230,102 @@ Type '\x1b[33mhelp\x1b[0m' or click any of the automation preset badges below.`,
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-2 backdrop-blur-sm sm:p-6">
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 15 }}
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 15 }}
-          transition={{ duration: 0.2 }}
-          className={`w-full flex flex-col rounded-xl bg-black border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.9)] overflow-hidden font-mono ${
+          exit={{ opacity: 0, scale: 0.98, y: 10 }}
+          className={`flex w-full flex-col overflow-hidden rounded-xl border border-white/15 bg-black font-mono shadow-[0_30px_90px_rgba(0,0,0,0.9)] ${
             isFullScreen ? 'h-[96vh] max-w-[98vw]' : 'h-[650px] max-w-5xl'
           }`}
         >
-          {/* Terminal Titlebar */}
-          <div className="flex items-center justify-between px-4 py-2.5 bg-[#111114] border-b border-white/10 select-none">
-            <div className="flex items-center space-x-3">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => setIsTerminalOpen(false)}
-                  className="w-3 h-3 rounded-full bg-[#ff4100] hover:brightness-110"
-                  title="Close Terminal"
-                />
-                <button
-                  onClick={() => setIsFullScreen(!isFullScreen)}
-                  className="w-3 h-3 rounded-full bg-yellow-500/90 hover:brightness-110"
-                  title="Toggle Fullscreen"
-                />
-                <button
-                  onClick={() => setLines([])}
-                  className="w-3 h-3 rounded-full bg-[#00ff41] hover:brightness-110"
-                  title="Clear Screen"
-                />
+          <div className="flex items-center justify-between border-b border-white/10 bg-[#111114] px-4 py-2.5 select-none">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setIsTerminalOpen(false)} className="h-3 w-3 rounded-full bg-[#ff4100]" title="Close CLI" />
+                <button onClick={() => setIsFullScreen((value) => !value)} className="h-3 w-3 rounded-full bg-yellow-500/90" title="Toggle fullscreen" />
+                <button onClick={() => setLines([])} className="h-3 w-3 rounded-full bg-[#00ff41]" title="Clear transcript" />
               </div>
-              <div className="flex items-center space-x-2 text-xs text-white/90 font-medium">
-                <TerminalIcon className="w-4 h-4 text-[#00ff41]" />
-                <span>sahil@rhel9-infra-node01:~ (Bash 5.1.8 &bull; xterm-256color)</span>
+              <div className="flex min-w-0 items-center gap-2 text-xs text-white/90">
+                <TerminalIcon className="h-4 w-4 shrink-0 text-[#00ff41]" />
+                <span className="truncate">Unified Recorded-State CLI</span>
+                <span className="hidden text-white/35 md:inline">{context?.contextId ?? 'loading context...'}</span>
               </div>
             </div>
-
-            <div className="flex items-center space-x-1.5">
-              <button
-                onClick={copyTranscript}
-                className="p-1.5 rounded text-white/40 hover:text-white hover:bg-white/10 transition-colors text-xs flex items-center gap-1"
-                title="Copy Terminal Transcript"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-[#00ff41]" /> : <Copy className="w-3.5 h-3.5" />}
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => void copyTranscript()} className="rounded p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white" title="Copy transcript">
+                {copied ? <Check className="h-3.5 w-3.5 text-[#00ff41]" /> : <Copy className="h-3.5 w-3.5" />}
               </button>
-              <button
-                onClick={downloadTranscript}
-                className="p-1.5 rounded text-white/40 hover:text-white hover:bg-white/10 transition-colors text-xs"
-                title="Download .log file"
-              >
-                <Download className="w-3.5 h-3.5" />
+              <button onClick={downloadTranscript} className="rounded p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white" title="Export transcript">
+                <Download className="h-3.5 w-3.5" />
               </button>
-              <button
-                onClick={() => setLines([])}
-                className="p-1.5 rounded text-white/40 hover:text-[#ff4100] hover:bg-white/10 transition-colors text-xs"
-                title="Clear Output"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
+              <button onClick={() => setLines([])} className="rounded p-1.5 text-white/40 transition hover:bg-white/10 hover:text-[#ff4100]" title="Clear transcript">
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
-              <button
-                onClick={() => setIsFullScreen(!isFullScreen)}
-                className="p-1.5 rounded text-white/40 hover:text-white hover:bg-white/10 transition-colors text-xs"
-              >
-                {isFullScreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              <button onClick={() => setIsFullScreen((value) => !value)} className="rounded p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white" title="Toggle fullscreen">
+                {isFullScreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
               </button>
-              <button
-                onClick={() => setIsTerminalOpen(false)}
-                className="p-1.5 rounded text-white/40 hover:text-white hover:bg-white/10 transition-colors text-xs"
-              >
-                <X className="w-4 h-4" />
+              <button onClick={() => setIsTerminalOpen(false)} className="rounded p-1.5 text-white/40 transition hover:bg-white/10 hover:text-white" title="Close">
+                <X className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          {/* Preset Command Strip */}
-          <div className="px-3 py-2 bg-[#16161a] border-b border-white/10 flex items-center space-x-2 overflow-x-auto no-scrollbar text-xs">
-            <span className="text-[10px] text-white/40 font-bold uppercase tracking-wider shrink-0">
-              Execute Preset:
-            </span>
-            <button
-              onClick={() => handleCommand('./deploy_k8s.sh')}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded bg-black hover:bg-[#00d4ff]/10 text-[#00d4ff] border border-white/10 hover:border-[#00d4ff]/40 shrink-0 transition-colors text-[11px]"
-            >
-              <Play className="w-3 h-3 text-[#00d4ff]" />
-              <span>./deploy_k8s.sh</span>
-            </button>
-            <button
-              onClick={() => handleCommand('./configure_ospf.sh')}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded bg-black hover:bg-[#00d4ff]/10 text-[#00d4ff] border border-white/10 hover:border-[#00d4ff]/40 shrink-0 transition-colors text-[11px]"
-            >
-              <Network className="w-3 h-3 text-[#00d4ff]" />
-              <span>./configure_ospf.sh</span>
-            </button>
-            <button
-              onClick={() => handleCommand('./selinux_audit.sh')}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded bg-black hover:bg-[#00ff41]/10 text-[#00ff41] border border-white/10 hover:border-[#00ff41]/40 shrink-0 transition-colors text-[11px]"
-            >
-              <Shield className="w-3 h-3 text-[#00ff41]" />
-              <span>./selinux_audit.sh</span>
-            </button>
-            <button
-              onClick={() => handleCommand('neofetch')}
-              className="px-2.5 py-1 rounded bg-black hover:bg-white/10 text-white/80 border border-white/10 shrink-0 transition-colors text-[11px]"
-            >
-              neofetch
-            </button>
-            <button
-              onClick={() => handleCommand('sestatus')}
-              className="px-2.5 py-1 rounded bg-black hover:bg-white/10 text-white/80 border border-white/10 shrink-0 transition-colors text-[11px]"
-            >
-              sestatus
-            </button>
-            <button
-              onClick={() => handleCommand('cisco show run')}
-              className="px-2.5 py-1 rounded bg-black hover:bg-white/10 text-white/80 border border-white/10 shrink-0 transition-colors text-[11px]"
-            >
-              cisco show run
-            </button>
-            <button
-              onClick={() => handleCommand('kubectl get nodes')}
-              className="px-2.5 py-1 rounded bg-black hover:bg-white/10 text-white/80 border border-white/10 shrink-0 transition-colors text-[11px]"
-            >
-              kubectl nodes
-            </button>
-            <button
-              onClick={() => handleCommand('help')}
-              className="px-2.5 py-1 rounded bg-black hover:bg-white/10 text-yellow-400 border border-white/10 shrink-0 transition-colors text-[11px]"
-            >
-              help
-            </button>
+          <div className="flex items-center gap-2 overflow-x-auto border-b border-white/10 bg-[#16161a] px-3 py-2 text-xs no-scrollbar">
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-white/35">Recorded-state shortcuts:</span>
+            {presets.map((command) => (
+              <button
+                key={command}
+                onClick={() => void handleCommand(command)}
+                disabled={isBusy}
+                className="shrink-0 rounded border border-white/10 bg-black px-2.5 py-1 text-[11px] text-[#00d4ff] transition hover:border-[#00d4ff]/40 hover:bg-[#00d4ff]/10 disabled:cursor-wait disabled:opacity-40"
+              >
+                {command}
+              </button>
+            ))}
           </div>
 
-          {/* Terminal Console Logs */}
-          <div
-            className={`flex-1 p-4 overflow-y-auto text-xs space-y-3 font-mono bg-black ${colors.text} selection:bg-white/30 selection:text-white`}
-            onClick={() => inputRef.current?.focus()}
-          >
+          <div className="flex-1 space-y-3 overflow-y-auto bg-black p-4 text-xs text-[#00ff41] selection:bg-white/30 selection:text-white" onClick={() => inputRef.current?.focus()}>
             {lines.map((line) => (
               <div key={line.id} className="space-y-1">
                 {line.command && (
-                  <div className="flex items-center space-x-2 text-white">
-                    <span className={`${colors.label} font-bold`}>{promptUser}</span>
-                    <span className="text-white/40">:</span>
-                    <span className="text-[#00d4ff] font-bold">~</span>
-                    <span className="text-white/40 font-bold">#</span>
-                    <span className="text-white font-semibold">{line.command}</span>
+                  <div className="flex items-start gap-2 text-white">
+                    <span className="shrink-0 font-bold text-[#00d4ff]">{line.prompt ?? prompt}</span>
+                    <span className="font-semibold">{line.command}</span>
                   </div>
                 )}
                 {line.output && (
-                  <div className="text-white/90 font-mono whitespace-pre-wrap">
-                    {parseAnsi(line.output)}
-                  </div>
+                  <pre className={`overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed ${line.type === 'error' ? 'text-[#ff6b6b]' : line.type === 'system' ? 'text-white/60' : 'text-white/90'}`}>
+                    {line.output}
+                  </pre>
                 )}
               </div>
             ))}
 
-            {/* Active Command Input Line */}
-            <div className="flex items-center space-x-2 text-white pt-1">
-              <span className={`${colors.label} font-bold`}>{promptUser}</span>
-              <span className="text-white/40">:</span>
-              <span className="text-[#00d4ff] font-bold">~</span>
-              <span className="text-white/40 font-bold">#</span>
+            <div className="flex items-start gap-2 pt-1 text-white">
+              <span className="shrink-0 font-bold text-[#00d4ff]">{prompt}</span>
               <input
                 ref={inputRef}
                 type="text"
-                id="terminal-active-input"
                 value={inputVal}
-                onChange={(e) => setInputVal(e.target.value)}
+                onChange={(event) => setInputVal(event.target.value)}
                 onKeyDown={handleKeyDown}
-                className="flex-1 bg-transparent text-white outline-none border-none font-mono text-xs focus:ring-0 p-0 placeholder:text-white/20"
-                placeholder="Type command here (e.g., help, sestatus, cisco show run, ./deploy_k8s.sh)..."
+                disabled={isBusy || !context}
+                className="min-w-0 flex-1 border-none bg-transparent p-0 font-mono text-xs text-white outline-none placeholder:text-white/20 focus:ring-0 disabled:opacity-50"
+                placeholder={isBusy ? 'Reading persisted Lab state...' : "Try 'help', 'ctx list', 'inspect', or 'show health'"}
                 autoComplete="off"
-                spellCheck="false"
+                spellCheck={false}
               />
             </div>
-
             <div ref={bottomRef} />
           </div>
 
-          {/* Terminal Status Footer */}
-          <div className="px-4 py-2 bg-[#111114] border-t border-white/10 flex items-center justify-between text-[11px] text-white/40">
-            <div className="flex items-center space-x-4">
-              <span className="flex items-center gap-1.5 text-[#00ff41]">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00ff41] animate-pulse" />
-                TTY: /dev/pts/0 (Interactive Linux WebTTY)
-              </span>
-              <span className="hidden sm:inline text-white/40">
-                Press <kbd className="px-1 py-0.5 bg-black text-white/80 rounded border border-white/15">Tab</kbd> to autocomplete &bull; <kbd className="px-1 py-0.5 bg-black text-white/80 rounded border border-white/15">&uarr;/&darr;</kbd> for history
-              </span>
+          <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-[#111114] px-4 py-2 text-[10px] text-white/40 sm:text-[11px]">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#00ff41]" />
+              <span className="truncate">MODE: RECORDED_STATE • shell/provider execution: disabled • mutations: disabled</span>
             </div>
-            <div className="text-white/40">
-              Domain: <span className="text-[#00d4ff] font-semibold">{activeCategory?.name || 'Enterprise Infrastructure'}</span>
-            </div>
+            <span className="shrink-0 text-[#00d4ff]">{context?.domain ?? 'PORTFOLIO'}</span>
           </div>
         </motion.div>
       </div>
