@@ -57,3 +57,5 @@ export type {
   CreateArtifactInput,
 } from './artifact.repository.js';
 export type { PortfolioRuntimeMetrics, SystemRepository } from './system.repository.js';
+
+export type * from './portfolio-orchestrator.repository.js';

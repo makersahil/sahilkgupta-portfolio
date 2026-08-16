@@ -1,14 +1,16 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for the lab manifest regression suite');
   process.env.NODE_ENV = 'test';
 
-  const [{ prisma }, { labManifestService, labService }] = await Promise.all([
+  const [{ prisma }, { labManifestService, labService }, { portfolioOrchestratorService }] = await Promise.all([
     import('../lib/prisma.js'),
     import('../services/labs/index.js'),
+    import('../services/orchestrator/index.js'),
   ]);
   const suffix = randomUUID().replaceAll('-', '').slice(0, 12);
   let labId: string | undefined;
@@ -17,9 +19,10 @@ async function main(): Promise<void> {
     assert.ok(project, 'DevOps seed project must exist');
     const lab = await labService.create({
       slug: `manifest-fixture-${suffix}`, title: 'Manifest Regression Lab', summary: 'Manifest contract fixture',
-      domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'READY', projectId: project.id,
+      domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'DRAFT', projectId: project.id,
       isInteractive: true, manifestVersion: '1.0', capabilities: ['pipeline', 'gitops'], normalizedState: { revision: 'abc123', healthy: true },
     });
+    await markRegressionLabReady(lab.id);
     labId = lab.id;
 
     await labService.createInput(lab.id, {
@@ -52,10 +55,12 @@ async function main(): Promise<void> {
     assert.equal(manifest.evidence.length, 1, 'private evidence must not be public');
     assert.equal(manifest.runbook.length, 1);
 
-    await labService.update(lab.id, { status: 'DRAFT' });
+    const currentLab = await portfolioOrchestratorService.getLab(lab.id);
+    const archived = await portfolioOrchestratorService.archiveLab(lab.id, currentLab.revision);
+    assert.equal(archived.lab.status, 'ARCHIVED');
     await assert.rejects(() => labManifestService.getPublic(lab.slug), /not found/i);
     const preview = await labManifestService.preview(lab.slug);
-    assert.equal(preview.lab.status, 'DRAFT');
+    assert.equal(preview.lab.status, 'ARCHIVED');
     assert.equal(preview.inputs.length, 2);
 
     console.log('Lab manifest regression: PASS');

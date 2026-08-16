@@ -26,10 +26,10 @@ import {
 } from 'lucide-react';
 import { usePortfolio } from '../../context/PortfolioContext.js';
 import { api } from '../../lib/api.js';
-import { AdminAuditLog, Category, ContactInquiry, Project, BlogPost } from '../../types.js';
+import { AdminAuditLog, Category, ContactInquiry, BlogPost } from '../../types.js';
 import { AdminAuditPanel } from './AdminAuditPanel.js';
 import { AdminCertificationManager } from './AdminCertificationManager.js';
-import { AdminLabBuilder } from './AdminLabBuilder.js';
+import { AdminOrchestrator } from '../AdminOrchestrator/index.js';
 import { AdminSkillManager } from './AdminSkillManager.js';
 
 export const AdminModal: React.FC = () => {
@@ -40,7 +40,6 @@ export const AdminModal: React.FC = () => {
     login,
     logout,
     categories,
-    projects,
     blogs,
     certifications,
     skills,
@@ -56,8 +55,8 @@ export const AdminModal: React.FC = () => {
 
   // Active CMS tab
   const [activeTab, setActiveTab] = useState<
-    'projects' | 'labs' | 'blogs' | 'categories' | 'certifications' | 'skills' | 'inquiries' | 'audit'
-  >('projects');
+    'orchestrator' | 'blogs' | 'categories' | 'certifications' | 'skills' | 'inquiries' | 'audit'
+  >('orchestrator');
 
   // Inquiries and Audit Logs state
   const [inquiries, setInquiries] = useState<ContactInquiry[]>([]);
@@ -66,7 +65,6 @@ export const AdminModal: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form modal states for CRUD
-  const [editingProject, setEditingProject] = useState<Partial<Project> | null>(null);
   const [editingBlog, setEditingBlog] = useState<Partial<BlogPost> | null>(null);
   const [editingCategory, setEditingCategory] = useState<Partial<Category> | null>(null);
 
@@ -110,50 +108,6 @@ export const AdminModal: React.FC = () => {
       await login(email, password);
     } finally {
       setIsLoggingIn(false);
-    }
-  };
-
-  // --- Project Handlers ---
-  const handleSaveProject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProject?.title?.trim() || !editingProject.slug?.trim() || !editingProject.categoryId) {
-      showToast('Title, Slug, and Category are required', 'error');
-      return;
-    }
-
-    const projectPayload = {
-      ...editingProject,
-      title: editingProject.title.trim(),
-      slug: editingProject.slug.trim(),
-    };
-
-    setIsSubmitting(true);
-    try {
-      if (editingProject.id) {
-        await api.updateProject(editingProject.id, projectPayload);
-        showToast('Project updated successfully', 'success');
-      } else {
-        await api.createProject(projectPayload);
-        showToast('New project created', 'success');
-      }
-      setEditingProject(null);
-      await refreshData();
-    } catch (err: any) {
-      showToast(err.message || 'Failed to save project', 'error');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteProject = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this project?')) {
-      try {
-        await api.deleteProject(id);
-        showToast('Project deleted', 'info');
-        await refreshData();
-      } catch (err: any) {
-        showToast(err.message || 'Failed to delete project', 'error');
-      }
     }
   };
 
@@ -353,26 +307,15 @@ export const AdminModal: React.FC = () => {
               {/* CMS Navigation Tabs */}
               <div className="px-6 bg-[#16161a] border-b border-white/10 flex items-center space-x-2 overflow-x-auto no-scrollbar text-xs pt-2">
                 <button
-                  onClick={() => setActiveTab('projects')}
+                  onClick={() => setActiveTab('orchestrator')}
                   className={`flex items-center space-x-1.5 pb-2.5 px-3 border-b-2 font-medium transition-colors ${
-                    activeTab === 'projects'
-                      ? 'border-[#00d4ff] text-[#00d4ff]'
-                      : 'border-transparent text-white/40 hover:text-white'
-                  }`}
-                >
-                  <Layers className="w-4 h-4" />
-                  <span>Projects ({projects.length})</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('labs')}
-                  className={`flex items-center space-x-1.5 pb-2.5 px-3 border-b-2 font-medium transition-colors ${
-                    activeTab === 'labs'
+                    activeTab === 'orchestrator'
                       ? 'border-[#00d4ff] text-[#00d4ff]'
                       : 'border-transparent text-white/40 hover:text-white'
                   }`}
                 >
                   <Network className="w-4 h-4" />
-                  <span>Lab Builder</span>
+                  <span>Portfolio Orchestrator</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('blogs')}
@@ -440,78 +383,8 @@ export const AdminModal: React.FC = () => {
 
               {/* CMS Tab Body */}
               <div className="p-6 overflow-y-auto flex-1 text-xs space-y-4">
-                {/* 1. Projects CMS Tab */}
-                {activeTab === 'projects' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/60 font-semibold">Manage Infrastructure &amp; Code Projects</span>
-                      <button
-                        onClick={() =>
-                          setEditingProject({
-                            title: '',
-                            slug: '',
-                            summary: '',
-                            descriptionMarkdown: '## System Overview\n\nDetailed architectural breakdown...',
-                            categoryId: categories[0]?.id || '',
-                            status: 'COMPLETED',
-                            formatType: 'standard',
-                            isFeatured: true,
-                            devopsStack: ['Linux', 'Docker'],
-                            tags: ['infrastructure'],
-                          })
-                        }
-                        className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-[#00d4ff] hover:bg-[#00d4ff]/90 text-black font-bold uppercase tracking-wider text-[11px] transition-colors"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        <span>Add New Project</span>
-                      </button>
-                    </div>
-
-                    <div className="divide-y divide-white/10 rounded-xl bg-black border border-white/10 overflow-hidden">
-                      {projects.map((proj) => (
-                        <div
-                          key={proj.id}
-                          className="p-4 flex items-center justify-between hover:bg-white/[0.03] transition-colors"
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-bold text-white text-sm">{proj.title}</span>
-                              <span className="px-2 py-0.5 rounded text-[10px] bg-[#111114] text-[#00d4ff] border border-white/10 font-mono">
-                                {proj.formatType || 'standard'}
-                              </span>
-                            </div>
-                            <p className="text-white/60 text-[11px] max-w-xl truncate">{proj.summary}</p>
-                            <div className="flex items-center space-x-2 text-[10px] text-white/40 font-mono">
-                              <span>Slug: /{proj.slug}</span>
-                              <span>&bull;</span>
-                              <span>Stack: {proj.devopsStack.join(', ')}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => setEditingProject(proj)}
-                              className="p-1.5 rounded bg-white/5 hover:bg-white/10 text-white"
-                              title="Edit"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProject(proj.id)}
-                              className="p-1.5 rounded bg-white/5 hover:bg-[#ff4100]/20 text-white/70 hover:text-[#ff4100]"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'labs' && (
-                  <AdminLabBuilder projects={projects} categories={categories} showToast={showToast} />
+                {activeTab === 'orchestrator' && (
+                  <AdminOrchestrator categories={categories} showToast={showToast} canPermanentDelete={user?.role === 'SUPER_ADMIN'} />
                 )}
 
                 {/* 2. Blog Posts CMS Tab */}
@@ -680,159 +553,6 @@ export const AdminModal: React.FC = () => {
                 {activeTab === 'audit' && (
                   <AdminAuditPanel logs={auditLogs} loading={adminDataLoading} onRefresh={() => void loadAdminData()} />
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* Sub-Modal: Edit / Add Project with Format Selector & .PKT file upload */}
-          {editingProject && (
-            <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm overflow-y-auto">
-              <div className="w-full max-w-2xl rounded-xl bg-[#111114] border border-white/15 p-6 space-y-4 my-8">
-                <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <h4 className="font-bold text-white text-base uppercase tracking-tight">
-                    {editingProject.id ? 'Edit Project' : 'Create New Infrastructure Project'}
-                  </h4>
-                  <button onClick={() => setEditingProject(null)} className="text-white/40 hover:text-white">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <form onSubmit={handleSaveProject} className="space-y-3 text-xs">
-                  <div>
-                    <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Project Title</label>
-                    <input
-                      type="text"
-                      value={editingProject.title || ''}
-                      onChange={(e) => setEditingProject({ ...editingProject, title: e.target.value })}
-                      required
-                      className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">URL Slug</label>
-                      <input
-                        type="text"
-                        value={editingProject.slug || ''}
-                        onChange={(e) => setEditingProject({ ...editingProject, slug: e.target.value })}
-                        required
-                        placeholder="e.g. enterprise-bgp-hsrp"
-                        className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Category</label>
-                      <select
-                        value={editingProject.categoryId || ''}
-                        onChange={(e) => setEditingProject({ ...editingProject, categoryId: e.target.value })}
-                        className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
-                      >
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Format Type</label>
-                      <select
-                        value={editingProject.formatType || 'standard'}
-                        onChange={(e) => setEditingProject({ ...editingProject, formatType: e.target.value as any })}
-                        className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
-                      >
-                        <option value="standard">Standard Architecture</option>
-                        <option value="cisco_pkt_lab">Cisco .PKT Sandbox Lab</option>
-                        <option value="rhcsa_matrix">RHCSA RHEL 9 Matrix</option>
-                        <option value="devops_pipeline">GitOps Kubernetes Pipeline</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Short Summary</label>
-                    <input
-                      type="text"
-                      value={editingProject.summary || ''}
-                      onChange={(e) => setEditingProject({ ...editingProject, summary: e.target.value })}
-                      required
-                      className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Detailed Markdown Description</label>
-                    <textarea
-                      rows={5}
-                      value={editingProject.descriptionMarkdown || ''}
-                      onChange={(e) =>
-                        setEditingProject({ ...editingProject, descriptionMarkdown: e.target.value })
-                      }
-                      className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white font-mono focus:outline-none focus:border-[#00d4ff]"
-                    />
-                  </div>
-
-                  <div className="grid gap-3">
-                    <div>
-                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Mission</label>
-                      <textarea rows={2} value={editingProject.mission || ''} onChange={(e) => setEditingProject({ ...editingProject, mission: e.target.value })} className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]" />
-                    </div>
-                    <div>
-                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">Architecture Summary</label>
-                      <textarea rows={2} value={editingProject.architectureSummary || ''} onChange={(e) => setEditingProject({ ...editingProject, architectureSummary: e.target.value })} className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]" />
-                    </div>
-                    <div>
-                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">What I Built</label>
-                      <textarea rows={3} value={editingProject.whatIBuilt || ''} onChange={(e) => setEditingProject({ ...editingProject, whatIBuilt: e.target.value })} className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="mb-1">
-                        <label className="text-white/60 uppercase tracking-wider text-[10px]">Packet Tracer Reference</label>
-                        <div className="text-[9px] text-white/35 mt-0.5">Use Lab Builder → Inputs → PACKET_TRACER for canonical artifact/reference metadata. No arbitrary .pkt binary parsing is claimed.</div>
-                      </div>
-                      <input
-                        type="text"
-                        value={editingProject.packetTracerFile || ''}
-                        onChange={(e) =>
-                          setEditingProject({ ...editingProject, packetTracerFile: e.target.value })
-                        }
-                        placeholder="enterprise_wan_dual_isp.pkt"
-                        className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-white/60 block mb-1 uppercase tracking-wider text-[10px]">GitHub Repo URL</label>
-                      <input
-                        type="url"
-                        value={editingProject.githubUrl || ''}
-                        onChange={(e) => setEditingProject({ ...editingProject, githubUrl: e.target.value })}
-                        placeholder="https://github.com/sahilgupta/..."
-                        className="w-full bg-black border border-white/10 rounded px-3 py-2 text-white focus:outline-none focus:border-[#00d4ff]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end space-x-2 pt-4 border-t border-white/10">
-                    <button
-                      type="button"
-                      onClick={() => setEditingProject(null)}
-                      className="px-3 py-2 rounded bg-white/5 hover:bg-white/10 text-white/70"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSubmitting}
-                      className="px-4 py-2 rounded bg-[#00d4ff] hover:bg-[#00d4ff]/90 text-black font-bold uppercase tracking-wider"
-                    >
-                      {isSubmitting ? 'Saving...' : 'Save Project'}
-                    </button>
-                  </div>
-                </form>
               </div>
             </div>
           )}

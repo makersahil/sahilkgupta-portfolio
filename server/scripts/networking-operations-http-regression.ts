@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for Networking operations HTTP regression');
@@ -29,7 +30,7 @@ async function main(): Promise<void> {
       title: 'Networking Operations HTTP Fixture',
       domain: 'NETWORKING',
       kind: 'NETWORK_TOPOLOGY',
-      status: 'READY',
+      status: 'DRAFT',
       projectId: project.id,
       isInteractive: true,
       manifestVersion: '1.0',
@@ -43,6 +44,7 @@ async function main(): Promise<void> {
         provenance: { sourceType: 'CANONICAL_MANIFEST', notes: [] },
       },
     });
+    await markRegressionLabReady(lab.id);
     labId = lab.id;
     await labService.createInput(lab.id, { inputKey: 'topology', inputType: 'NETWORK_TOPOLOGY', label: 'Topology', sourceKind: 'INLINE', schemaVersion: 'networking.input.v1', payload: {}, isPrimary: true, sortOrder: 0 });
     await labService.replaceTopology(lab.id, [

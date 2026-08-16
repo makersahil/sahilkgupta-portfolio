@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for the lab platform regression suite');
@@ -80,7 +81,8 @@ async function main(): Promise<void> {
     assert.equal(aggregate.evidence.length, 1);
 
     await assert.rejects(() => labService.getPublic(first.slug), /not found/i, 'DRAFT labs must not be public');
-    await labService.update(first.id, { status: 'READY' });
+    await assert.rejects(() => labService.update(first.id, { status: 'READY' }), /Orchestrator readiness/i);
+    await markRegressionLabReady(first.id);
     const publicLab = await labService.getPublic(first.slug);
     assert.equal(publicLab.status, 'READY');
 

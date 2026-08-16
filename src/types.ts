@@ -611,6 +611,8 @@ export interface LabRecord {
   domain: LabDomain;
   kind: LabKind;
   status: LabStatus;
+  sortOrder: number;
+  revision: number;
   projectId: string | null;
   isInteractive: boolean;
   manifestVersion: string;
@@ -1287,4 +1289,144 @@ export interface UnifiedCliExecutionResult {
   contextChanged: boolean;
   clear: boolean;
   note: string;
+}
+
+// Phase 8 Admin / Portfolio Orchestrator contracts
+export type OrchestratorPublicationStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type OrchestratorLifecycleStatus = 'COMPLETED' | 'IN_PROGRESS' | 'ARCHIVED' | 'PLANNED';
+export type OrchestratorValidationSeverity = 'ERROR' | 'WARNING' | 'INFO';
+export type OrchestratorValidationScope = 'PROJECT' | 'LAB' | 'INPUT' | 'TOPOLOGY' | 'SCENARIO' | 'RUNBOOK' | 'EVIDENCE' | 'ARTIFACT' | 'PUBLIC_PREVIEW';
+
+export interface OrchestratorValidationFinding {
+  code: string;
+  severity: OrchestratorValidationSeverity;
+  scope: OrchestratorValidationScope;
+  path: string;
+  message: string;
+  projectId: string;
+  labId?: string;
+  entityId?: string;
+  remediation?: string;
+}
+
+export interface OrchestratorValidationReport {
+  valid: boolean;
+  generatedAt: string;
+  projectId: string;
+  projectRevision: number;
+  labRevisions: Record<string, number>;
+  errors: number;
+  warnings: number;
+  findings: OrchestratorValidationFinding[];
+}
+
+export interface OrchestratorProjectRecord {
+  id: string;
+  slug: string;
+  title: string;
+  domain: LabDomain;
+  summary: string;
+  descriptionMarkdown: string | null;
+  mission: string | null;
+  architectureSummary: string | null;
+  whatIBuilt: string | null;
+  publicationStatus: OrchestratorPublicationStatus;
+  lifecycleStatus: OrchestratorLifecycleStatus;
+  formatType: 'CISCO_PKT_LAB' | 'RHCSA_MATRIX' | 'DEVOPS_PIPELINE' | 'STANDARD';
+  featured: boolean;
+  sortOrder: number;
+  revision: number;
+  coverImageUrl: string | null;
+  architectureSvg: string | null;
+  liveUrl: string | null;
+  githubUrl: string | null;
+  packetTracerFile: string | null;
+  topologyConfigJson: string | null;
+  metrics: unknown;
+  technologies: string[];
+  tags: string[];
+  categoryId: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrchestratorLabRecord extends LabRecord {
+  sortOrder: number;
+  revision: number;
+  activeRuntimeCount: number;
+}
+
+export interface OrchestratorProjectAggregate {
+  project: OrchestratorProjectRecord;
+  labs: Array<OrchestratorLabRecord & { aggregate: LabAggregate }>;
+  runbookSteps: Array<{ id: string; projectId: string; order: number; title: string; description: string | null; command: string | null; createdAt: string; updatedAt: string }>;
+  evidence: LabEvidenceRecord[];
+  artifacts: Array<{ id: string; fileName: string; originalName: string | null; mimeType: string; publicUrl: string | null; projectId: string | null; labId: string | null; isPublic: boolean }>;
+}
+
+export interface OrchestratorDashboardSummary {
+  projects: { total: number; byStatus: Record<OrchestratorPublicationStatus, number>; byDomain: Record<LabDomain, number> };
+  labs: { total: number; byStatus: Record<LabStatus, number>; byDomain: Record<LabDomain, number>; missingPrimaryInput: number };
+  activeScenarioRuntimes: number;
+  recentAuditEvents: Array<{ id: string; action: string; entityType: string; entityId: string | null; createdAt: string; actor: string | null }>;
+}
+
+export interface OrchestratorProjectPreviewLab {
+  lab: OrchestratorLabRecord;
+  labRevision: number;
+  manifest: CanonicalLabManifestV1;
+  domainState: NetworkingLabState | LinuxLabState | DevOpsLabState;
+  scenarioSummary: Array<{ id: string; slug: string; title: string; enabled: boolean }>;
+  cliContexts: Array<{ contextId: string; prompt: string; domain: LabDomain }>;
+  warnings: string[];
+}
+
+export interface OrchestratorProjectPreview {
+  project: Project;
+  projectPublicationStatus: OrchestratorPublicationStatus;
+  projectRevision: number;
+  validation: OrchestratorValidationReport;
+  labs: OrchestratorProjectPreviewLab[];
+}
+
+export interface OrchestratorArtifactAdminRecord {
+  id: string;
+  fileName: string;
+  originalName: string | null;
+  mimeType: string;
+  publicUrl: string | null;
+  projectId: string | null;
+  labId: string | null;
+  isPublic: boolean;
+  sizeBytes: number | null;
+  storageProvider: string;
+  sha256: string | null;
+  createdAt: string;
+  updatedAt: string;
+  referencedByInputs: number;
+  referencedByEvidence: number;
+}
+
+export interface OrchestratorImportDryRunResult {
+  valid: boolean;
+  schemaVersion: 'portfolio.project-bundle.v1' | 'portfolio.lab-bundle.v1' | 'networking.companion-manifest.v1' | null;
+  conflictMode: 'REJECT' | 'RENAME';
+  proposedProjectSlug: string | null;
+  proposedLabSlugs: string[];
+  errors: string[];
+  warnings: string[];
+  counts: Record<string, number>;
+}
+
+export interface OrchestratorImportResult {
+  projectId: string | null;
+  labIds: string[];
+  dryRun: OrchestratorImportDryRunResult;
+}
+
+export interface OrchestratorReorderItem {
+  id: string;
+  sortOrder: number;
+  expectedRevision: number;
 }

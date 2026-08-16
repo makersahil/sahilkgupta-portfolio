@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for Linux engine regression');
@@ -70,9 +71,10 @@ async function main(): Promise<void> {
       slug: `linux-engine-a-${suffix}`,
       title: 'Linux Engine Regression A',
       summary: 'Multi-host Linux regression fixture',
-      domain: 'LINUX', kind: 'LINUX_SYSTEM', status: 'READY', projectId: canonicalProject.id,
+      domain: 'LINUX', kind: 'LINUX_SYSTEM', status: 'DRAFT', projectId: canonicalProject.id,
       isInteractive: true, manifestVersion: '1.0', capabilities: ['host-state', 'services', 'storage', 'selinux'], normalizedState,
     });
+    await markRegressionLabReady(labOne.id);
     labIds.push(labOne.id);
     await labService.createInput(labOne.id, { inputKey: 'system', inputType: 'SYSTEM_SNAPSHOT', label: 'System Snapshot', sourceKind: 'INLINE', schemaVersion: 'linux.input.v1', payload: {}, isPrimary: true, sortOrder: 0 });
     await labService.replaceTopology(labOne.id, [
@@ -90,9 +92,10 @@ async function main(): Promise<void> {
 
     const labTwo = await labService.create({
       slug: `linux-engine-b-${suffix}`,
-      title: 'Linux Engine Regression B', domain: 'LINUX', kind: 'LINUX_SYSTEM', status: 'READY', projectId: tempProject.id,
+      title: 'Linux Engine Regression B', domain: 'LINUX', kind: 'LINUX_SYSTEM', status: 'DRAFT', projectId: tempProject.id,
       isInteractive: true, manifestVersion: '1.0', capabilities: ['host-state'], normalizedState: { ...normalizedState, hosts: [normalizedState.hosts[0]] },
     });
+    await markRegressionLabReady(labTwo.id);
     labIds.push(labTwo.id);
     await labService.createInput(labTwo.id, { inputKey: 'system', inputType: 'SYSTEM_SNAPSHOT', label: 'System Snapshot', sourceKind: 'INLINE', schemaVersion: 'linux.input.v1', payload: {}, isPrimary: true, sortOrder: 0 });
     await labService.replaceTopology(labTwo.id, [{ nodeKey: 'host-a', label: 'Host A', kind: 'linux_host', configuration: { host: normalizedState.hosts[0] } }], []);

@@ -29,6 +29,7 @@ const staticTests: Step[] = [
   { label: 'Content static audit', command: 'npm', args: ['run', 'test:content:static'] },
   { label: 'Lab platform static audit', command: 'npm', args: ['run', 'test:labs:static'] },
   { label: 'Admin orchestration static audit', command: 'npm', args: ['run', 'test:admin:static'] },
+  { label: 'Portfolio Orchestrator static audit', command: 'npm', args: ['run', 'test:orchestrator:static'] },
   { label: 'Persistent runtime static audit', command: 'npm', args: ['run', 'test:runtime:static'] },
   { label: 'Networking engine static audit', command: 'npm', args: ['run', 'test:networking:static'] },
   { label: 'Linux engine static audit', command: 'npm', args: ['run', 'test:linux:static'] },
@@ -80,6 +81,9 @@ const databaseTests: Step[] = [
   { label: 'Unified CLI HTTP regression', command: 'npm', args: ['run', 'test:cli:http'], requiresDatabase: true },
   { label: 'Scenario engine regression', command: 'npm', args: ['run', 'test:scenarios'], requiresDatabase: true },
   { label: 'Scenario engine HTTP regression', command: 'npm', args: ['run', 'test:scenarios:http'], requiresDatabase: true },
+  { label: 'Portfolio Orchestrator regression', command: 'npm', args: ['run', 'test:orchestrator'], requiresDatabase: true },
+  { label: 'Portfolio Orchestrator HTTP regression', command: 'npm', args: ['run', 'test:orchestrator:http'], requiresDatabase: true },
+  { label: 'Portfolio Orchestrator bundle regression', command: 'npm', args: ['run', 'test:orchestrator:bundle'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [

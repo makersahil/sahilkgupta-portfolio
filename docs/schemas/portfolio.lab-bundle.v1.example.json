@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "portfolio.lab-bundle.v1",
+  "lab": {
+    "slug": "example-networking-lab",
+    "title": "Example Networking Lab",
+    "summary": "Portable canonical Lab example.",
+    "domain": "NETWORKING",
+    "kind": "NETWORK_TOPOLOGY",
+    "sortOrder": 0,
+    "isInteractive": true,
+    "manifestVersion": "1.0",
+    "capabilities": [
+      "topology"
+    ],
+    "normalizedState": {
+      "schemaVersion": "networking.v1"
+    },
+    "metadata": {
+      "source": "example"
+    }
+  },
+  "inputs": [
+    {
+      "inputKey": "network-topology",
+      "inputType": "NETWORK_TOPOLOGY",
+      "label": "Canonical topology",
+      "description": "Structured recorded-state input",
+      "sourceKind": "INLINE",
+      "schemaVersion": "networking.input.v1",
+      "payload": {
+        "schemaVersion": "networking.input.v1"
+      },
+      "externalUrl": null,
+      "artifactReference": null,
+      "isPrimary": true,
+      "sortOrder": 0
+    }
+  ],
+  "topology": {
+    "nodes": [],
+    "links": []
+  },
+  "scenarios": [],
+  "runbook": [],
+  "evidence": [],
+  "artifacts": []
+}

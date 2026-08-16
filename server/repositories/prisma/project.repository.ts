@@ -15,7 +15,6 @@ import {
   normalizeProjectFormat,
   normalizeProjectStatus,
   normalizeProjectStatuses,
-  publicationStatusForProject,
   requireInteger,
   requireNonEmptyString,
   requireStringArray,
@@ -184,7 +183,6 @@ export class PrismaProjectRepository implements ProjectRepository {
       const formatType = normalizeProjectFormat(input.formatType ?? 'standard');
       const payload = compatibilityPayload(input, formatType);
       const lifecycleStatus = normalizeProjectStatus(input.status);
-      const publicationStatus = publicationStatusForProject(lifecycleStatus);
 
       const project = await transaction.project.create({
         data: {
@@ -197,7 +195,7 @@ export class PrismaProjectRepository implements ProjectRepository {
           whatIBuilt: input.whatIBuilt ?? null,
           domain,
           categoryId: input.categoryId,
-          status: publicationStatus,
+          status: 'DRAFT',
           lifecycleStatus,
           formatType,
           featured: Boolean(input.isFeatured),
@@ -211,7 +209,7 @@ export class PrismaProjectRepository implements ProjectRepository {
           metrics: input.metrics === undefined ? undefined : toInputJson(input.metrics, 'metrics'),
           technologies: requireStringArray(input.devopsStack, 'devopsStack'),
           tags: requireStringArray(input.tags, 'tags'),
-          publishedAt: publicationStatus === 'PUBLISHED' ? new Date() : null,
+          publishedAt: null,
         },
       });
 
@@ -223,7 +221,7 @@ export class PrismaProjectRepository implements ProjectRepository {
             title: `${project.title} Lab`,
             domain,
             kind: payload.kind,
-            status: 'READY',
+            status: 'DRAFT',
             projectId: project.id,
             manifestVersion: '1.0',
             capabilities: defaults.capabilities,
@@ -275,7 +273,6 @@ export class PrismaProjectRepository implements ProjectRepository {
       const payload = compatibilityPayload(input, formatType);
       const nextLifecycleStatus =
         input.status === undefined ? existing.lifecycleStatus : normalizeProjectStatus(input.status);
-      const nextPublicationStatus = publicationStatusForProject(nextLifecycleStatus);
 
       await transaction.project.update({
         where: { id },
@@ -292,16 +289,8 @@ export class PrismaProjectRepository implements ProjectRepository {
           ...(input.architectureSummary !== undefined ? { architectureSummary: input.architectureSummary } : {}),
           ...(input.whatIBuilt !== undefined ? { whatIBuilt: input.whatIBuilt } : {}),
           ...(input.categoryId !== undefined ? { categoryId, domain } : {}),
-          ...(input.status !== undefined
-            ? {
-                lifecycleStatus: nextLifecycleStatus,
-                status: nextPublicationStatus,
-                publishedAt:
-                  nextPublicationStatus === 'PUBLISHED'
-                    ? (existing.publishedAt ?? new Date())
-                    : null,
-              }
-            : {}),
+          ...(input.status !== undefined ? { lifecycleStatus: nextLifecycleStatus } : {}),
+          revision: { increment: 1 },
           ...(input.formatType !== undefined ? { formatType } : {}),
           ...(input.isFeatured !== undefined ? { featured: Boolean(input.isFeatured) } : {}),
           ...(input.sortOrder !== undefined
@@ -340,7 +329,7 @@ export class PrismaProjectRepository implements ProjectRepository {
             labId: incompatibleLab.id, labSlug: incompatibleLab.slug, labKind: incompatibleLab.kind, requestedDomain: domain,
           });
         }
-        await transaction.lab.updateMany({ where: { projectId: id }, data: { domain } });
+        await transaction.lab.updateMany({ where: { projectId: id }, data: { domain, revision: { increment: 1 } } });
       }
 
       if (payload) {
@@ -359,7 +348,7 @@ export class PrismaProjectRepository implements ProjectRepository {
           const defaults = compatibilityLabDefaults(payload.kind);
           await transaction.lab.update({
             where: { id: compatibilityLab.id },
-            data: { manifestVersion: '1.0', capabilities: defaults.capabilities, normalizedState: payload.metadata, metadata: payload.metadata },
+            data: { manifestVersion: '1.0', capabilities: defaults.capabilities, normalizedState: payload.metadata, metadata: payload.metadata, revision: { increment: 1 } },
           });
           await ensureCompatibilityInput(transaction, compatibilityLab.id, payload);
         } else {
@@ -371,7 +360,7 @@ export class PrismaProjectRepository implements ProjectRepository {
               title: `${persisted.title} Lab`,
               domain,
               kind: payload.kind,
-              status: 'READY',
+              status: 'DRAFT',
               projectId: id,
               manifestVersion: '1.0',
               capabilities: defaults.capabilities,

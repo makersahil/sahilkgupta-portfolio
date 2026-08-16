@@ -6,10 +6,10 @@ async function text(path: string): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  const [apiClient, adminModal, labBuilder, adminRoutes, auditRepository, projectsMapper, projectTypes, verifyRunner] = await Promise.all([
+  const [apiClient, adminModal, orchestrator, adminRoutes, auditRepository, projectsMapper, projectTypes, verifyRunner] = await Promise.all([
     text('src/lib/api.ts'),
     text('src/components/AdminCMS/AdminModal.tsx'),
-    text('src/components/AdminCMS/AdminLabBuilder.tsx'),
+    text('src/components/AdminOrchestrator/AdminOrchestrator.tsx'),
     text('server/routes/admin.routes.ts'),
     text('server/repositories/prisma/audit.repository.ts'),
     text('server/repositories/prisma/mappers.ts'),
@@ -20,16 +20,14 @@ async function main(): Promise<void> {
   assert.match(apiClient, /\/api\/admin\/audit/);
   assert.doesNotMatch(apiClient, /auditLogsSample/);
   assert.doesNotMatch(apiClient, /log-1.*CREATE_PROJECT/s);
-  assert.match(adminModal, /AdminLabBuilder/);
+  assert.match(adminModal, /AdminOrchestrator/);
+  assert.doesNotMatch(adminModal, /editingProject|handleSaveProject|AdminLabBuilder/);
   assert.match(adminModal, /AdminCertificationManager/);
   assert.match(adminModal, /AdminSkillManager/);
   assert.match(adminModal, /AdminAuditPanel/);
-  assert.match(labBuilder, /getLabManifestPreview/);
-  assert.match(labBuilder, /replaceLabTopology/);
-  assert.match(labBuilder, /createLabInput/);
-  assert.match(labBuilder, /createLabScenario/);
-  assert.match(labBuilder, /createLabRunbookStep/);
-  assert.match(labBuilder, /createLabEvidence/);
+  assert.match(orchestrator, /Portfolio Orchestrator/);
+  assert.match(orchestrator, /PublicationWizard/);
+  assert.match(orchestrator, /BundleImportExportPanel/);
   assert.match(adminRoutes, /auditService\.list/);
   assert.match(auditRepository, /prisma\.auditLog/);
   assert.match(projectsMapper, /mission: row\.mission/);

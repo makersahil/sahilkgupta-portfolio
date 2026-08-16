@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for Linux operations regression');
@@ -58,13 +59,14 @@ async function main(): Promise<void> {
       summary: 'Recorded-state Linux operations fixture',
       domain: 'LINUX',
       kind: 'LINUX_SYSTEM',
-      status: 'READY',
+      status: 'DRAFT',
       projectId: project.id,
       isInteractive: true,
       manifestVersion: '1.0',
       capabilities: ['host-state', 'health-analysis', 'diagnostics', 'operator-context', 'scenario-readiness'],
       normalizedState: { schemaVersion: 'linux.v1', hosts: [host], provenance: { sourceType: 'CANONICAL_MANIFEST', notes: ['operations regression'] } },
     });
+    await markRegressionLabReady(lab.id);
     labId = lab.id;
 
     await labService.createInput(lab.id, {

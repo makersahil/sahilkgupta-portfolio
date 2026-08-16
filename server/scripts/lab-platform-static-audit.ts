@@ -23,6 +23,8 @@ async function main(): Promise<void> {
   }
   assert.ok(server.includes("app.use('/api/labs', labsRoutes)"), 'server must mount /api/labs');
   assert.ok(routes.includes("requireRole('SUPER_ADMIN', 'ADMIN')"), 'lab writes must require ADMIN/SUPER_ADMIN');
+  assert.match(service, /Admin Lab creation must start in DRAFT|Orchestrator readiness\/archive workflow/);
+  assert.match(service, /assertNoActiveRuntime/);
   assert.ok(routes.includes("'/:identifier/manifest'"), 'public manifest route must exist');
   assert.equal(routes.includes("from '@prisma/client'"), false, 'lab routes must not import Prisma');
   assert.equal(service.includes("from '@prisma/client'"), false, 'lab service must not import Prisma');

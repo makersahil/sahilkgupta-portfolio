@@ -771,3 +771,38 @@ Lifecycle states are `ACTIVE`, `REMEDIATED`, and `VERIFIED`. Active-scenario ver
 The Scenario Runtime panel is integrated into all three domain explorers, and the Unified CLI supports `scenario list/status/run/verify/remediate/reset`. Visual domain reads, operations reads, and CLI reads use the same session header so the simulated state stays synchronized.
 
 Truthfulness boundary: Phase 7 is a session-scoped simulation engine, not a remote infrastructure executor. It does not SSH, spawn shells, send packets, run systemd/kubectl/Terraform/Helm/ArgoCD/Cilium/provider commands, or overwrite `Lab.normalizedState`. See `docs/SCENARIO_ENGINE_ARCHITECTURE.md`.
+
+---
+
+# 25. Phase 8 Portfolio Orchestrator Candidate
+
+Phase 8 extends the existing persistent Admin and canonical Lab Platform rather than replacing them.
+
+```text
+AdminOrchestrator
+  -> /api/admin/orchestrator/*
+  -> PortfolioOrchestratorService
+  -> validation / preview / bundle services
+  -> repository contracts
+  -> Prisma transactions
+  -> PostgreSQL
+```
+
+Implemented candidate capabilities:
+
+- additive `Project.revision`, `Lab.revision`, and `Lab.sortOrder` migration;
+- optimistic concurrency and complete Project/Lab publication snapshots;
+- one modular writable Project/Lab Admin surface;
+- DRAFT-only creation and prevention of direct legacy READY/PUBLISHED transitions;
+- aggregate validation through Lab Manifest v1, real domain adapters, and safe scenario mutators;
+- side-effect-free exact Admin preview;
+- validated mark-ready, transactional publication, archive/restore, duplicate, reorder, permanent-delete guards, and active-runtime reset;
+- versioned bounded JSON Project/Lab import/export;
+- `networking.companion-manifest.v1` canonical import/export without `.pkt` binary parsing;
+- truthful Artifact reference catalog without byte-upload or hash-verification claims;
+- bounded persisted AuditLog events;
+- four durable Orchestrator regressions and a derived 49-step verifier.
+
+The implementation remains a **code-complete candidate** until the additive migration is deployed in the target database, the canonical 49-step verifier passes from step 1, and `docs/PHASE8_VALIDATION_RUNBOOK.md` is completed. Do not mark Phase 8 COMPLETE or make Phase 9 active before that evidence exists.
+
+The multi-project principle remains unchanged: a supported Project and Lab should be publishable from persisted data and registered domain contracts, not project-specific React components or flagship slug checks.

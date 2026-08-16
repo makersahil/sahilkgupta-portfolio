@@ -175,7 +175,7 @@ Reason Deferred: Phase 3A deliberately treats `.pkt` as reference metadata and r
 Target Phase: Phase 8 — Portfolio Orchestrator
 Priority: P1
 Verification: A documented supported importer/exporter derives `LabInput`, `LabNode`, `LabLink`, and normalized Networking state from a genuine artifact or companion manifest; unsupported `.pkt` files remain clearly reference-only and never produce fabricated parsed data.
-Implementation State: OPEN. The canonical input contract and reference-only provenance remain implemented; Phase 3B does not add an unverified binary parser.
+Implementation State: IMPLEMENTED PENDING EXIT. Phase 8 adds documented `networking.companion-manifest.v1` JSON import/export, canonical `LabInput`/`LabNode`/`LabLink`/`networking.v1` round-trip coverage, bounded validation through the real Networking adapter, and explicit reference-only Packet Tracer metadata. Arbitrary `.pkt` binary parsing remains unsupported. Close this item only after the Phase 8 bundle regression and browser import/export validation pass in the real repository environment.
 Status: OPEN
 
 ### [PH4B-DEFER-001]

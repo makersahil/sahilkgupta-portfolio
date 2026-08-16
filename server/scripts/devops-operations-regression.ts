@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for DevOps operations regression');
@@ -56,11 +57,12 @@ async function main(): Promise<void> {
       slug: `devops-operations-${suffix}`,
       title: 'DevOps Operations Regression',
       summary: 'Recorded-state DevOps operations fixture',
-      domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'READY', projectId: project.id,
+      domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'DRAFT', projectId: project.id,
       isInteractive: true, manifestVersion: '1.0',
       capabilities: ['pipeline', 'terraform', 'kubernetes', 'gitops', 'helm', 'network-policy', 'observability', 'health-analysis', 'diagnostics', 'operator-context', 'scenario-readiness'],
       normalizedState: degradedState,
     });
+    await markRegressionLabReady(lab.id);
     labIds.push(lab.id);
     await labService.createInput(lab.id, { inputKey: 'pipeline', inputType: 'CI_PIPELINE', label: 'Pipeline', sourceKind: 'INLINE', schemaVersion: 'devops.input.v1', payload: {}, isPrimary: true, sortOrder: 0 });
     await labService.createScenario(lab.id, {
@@ -116,9 +118,10 @@ async function main(): Promise<void> {
     const unknownLab = await labService.create({
       slug: `devops-operations-unknown-${suffix}`,
       title: 'DevOps Operations Unknown Regression',
-      domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'READY', projectId: project.id,
+      domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'DRAFT', projectId: project.id,
       isInteractive: true, manifestVersion: '1.0', capabilities: ['terraform', 'health-analysis'], normalizedState: unknownState,
     });
+    await markRegressionLabReady(unknownLab.id);
     labIds.push(unknownLab.id);
     await labService.createInput(unknownLab.id, { inputKey: 'terraform', inputType: 'TERRAFORM', label: 'Terraform', sourceKind: 'INLINE', schemaVersion: 'devops.terraform.v1', payload: {}, isPrimary: true, sortOrder: 0 });
 

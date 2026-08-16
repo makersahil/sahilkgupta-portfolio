@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middlewares/auth.middleware.js';
 import { asyncHandler } from '../middlewares/async-handler.js';
 import { labManifestService, labService } from '../services/labs/index.js';
+import { portfolioOrchestratorService, parseDeleteConfirmation } from '../services/orchestrator/index.js';
 import { recordAdminAudit } from './admin-audit.js';
 import {
   optionalLabQuery,
@@ -82,8 +83,8 @@ router.put('/:id', ...adminOnly, asyncHandler(async (request, response) => {
   response.json({ success: true, data, message: 'Lab updated successfully' });
 }));
 
-router.delete('/:id', ...adminOnly, asyncHandler(async (request, response) => {
-  await labService.delete(request.params.id);
+router.delete('/:id', authenticateToken, requireRole('SUPER_ADMIN'), asyncHandler(async (request, response) => {
+  await portfolioOrchestratorService.deleteLabPermanent(request.params.id, parseDeleteConfirmation(request.body));
   await recordAdminAudit(request, { action: 'LAB_DELETE', entityType: 'Lab', entityId: request.params.id });
   response.json({ success: true, message: 'Lab deleted successfully' });
 }));

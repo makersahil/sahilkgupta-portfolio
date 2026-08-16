@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 interface ApiResult { response: Response; payload: Record<string, any>; }
 
@@ -36,9 +37,10 @@ async function main(): Promise<void> {
       provenance: { sourceType: 'CANONICAL_MANIFEST', notes: [] },
     };
     const lab = await labService.create({
-      slug: `devops-http-${suffix}`, title: 'DevOps HTTP Fixture', summary: 'HTTP fixture', domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'READY',
+      slug: `devops-http-${suffix}`, title: 'DevOps HTTP Fixture', summary: 'HTTP fixture', domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'DRAFT',
       projectId: project.id, isInteractive: true, manifestVersion: '1.0', capabilities: ['pipeline'], normalizedState,
     });
+    await markRegressionLabReady(lab.id);
     labId = lab.id;
     await labService.createInput(lab.id, { inputKey: 'pipeline', inputType: 'CI_PIPELINE', label: 'Pipeline', sourceKind: 'INLINE', schemaVersion: 'devops.input.v1', payload: {}, isPrimary: true, sortOrder: 0 });
 

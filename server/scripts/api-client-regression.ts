@@ -66,6 +66,47 @@ async function main(): Promise<void> {
   }) as typeof fetch;
   await expectApiError(() => api.getCertifications(), 'NETWORK_ERROR');
 
+  respond(200, {
+    success: true,
+    data: {
+      projects: { total: 1, byStatus: { DRAFT: 1, PUBLISHED: 0, ARCHIVED: 0 }, byDomain: { NETWORKING: 1, LINUX: 0, DEVOPS: 0 } },
+      labs: { total: 1, byStatus: { DRAFT: 1, READY: 0, ARCHIVED: 0 }, byDomain: { NETWORKING: 1, LINUX: 0, DEVOPS: 0 }, missingPrimaryInput: 1 },
+      activeScenarioRuntimes: 0,
+      recentAudit: [],
+    },
+  });
+  const orchestratorDashboard = await api.getOrchestratorDashboard();
+  assert.equal(orchestratorDashboard.projects.total, 1);
+  assert.equal(String(captured?.endpoint), '/api/admin/orchestrator/dashboard');
+
+  respond(200, { success: true, data: [] });
+  assert.deepEqual(await api.getOrchestratorProjects(), []);
+  assert.equal(String(captured?.endpoint), '/api/admin/orchestrator/projects');
+
+  respond(201, { success: true, data: { project: { id: 'project-1', revision: 1 }, labs: [], runbookSteps: [], evidence: [], artifacts: [] } });
+  await api.createOrchestratorProject({ title: 'Draft', slug: 'draft-project', domain: 'NETWORKING', categoryId: 'cat-networking' });
+  assert.equal(String(captured?.endpoint), '/api/admin/orchestrator/projects');
+  assert.equal(captured?.init?.method, 'POST');
+  assert.match(String(captured?.init?.body), /draft-project/);
+
+  respond(200, {
+    success: true,
+    data: { valid: true, schemaVersion: 'portfolio.project-bundle.v1', conflictMode: 'REJECT', proposedProjectSlug: 'draft-project', proposedLabSlugs: [], errors: [], warnings: [], counts: { projects: 1 } },
+  });
+  const dryRun = await api.orchestratorImportDryRun({ schemaVersion: 'portfolio.project-bundle.v1' });
+  assert.equal(dryRun.valid, true);
+  assert.equal(String(captured?.endpoint), '/api/admin/orchestrator/import/dry-run');
+  assert.equal(captured?.init?.method, 'POST');
+  assert.match(String(captured?.init?.body), /\"conflictMode\":\"REJECT\"/);
+
+  respond(200, { schemaVersion: 'portfolio.project-bundle.v1', project: { slug: 'draft-project' }, labs: [] });
+  const exportedProject = await api.exportOrchestratorProject('project/with space') as Record<string, unknown>;
+  assert.equal(exportedProject.schemaVersion, 'portfolio.project-bundle.v1');
+  assert.equal(String(captured?.endpoint), '/api/admin/orchestrator/projects/project%2Fwith%20space/export');
+
+  respond(409, { success: false, error: { code: 'CONFLICT', message: 'Stale revision' } });
+  await expectApiError(() => api.updateOrchestratorProject('project-1', { expectedRevision: 1, summary: 'stale' }), 'HTTP_ERROR', 409);
+
   respond(200, { output: 'terminal contract preserved', exitCode: 0 });
   assert.deepEqual(await api.execTerminal('help'), {
     output: 'terminal contract preserved',

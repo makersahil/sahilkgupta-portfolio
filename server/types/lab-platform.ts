@@ -28,6 +28,8 @@ export interface LabRecord {
   domain: LabDomain;
   kind: LabKind;
   status: LabStatus;
+  sortOrder: number;
+  revision: number;
   projectId: string | null;
   isInteractive: boolean;
   manifestVersion: string;

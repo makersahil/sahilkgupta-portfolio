@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for the Networking engine regression suite');
@@ -27,7 +28,7 @@ async function main(): Promise<void> {
         summary: 'Reusable Networking engine regression fixture',
         domain: 'NETWORKING',
         kind: 'NETWORK_TOPOLOGY',
-        status,
+        status: 'DRAFT',
         projectId: project.id,
         isInteractive: true,
         manifestVersion: '1.0',
@@ -48,6 +49,7 @@ async function main(): Promise<void> {
         inputKey: 'topology', inputType: 'NETWORK_TOPOLOGY', label: 'Normalized topology', sourceKind: 'INLINE', schemaVersion: 'networking.input.v1',
         payload: { schemaVersion: 'networking.input.v1' }, isPrimary: true, sortOrder: 0,
       });
+      if (status === 'READY') await markRegressionLabReady(lab.id);
       return lab;
     };
 
@@ -80,7 +82,7 @@ async function main(): Promise<void> {
       summary: 'A second-project Lab rendered without project-specific React or persisted topology-node assumptions.',
       domain: 'NETWORKING',
       kind: 'NETWORK_TOPOLOGY',
-      status: 'READY',
+      status: 'DRAFT',
       projectId: secondaryProject.id,
       isInteractive: true,
       manifestVersion: '1.0',
@@ -102,6 +104,7 @@ async function main(): Promise<void> {
       inputKey: 'normalized-topology', inputType: 'NETWORK_TOPOLOGY', label: 'Normalized topology', sourceKind: 'INLINE', schemaVersion: 'networking.input.v1',
       payload: { schemaVersion: 'networking.input.v1' }, isPrimary: true, sortOrder: 0,
     });
+    await markRegressionLabReady(normalizedOnlyLab.id);
 
     await labService.replaceTopology(
       ready.id,

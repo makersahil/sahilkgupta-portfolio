@@ -309,3 +309,5 @@ export type {
   LinuxVerificationRecord,
   LinuxVolumeGroupRecord,
 } from './linux.js';
+
+export type * from './orchestrator.js';
