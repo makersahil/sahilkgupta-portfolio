@@ -113,7 +113,7 @@ If a requirement conflicts with repository state, stop and explain instead of gu
 - Public Lab reads require `Lab.status=READY` and a published Project. Public manifests expose only public evidence and safe artifact summaries.
 - Public-shaped manifests describe input availability but do not expose raw inline LabInput payloads, raw external input URLs, or internal artifact storage keys.
 - Never claim arbitrary Packet Tracer/PCAP/config parsing unless a real adapter exists and is tested. Reference/normalized fixture metadata must be labeled truthfully.
-- Domain engines may inspect and reason over persisted normalized state, but must not imply live infrastructure execution unless an explicitly implemented executor exists. Networking and Linux recorded-state engines plus the Phase 5A DevOps core are implemented. Phase 5B owns DevOps recorded-state investigation/context; Phase 6 owns contextual CLI execution and Phase 7 owns shared mutable scenario execution/reset.
+- Domain engines may inspect and reason over persisted normalized state, but must not imply live infrastructure execution unless an explicitly implemented executor exists. Networking, Linux, and DevOps recorded-state engines are implemented. Phase 6 owns contextual CLI execution and Phase 7 owns shared mutable scenario execution/reset.
 - Preserve one Project -> many Labs -> many Inputs/Scenarios/RunbookSteps/Evidence as the platform relationship model.
 
 
@@ -131,4 +131,4 @@ If a requirement conflicts with repository state, stop and explain instead of gu
 - Render only modules represented by the selected Lab. Do not add Kubernetes/GitOps views to a Terraform-only Lab by assumption.
 - Do not reintroduce browser timer-based fake pipeline execution or automatic SUCCESS transitions.
 - Recorded project-fixture values must remain identifiable as recorded state; missing health, metrics, revisions, workloads, logs, policies, or rollouts stay unknown/empty.
-- Phase 5A is read-only domain inspection. Phase 5B owns recorded-state investigation and `GITOPS/...` context; Phase 6 owns contextual command execution; Phase 7 owns shared mutable scenario execution/reset.
+- Phase 5A owns the read-only `devops.v1` domain model and explorer. Phase 5B owns recorded-state diagnostics, `GITOPS/...` context, remediation guidance, and non-mutating scenario readiness; Phase 6 owns contextual command execution; Phase 7 owns shared mutable scenario execution/reset.

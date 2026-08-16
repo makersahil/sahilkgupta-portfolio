@@ -1008,6 +1008,9 @@ export interface DevOpsTerraformState {
   workspace: string | null;
   backend: string | null;
   files: DevOpsIaCFile[];
+  driftStatus: 'CLEAN' | 'DRIFTED' | 'ERROR' | 'UNKNOWN';
+  driftSummary: string | null;
+  recordedPlanOutput: string | null;
   source: DevOpsObservationSource;
 }
 export interface DevOpsKubernetesCluster {
@@ -1103,4 +1106,78 @@ export interface DevOpsLabState {
   scenarios: CanonicalLabManifestV1['scenarios'];
   provenance: DevOpsStateProvenance;
   warnings: string[];
+}
+
+
+export type DevOpsHealthCategory = 'PIPELINE' | 'TERRAFORM' | 'KUBERNETES' | 'GITOPS' | 'HELM' | 'NETWORK_POLICY' | 'OBSERVABILITY' | 'DATA';
+export type DevOpsHealthStatus = 'PASS' | 'WARN' | 'FAIL' | 'UNKNOWN';
+
+export interface DevOpsHealthCheck {
+  id: string;
+  category: DevOpsHealthCategory;
+  status: DevOpsHealthStatus;
+  title: string;
+  summary: string;
+  evidence: string[];
+  relatedResources: string[];
+}
+
+export type DevOpsInvestigationCategory = 'PIPELINE' | 'TERRAFORM' | 'KUBERNETES' | 'GITOPS' | 'HELM' | 'NETWORK_POLICY' | 'OBSERVABILITY';
+export type DevOpsFindingSeverity = 'INFO' | 'WARN' | 'CRITICAL';
+
+export interface DevOpsInvestigationFinding {
+  id: string;
+  category: DevOpsInvestigationCategory;
+  severity: DevOpsFindingSeverity;
+  title: string;
+  summary: string;
+  evidence: string[];
+  suggestedCommands: string[];
+  remediationGuidance: string[];
+  relatedResource: string | null;
+  interpretation: 'RECORDED_STATE_DIAGNOSTIC';
+}
+
+export interface DevOpsScenarioReadiness {
+  id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  enabled: boolean;
+  observableSignals: string[];
+  executionAvailable: false;
+}
+
+export interface DevOpsOperationsSnapshot {
+  schemaVersion: 'devops.operations.v1';
+  labId: string;
+  labSlug: string;
+  overallStatus: 'HEALTHY' | 'DEGRADED' | 'CRITICAL' | 'UNKNOWN';
+  healthChecks: DevOpsHealthCheck[];
+  findings: DevOpsInvestigationFinding[];
+  scenarioReadiness: DevOpsScenarioReadiness[];
+  counts: {
+    pipelines: number;
+    failedPipelines: number;
+    workloads: number;
+    problemWorkloads: number;
+    gitopsApplications: number;
+    outOfSyncApplications: number;
+    observations: number;
+    failingObservations: number;
+    findings: number;
+  };
+  executionAvailable: false;
+  note: string;
+}
+
+export interface DevOpsOperatorContext {
+  contextId: string;
+  prompt: string;
+  scope: 'LAB' | 'PIPELINE';
+  lab: { id: string; slug: string; title: string };
+  pipeline: { id: string; name: string; status: DevOpsStageStatus } | null;
+  availableInspectors: Array<'repository' | 'pipelines' | 'terraform' | 'kubernetes' | 'gitops' | 'helm' | 'network-policy' | 'observability' | 'health' | 'scenarios' | 'evidence'>;
+  executionAvailable: false;
+  note: string;
 }

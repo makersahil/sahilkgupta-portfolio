@@ -145,11 +145,22 @@ function normalizeTerraform(root: Record<string, unknown>): DevOpsTerraformState
   const legacyFiles = explicitFiles.length > 0 ? explicitFiles : flattenIaCTree(root.iacTree);
   const present = Boolean(record.present) || legacyFiles.some((file) => file.path.toLowerCase().endsWith('.tf'));
   if (!present && legacyFiles.length === 0) return null;
+  const rawDrift = String(record.driftStatus ?? record.planStatus ?? '').trim().toUpperCase();
+  const driftStatus: DevOpsTerraformState['driftStatus'] = rawDrift === 'CLEAN' || rawDrift === 'NO_CHANGES'
+    ? 'CLEAN'
+    : rawDrift === 'DRIFTED' || rawDrift === 'CHANGES' || rawDrift === 'CHANGES_PRESENT'
+      ? 'DRIFTED'
+      : rawDrift === 'ERROR' || rawDrift === 'FAILED'
+        ? 'ERROR'
+        : 'UNKNOWN';
   return {
     present,
     workspace: text(record.workspace),
     backend: text(record.backend),
     files: legacyFiles,
+    driftStatus,
+    driftSummary: text(record.driftSummary ?? record.planSummary),
+    recordedPlanOutput: text(record.recordedPlanOutput ?? record.planOutput),
     source: source(record.source ?? (asArray(root.iacTree).length > 0 ? 'RECORDED_PROJECT_FIXTURE' : undefined)),
   };
 }

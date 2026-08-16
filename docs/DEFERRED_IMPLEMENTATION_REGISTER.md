@@ -192,5 +192,5 @@ Reason Deferred: Phase 5A intentionally provides a reusable recorded-state deliv
 Target Phase: Phase 5B / Phase 6 / Phase 7
 Priority: P1
 Verification: Phase 5B derives evidence-backed delivery findings and `GITOPS/...` context from the same `devops.v1` state; Phase 6 executes only supported contextual commands; Phase 7 mutates and resets scenario state consistently across UI, CLI, runbook, and evidence.
-Implementation State: PARTIAL. Core `devops.v1` model, APIs, seed normalization, and dynamic UI are implemented in Phase 5A.
+Implementation State: PARTIAL. Phase 5A provides the core `devops.v1` model, APIs, seed normalization, and dynamic UI. Phase 5B now provides capability-aware recorded-state health/diagnostics, remediation guidance, durable `GITOPS/...` context contracts, and non-mutating scenario readiness. Command execution remains Phase 6 and mutable scenario execution/reset remains Phase 7.
 Status: OPEN

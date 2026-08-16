@@ -10,7 +10,7 @@ The dark cyber-terminal/control-plane visual language is intentional. Representa
 
 ## Current architecture
 
-Phase 2, Phase 3, and Phase 4 are complete domain/platform baselines. Phase 5A — Core Dynamic DevOps Engine is complete as the current DevOps baseline; Phase 5B adds recorded-state DevOps investigation and operations next.
+Phase 2, Phase 3, and Phase 4 are complete platform/domain baselines. Phase 5A provides the reusable Core Dynamic DevOps Engine. Phase 5B adds recorded-state DevOps Investigation and Operations and is implemented in this package pending local/full-ZIP exit verification.
 
 ```text
 Browser / React
@@ -39,7 +39,7 @@ Domain
       → artifact references
 ```
 
-The Networking workspace is driven by persisted canonical Lab data through the Networking Engine and its recorded-state operations layer. The Linux workspace is driven by persisted canonical Linux Lab state through the Core Linux Engine plus a recorded-state investigation/operations layer. The DevOps workspace is now driven by persisted canonical DevOps Lab state through the Phase 5A Core Dynamic DevOps Engine.
+The Networking workspace is driven by persisted canonical Lab data through the Networking Engine and its recorded-state operations layer. The Linux workspace is driven by persisted canonical Linux Lab state through the Core Linux Engine plus a recorded-state investigation/operations layer. The DevOps workspace is driven by persisted `devops.v1` Lab state through the Core Dynamic DevOps Engine plus the Phase 5B recorded-state operations layer.
 
 ## Repository layout
 
@@ -55,7 +55,7 @@ server/services/media/                persisted artifact-reference service
 server/services/system/               truthful runtime metrics service
 server/services/networking/           dynamic Networking adapter, engine, and operations services
 server/services/linux/                dynamic Linux adapter and core host-state engine
-server/services/devops/               dynamic DevOps adapter and core delivery-state engine
+server/services/devops/               dynamic DevOps adapter, delivery-state engine, and recorded-state operations
 server/repositories/contracts/        repository contracts
 server/repositories/prisma/           PostgreSQL/Prisma repositories
 server/middlewares/                   persisted auth, async, and error middleware
@@ -114,7 +114,7 @@ npm run verify:quick
 npm run verify:tests
 ```
 
-The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, the Dynamic Networking Engine, recorded-state Networking operations, the Dynamic Linux Engine, Linux recorded-state operations, and the Core Dynamic DevOps Engine regressions.
+The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, the Dynamic Networking Engine and operations, the Dynamic Linux Engine and operations, and the Dynamic DevOps Engine plus recorded-state DevOps operations regressions.
 
 ## Media and Packet Tracer truthfulness
 
@@ -137,9 +137,11 @@ The engine renders recorded state only. Phase 4B derives service/storage/SELinux
 
 ## Dynamic DevOps Engine
 
-Published DevOps Labs are rendered from canonical Lab Manifest v1 data and normalized `devops.v1` delivery state. The Phase 5A engine supports multiple projects and Labs and renders only modules represented by persisted state: repositories, CI/CD stages, Terraform/IaC files, Kubernetes snapshots, ArgoCD/GitOps state, Helm records, Cilium/network-policy observations, observability snapshots, and architecture records.
+Published DevOps Labs are rendered from canonical Lab Manifest v1 data and normalized `devops.v1` delivery state. The Phase 5A core supports multiple projects and Labs and renders only modules represented by persisted state: repositories, CI/CD stages, Terraform/IaC files, Kubernetes snapshots, ArgoCD/GitOps state, Helm records, Cilium/network-policy observations, observability snapshots, and architecture records.
 
-The browser no longer replays a fake timer-driven pipeline. All displayed delivery state comes from persisted recorded snapshots, and missing modules or live telemetry remain empty/unknown. Investigation/remediation logic and `GITOPS/...` operator context arrive in Phase 5B; command execution remains Phase 6 and mutable scenarios remain Phase 7. See `docs/DEVOPS_ENGINE_ARCHITECTURE.md`.
+Phase 5B layers `DevOpsOperationsService` over that same state. It derives capability-aware health checks and evidence-backed findings for recorded pipeline failures, Terraform drift/errors, Kubernetes readiness/rollout problems, ArgoCD reconciliation issues, Helm state, Cilium/network-policy verification gaps, and observability warnings/failures. Missing modules are not invented and do not poison unrelated Labs with synthetic health checks. Suggested commands/remediation are guidance only.
+
+The operations API also publishes durable, non-executing `GITOPS/...` Lab/pipeline contexts and scenario-ready definitions. The browser never replays a fake pipeline, runs Terraform/kubectl/Helm/ArgoCD/Cilium commands, or mutates scenario state. Unified contextual command execution remains Phase 6 and shared scenario mutation/remediation/reset remains Phase 7. See `docs/DEVOPS_ENGINE_ARCHITECTURE.md`.
 
 ## Git workflow
 
@@ -153,4 +155,4 @@ Git is the source of truth.
 - Run `npm run verify` and inspect `git diff` before committing.
 - Read `AGENTS.md` and `docs/DEFERRED_IMPLEMENTATION_REGISTER.md` before every phase.
 
-Phase 2 through Phase 4 are complete. Phase 5A — Core Dynamic DevOps Engine is the current checkpoint. Phase 5B — DevOps Investigation and Operations is the next bounded implementation phase.
+Phase 2 through Phase 4 are complete. Phase 5A is the Core Dynamic DevOps baseline. Phase 5B — DevOps Investigation and Operations is implemented in this package and must pass the consolidated verifier plus full-ZIP exit audit before Phase 5 is closed and Phase 6 begins.

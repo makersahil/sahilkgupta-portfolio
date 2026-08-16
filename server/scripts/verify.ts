@@ -72,6 +72,8 @@ const databaseTests: Step[] = [
   { label: 'Linux operations HTTP regression', command: 'npm', args: ['run', 'test:linux:operations:http'], requiresDatabase: true },
   { label: 'DevOps engine regression', command: 'npm', args: ['run', 'test:devops'], requiresDatabase: true },
   { label: 'DevOps engine HTTP regression', command: 'npm', args: ['run', 'test:devops:http'], requiresDatabase: true },
+  { label: 'DevOps operations regression', command: 'npm', args: ['run', 'test:devops:operations'], requiresDatabase: true },
+  { label: 'DevOps operations HTTP regression', command: 'npm', args: ['run', 'test:devops:operations:http'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [
