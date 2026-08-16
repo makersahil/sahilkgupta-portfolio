@@ -205,7 +205,7 @@ export interface DevOpsScenarioReadiness {
   summary: string;
   enabled: boolean;
   observableSignals: string[];
-  executionAvailable: false;
+  executionAvailable: boolean;
 }
 
 export interface DevOpsOperationsSnapshot {
@@ -227,7 +227,7 @@ export interface DevOpsOperationsSnapshot {
     failingObservations: number;
     findings: number;
   };
-  executionAvailable: false;
+  executionAvailable: boolean;
   note: string;
 }
 
@@ -238,6 +238,6 @@ export interface DevOpsOperatorContext {
   lab: { id: string; slug: string; title: string };
   pipeline: { id: string; name: string; status: DevOpsStageStatus } | null;
   availableInspectors: Array<'repository' | 'pipelines' | 'terraform' | 'kubernetes' | 'gitops' | 'helm' | 'network-policy' | 'observability' | 'health' | 'scenarios' | 'evidence'>;
-  executionAvailable: false;
+  executionAvailable: boolean;
   note: string;
 }

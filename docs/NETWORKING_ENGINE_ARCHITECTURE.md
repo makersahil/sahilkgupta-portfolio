@@ -78,13 +78,13 @@ NETOPS/CISCO-WAN-TOPOLOGY>
 NETOPS/CISCO-WAN-TOPOLOGY/R1>
 ```
 
-The Phase 3B context API itself keeps `executionAvailable=false`. Phase 6 consumes the same Lab/device metadata through the unified read-only recorded-state CLI instead of creating a second networking state model.
+The Phase 3B context API itself remains a recorded-state contract. Phase 6 consumes the same Lab/device metadata through the unified CLI instead of creating a second Networking state model. Phase 7 overlays supported scenario state for the selected browser session, and the CLI/workspace read that same overlay.
 
 ## Scenario-ready state
 
 Phase 3B persists enabled Networking scenario definitions for investigation workflows such as ISP failover, OSPF neighbor loss, HSRP gateway failover, and ACL-denial investigation. They carry baseline signals, mutation contracts, expected observations, and verification criteria.
 
-These definitions are intentionally **not executed in Phase 3B**. Healthy→mutate→investigate→remediate→verify→reset execution belongs to the generic Scenario Engine in Phase 7. The UI labels these records as definitions only.
+These definitions are intentionally **not executed by the Phase 3B operations layer itself**. Phase 7 consumes enabled definitions through the generic Scenario Engine and supports run → investigate → verify fault → remediate → verify recovery → reset as a session-only overlay. The operations view stays read-only while the shared Scenario Runtime panel owns lifecycle actions.
 
 ## Reachability scope
 

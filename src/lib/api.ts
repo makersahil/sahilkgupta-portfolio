@@ -40,6 +40,7 @@ import {
   LabDomain,
   UnifiedCliBootstrap,
   UnifiedCliExecutionResult,
+  ScenarioOverview,
 } from '../types.js';
 
 export type ApiErrorCode =
@@ -123,6 +124,34 @@ const getServerCode = (payload: unknown): string | undefined => {
   return undefined;
 };
 
+
+let volatileLabSessionId: string | null = null;
+const LAB_SESSION_STORAGE_KEY = 'portfolio-lab-session-v1';
+
+function createLabSessionId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.().replace(/-/g, '');
+  if (uuid) return `lab-${uuid}`;
+  const random = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  return `lab-${Date.now().toString(36)}-${random.replace(/[^a-z0-9]/gi, '')}`;
+}
+
+function getLabSessionId(): string {
+  if (typeof window === 'undefined') {
+    volatileLabSessionId ??= createLabSessionId();
+    return volatileLabSessionId;
+  }
+  try {
+    const existing = window.sessionStorage.getItem(LAB_SESSION_STORAGE_KEY);
+    if (existing) return existing;
+    const created = createLabSessionId();
+    window.sessionStorage.setItem(LAB_SESSION_STORAGE_KEY, created);
+    return created;
+  } catch {
+    volatileLabSessionId ??= createLabSessionId();
+    return volatileLabSessionId;
+  }
+}
+
 class ApiClient {
   private getHeaders(): HeadersInit {
     return {
@@ -135,9 +164,12 @@ class ApiClient {
     let response: Response;
 
     try {
+      const headers = new Headers(init.headers);
+      headers.set('X-Lab-Session', getLabSessionId());
       response = await fetch(endpoint, {
         credentials: 'same-origin',
         ...init,
+        headers,
       });
     } catch (cause) {
       throw new ApiError('Unable to reach the backend API.', {
@@ -553,6 +585,39 @@ class ApiClient {
   }
 
   // Dynamic Networking Lab Engine
+  async getScenarioOverview(labIdentifier: string): Promise<ScenarioOverview> {
+    return this.requestData<ScenarioOverview>(`/api/scenarios/labs/${encodeURIComponent(labIdentifier)}`);
+  }
+
+  async runScenario(labIdentifier: string, scenarioSlug: string): Promise<ScenarioOverview> {
+    return this.requestData<ScenarioOverview>(`/api/scenarios/labs/${encodeURIComponent(labIdentifier)}/run`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({ scenarioSlug }),
+    });
+  }
+
+  async verifyScenario(labIdentifier: string): Promise<ScenarioOverview> {
+    return this.requestData<ScenarioOverview>(`/api/scenarios/labs/${encodeURIComponent(labIdentifier)}/verify`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+  }
+
+  async remediateScenario(labIdentifier: string): Promise<ScenarioOverview> {
+    return this.requestData<ScenarioOverview>(`/api/scenarios/labs/${encodeURIComponent(labIdentifier)}/remediate`, {
+      method: 'POST',
+      headers: this.getHeaders(),
+    });
+  }
+
+  async resetScenario(labIdentifier: string): Promise<ScenarioOverview> {
+    return this.requestData<ScenarioOverview>(`/api/scenarios/labs/${encodeURIComponent(labIdentifier)}/runtime`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+    });
+  }
+
   async getNetworkingLabs(projectSlug?: string): Promise<NetworkingLabSummary[]> {
     const params = new URLSearchParams();
     if (projectSlug) params.set('projectSlug', projectSlug);

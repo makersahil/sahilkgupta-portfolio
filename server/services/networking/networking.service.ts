@@ -1,6 +1,7 @@
 import { NotFoundError, ValidationError } from '../../lib/errors.js';
 import type { LabRepository } from '../../repositories/contracts/lab.repository.js';
 import { LabManifestService } from '../labs/lab-manifest.service.js';
+import type { ScenarioStateService } from '../scenarios/scenario-state.service.js';
 import type {
   CompatibilityTopologyData,
   NetworkingDeviceState,
@@ -9,28 +10,20 @@ import type {
   NetworkingPathTrace,
 } from '../../types/networking.js';
 import { NetworkingLabAdapter, networkingLabAdapter } from './networking-lab-adapter.js';
+import { buildOperationalNetworkingTopology } from './networking-topology.js';
 
 const NETWORK_DOMAIN = 'NETWORKING' as const;
 const NETWORK_KIND = 'NETWORK_TOPOLOGY' as const;
 
-function usableLink(status: string): boolean {
-  return status !== 'DOWN';
-}
-
 function defaultSource(devices: NetworkingDeviceState[]): NetworkingDeviceState | undefined {
-  return (
-    devices.find((device) => ['workstation', 'endpoint'].includes(device.kind)) ??
-    devices.find((device) => device.kind === 'server') ??
-    devices[0]
-  );
+  return devices.find((device) => ['workstation', 'endpoint'].includes(device.kind)) ??
+    devices.find((device) => device.kind === 'server') ?? devices[0];
 }
 
 function defaultTarget(devices: NetworkingDeviceState[], sourceKey: string): NetworkingDeviceState | undefined {
-  return (
-    devices.find((device) => device.key !== sourceKey && device.kind === 'server') ??
+  return devices.find((device) => device.key !== sourceKey && device.kind === 'server') ??
     devices.find((device) => device.key !== sourceKey && device.kind === 'isp') ??
-    devices.find((device) => device.key !== sourceKey)
-  );
+    devices.find((device) => device.key !== sourceKey);
 }
 
 export class NetworkingService {
@@ -39,38 +32,36 @@ export class NetworkingService {
   constructor(
     private readonly labs: LabRepository,
     private readonly adapter: NetworkingLabAdapter = networkingLabAdapter,
+    private readonly scenarioState?: ScenarioStateService,
   ) {
     this.manifests = new LabManifestService(labs);
   }
 
   async listPublic(projectSlug?: string): Promise<NetworkingLabSummary[]> {
-    const records = await this.labs.findAll({
-      projectSlug,
-      domain: NETWORK_DOMAIN,
-      kind: NETWORK_KIND,
-      status: 'READY',
-      publishedProjectOnly: true,
-    });
-
-    return Promise.all(
-      records.map(async (record) => this.adapter.toSummary(await this.manifests.getPublic(record.id))),
-    );
+    const records = await this.labs.findAll({ projectSlug, domain: NETWORK_DOMAIN, kind: NETWORK_KIND, status: 'READY', publishedProjectOnly: true });
+    return Promise.all(records.map(async (record) => this.adapter.toSummary(await this.manifests.getPublic(record.id))));
   }
 
-  async getPublic(identifier?: string): Promise<NetworkingLabState> {
+  async getBaselinePublic(identifier?: string): Promise<NetworkingLabState> {
     const target = identifier ?? await this.defaultPublicIdentifier();
     return this.adapter.toState(await this.manifests.getPublic(target));
   }
 
-  async getDevice(identifier: string, nodeKey: string): Promise<NetworkingDeviceState> {
-    const state = await this.getPublic(identifier);
+  async getPublic(identifier?: string, sessionKey?: string): Promise<NetworkingLabState> {
+    const baseline = await this.getBaselinePublic(identifier);
+    return this.scenarioState ? this.scenarioState.apply(sessionKey, baseline) : baseline;
+  }
+
+  async getDevice(identifier: string, nodeKey: string, sessionKey?: string): Promise<NetworkingDeviceState> {
+    const state = await this.getPublic(identifier, sessionKey);
     const device = state.devices.find((entry) => entry.key === nodeKey);
     if (!device) throw new NotFoundError('Networking device not found');
     return device;
   }
 
-  async getCompatibilityTopology(identifier?: string): Promise<CompatibilityTopologyData> {
-    const state = await this.getPublic(identifier);
+  async getCompatibilityTopology(identifier?: string, sessionKey?: string): Promise<CompatibilityTopologyData> {
+    const state = await this.getPublic(identifier, sessionKey);
+    const usableLinkKeys = new Set(buildOperationalNetworkingTopology(state).usableLinks.map((link) => link.key));
     return {
       nodes: state.devices.map((device) => ({
         id: device.key,
@@ -88,7 +79,7 @@ export class NetworkingService {
         target: link.targetDeviceKey,
         protocol: link.protocols.join(' / ') || link.label || 'Network link',
         speed: link.speed ?? 'Not recorded',
-        active: link.status !== 'DOWN',
+        active: usableLinkKeys.has(link.key),
       })),
     };
   }
@@ -98,51 +89,36 @@ export class NetworkingService {
     sourceKey?: string,
     targetKey?: string,
     protocol = 'ICMP',
+    sessionKey?: string,
   ): Promise<NetworkingPathTrace> {
-    const state = await this.getPublic(identifier);
+    const state = await this.getPublic(identifier, sessionKey);
     if (state.devices.length === 0) throw new ValidationError('This Networking Lab has no topology devices');
 
-    const source = sourceKey
-      ? state.devices.find((device) => device.key === sourceKey)
-      : defaultSource(state.devices);
+    const source = sourceKey ? state.devices.find((device) => device.key === sourceKey) : defaultSource(state.devices);
     if (!source) throw new ValidationError('Invalid source device', { field: 'sourceDeviceKey' });
-
-    const target = targetKey
-      ? state.devices.find((device) => device.key === targetKey)
-      : defaultTarget(state.devices, source.key);
+    const target = targetKey ? state.devices.find((device) => device.key === targetKey) : defaultTarget(state.devices, source.key);
     if (!target) throw new ValidationError('Invalid target device', { field: 'targetDeviceKey' });
 
-    if (source.key === target.key) {
+    const { deviceByKey, adjacency } = buildOperationalNetworkingTopology(state);
+    if (source.status === 'DOWN' || target.status === 'DOWN') {
       return {
-        labId: state.lab.id,
-        labSlug: state.lab.slug,
-        sourceDeviceKey: source.key,
-        targetDeviceKey: target.key,
-        protocol,
-        status: 'PATH_FOUND',
-        hops: [source.key],
-        linkKeys: [],
-        traversesFirewall: source.kind === 'firewall',
+        labId: state.lab.id, labSlug: state.lab.slug, sourceDeviceKey: source.key, targetDeviceKey: target.key,
+        protocol, status: 'UNREACHABLE', hops: [], linkKeys: [], traversesFirewall: false,
         interpretation: 'TOPOLOGY_REACHABILITY',
-        note: 'Source and target are the same persisted Lab device.',
+        note: 'No operational path is available because the source or target device is DOWN in the recorded/session-simulation state.',
       };
     }
 
-    const adjacency = new Map<string, Array<{ neighbor: string; linkKey: string }>>();
-    for (const device of state.devices) adjacency.set(device.key, []);
-    for (const link of state.links.filter((entry) => usableLink(entry.status))) {
-      adjacency.get(link.sourceDeviceKey)?.push({ neighbor: link.targetDeviceKey, linkKey: link.key });
-      adjacency.get(link.targetDeviceKey)?.push({ neighbor: link.sourceDeviceKey, linkKey: link.key });
-    }
-    for (const neighbors of adjacency.values()) {
-      neighbors.sort((a, b) => a.neighbor.localeCompare(b.neighbor) || a.linkKey.localeCompare(b.linkKey));
+    if (source.key === target.key) {
+      return {
+        labId: state.lab.id, labSlug: state.lab.slug, sourceDeviceKey: source.key, targetDeviceKey: target.key,
+        protocol, status: 'PATH_FOUND', hops: [source.key], linkKeys: [], traversesFirewall: source.kind === 'firewall',
+        interpretation: 'TOPOLOGY_REACHABILITY', note: 'Source and target are the same operational Lab device.',
+      };
     }
 
     const queue = [source.key];
-    const previous = new Map<string, { device: string | null; linkKey: string | null }>([
-      [source.key, { device: null, linkKey: null }],
-    ]);
-
+    const previous = new Map<string, { device: string | null; linkKey: string | null }>([[source.key, { device: null, linkKey: null }]]);
     while (queue.length > 0 && !previous.has(target.key)) {
       const current = queue.shift()!;
       for (const edge of adjacency.get(current) ?? []) {
@@ -154,17 +130,10 @@ export class NetworkingService {
 
     if (!previous.has(target.key)) {
       return {
-        labId: state.lab.id,
-        labSlug: state.lab.slug,
-        sourceDeviceKey: source.key,
-        targetDeviceKey: target.key,
-        protocol,
-        status: 'UNREACHABLE',
-        hops: [],
-        linkKeys: [],
-        traversesFirewall: false,
+        labId: state.lab.id, labSlug: state.lab.slug, sourceDeviceKey: source.key, targetDeviceKey: target.key,
+        protocol, status: 'UNREACHABLE', hops: [], linkKeys: [], traversesFirewall: false,
         interpretation: 'TOPOLOGY_REACHABILITY',
-        note: 'No path exists across the currently active persisted Lab links.',
+        note: 'No path exists across the currently active recorded/session-simulation Lab links.',
       };
     }
 
@@ -177,30 +146,17 @@ export class NetworkingService {
       if (previousEntry?.linkKey) linkKeys.unshift(previousEntry.linkKey);
       cursor = previousEntry?.device ?? null;
     }
-
-    const deviceByKey = new Map(state.devices.map((device) => [device.key, device]));
     return {
-      labId: state.lab.id,
-      labSlug: state.lab.slug,
-      sourceDeviceKey: source.key,
-      targetDeviceKey: target.key,
-      protocol,
-      status: 'PATH_FOUND',
-      hops,
-      linkKeys,
+      labId: state.lab.id, labSlug: state.lab.slug, sourceDeviceKey: source.key, targetDeviceKey: target.key,
+      protocol, status: 'PATH_FOUND', hops, linkKeys,
       traversesFirewall: hops.some((key) => deviceByKey.get(key)?.kind === 'firewall'),
       interpretation: 'TOPOLOGY_REACHABILITY',
-      note: 'This compatibility trace reports deterministic topology reachability across active persisted links. Use the Networking operations analysis endpoint for recorded-state route and structured ACL assessment.',
+      note: 'Deterministic topology reachability is derived from canonical recorded state plus any active session-scoped scenario overlay.',
     };
   }
 
   private async defaultPublicIdentifier(): Promise<string> {
-    const records = await this.labs.findAll({
-      domain: NETWORK_DOMAIN,
-      kind: NETWORK_KIND,
-      status: 'READY',
-      publishedProjectOnly: true,
-    });
+    const records = await this.labs.findAll({ domain: NETWORK_DOMAIN, kind: NETWORK_KIND, status: 'READY', publishedProjectOnly: true });
     if (!records[0]) throw new NotFoundError('No public Networking Lab is available');
     return records[0].id;
   }

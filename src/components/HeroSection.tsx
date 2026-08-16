@@ -45,7 +45,7 @@ Name              Total / Free / Used        Properties
 pool_prod         500 GiB / 340 GiB / 160 GiB  ~dedup,~comp
 NAME              FSTYPE LABEL UUID                                 MOUNTPOINT
 ├─vg_prod-lv_data xfs          3f92b704-58a1-41db-8c70-ea8d3b519001 /data/db
-✔ Enterprise Linux Lab: LVM Storage & Systemd Modules Verified`
+RECORDED LAB SNAPSHOT: LVM storage and systemd state shown for inspection`
       );
     } else if (snippet === 'cisco') {
       setPreviewOutput(
@@ -55,7 +55,7 @@ Interface   Grp  Pri P State   Active          Standby         Virtual IP
 Gi0/0/1     1    110 P Active  local           10.10.0.3       10.10.0.1
 R1-HQ-Edge# show ip route ospf
 O   10.10.20.0/24 [110/2] via 10.10.0.10, GigabitEthernet0/0/1
-✔ Cisco .PKT Topology: OSPF Routing & HSRP Failover Verified`
+RECORDED LAB SNAPSHOT: OSPF and HSRP state shown for inspection`
       );
     } else if (snippet === 'devops') {
       setPreviewOutput(
@@ -63,7 +63,7 @@ O   10.10.20.0/24 [110/2] via 10.10.0.10, GigabitEthernet0/0/1
 TIMESTAMP                  GROUP      KIND       NAMESPACE  NAME               STATUS    HEALTH   HOOK  MESSAGE
 2025-02-15T14:22:01Z      apps       Deployment default    core-gateway       Synced    Healthy        deployment.apps/core-gateway updated
 2025-02-15T14:22:04Z      cilium.io  CiliumNP   default    isolate-db-mesh    Synced    Healthy        ciliumnetworkpolicy.cilium.io created
-✔ GitOps Continuous Delivery: 6/6 Microservices Reconciled in 14.2s`
+RECORDED LAB SNAPSHOT: GitOps reconciliation state shown for inspection`
       );
     }
   };
@@ -208,10 +208,10 @@ TIMESTAMP                  GROUP      KIND       NAMESPACE  NAME               S
                   <span className="flex items-center gap-1.5 text-white/60 font-mono">
                     <span className="w-2 h-2 rounded-full bg-[#00ff41] shadow-[0_0_8px_#00ff41] animate-pulse" />
                     {activeSnippet === 'cisco'
-                      ? 'NETWORK LAB STATE VERIFIED'
+                      ? 'NETWORK RECORDED STATE • NOT LIVE TELEMETRY'
                       : activeSnippet === 'rhcsa'
-                      ? 'RHEL LAB STATE VERIFIED'
-                      : 'DELIVERY LAB STATE VERIFIED'}
+                      ? 'RHEL RECORDED STATE • NOT LIVE TELEMETRY'
+                      : 'DELIVERY RECORDED STATE • NOT LIVE TELEMETRY'}
                   </span>
                   <button
                     onClick={() => setIsTerminalOpen(true)}

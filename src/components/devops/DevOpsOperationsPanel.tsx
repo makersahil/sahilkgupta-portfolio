@@ -146,7 +146,7 @@ export const DevOpsOperationsPanel: React.FC<{ labSlug: string; pipelines: DevOp
             </select>
           </label>
           <div>
-            <span className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-white/35">Future CLI prompt</span>
+            <span className="mb-1 block font-mono text-[9px] uppercase tracking-wider text-white/35">Unified CLI prompt</span>
             <div className="rounded-lg border border-[#00ff41]/20 bg-black px-3 py-2 font-mono text-xs text-[#00ff41]">{context?.prompt ?? 'GITOPS/...>'}</div>
           </div>
         </div>
@@ -158,13 +158,13 @@ export const DevOpsOperationsPanel: React.FC<{ labSlug: string; pipelines: DevOp
         <div className="mb-3 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-wider text-white/65"><GitPullRequest className="h-4 w-4 text-amber-300" /> Scenario-ready definitions</div>
         <div className="grid gap-2 md:grid-cols-2">{operations.scenarioReadiness.map((scenario) => (
           <div key={scenario.id} className="rounded-lg border border-white/10 bg-black/35 p-3">
-            <div className="flex items-center justify-between gap-2"><span className="font-mono text-xs font-bold text-white">{scenario.title}</span><span className="rounded border border-amber-400/20 bg-amber-400/5 px-2 py-1 font-mono text-[8px] uppercase text-amber-300">definition only</span></div>
+            <div className="flex items-center justify-between gap-2"><span className="font-mono text-xs font-bold text-white">{scenario.title}</span><span className="rounded border border-amber-400/20 bg-amber-400/5 px-2 py-1 font-mono text-[8px] uppercase text-amber-300">{scenario.executionAvailable ? 'session runnable' : 'definition only'}</span></div>
             <p className="mt-2 text-xs text-white/50">{scenario.summary}</p>
             {scenario.observableSignals.length > 0 && <div className="mt-2 flex flex-wrap gap-1">{scenario.observableSignals.map((signal) => <span key={signal} className="rounded border border-white/10 px-1.5 py-0.5 font-mono text-[8px] text-white/35">{signal}</span>)}</div>}
           </div>
         ))}</div>
         {operations.scenarioReadiness.length === 0 && <p className="py-6 text-center font-mono text-xs text-white/30">No enabled scenario definitions are published for this Lab.</p>}
-        <div className="mt-3 flex items-start gap-2 rounded border border-amber-400/15 bg-amber-400/5 p-3 text-xs text-amber-100/60"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />These contracts are non-mutating. Scenario run, remediation and reset remain Phase 7; command execution remains Phase 6.</div>
+        <div className="mt-3 flex items-start gap-2 rounded border border-amber-400/15 bg-amber-400/5 p-3 text-xs text-amber-100/60"><CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />These contracts are consumed by the session-scoped Scenario Runtime panel. This Operations view stays read-only; scenario run, verify, remediation and reset are handled by the shared Scenario Engine. External provider execution remains disabled.</div>
       </section>
     </div>
   );

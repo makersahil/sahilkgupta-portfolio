@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Phase 6 replaces the legacy representative terminal with one shared, read-only command interpreter backed by the same persisted Lab state used by the Networking, Linux, and DevOps workspaces.
+Phase 6 replaces the legacy representative terminal with one shared context-aware command interpreter backed by the same persisted Lab state used by the Networking, Linux, and DevOps workspaces. Phase 7 extends that interpreter with session-scoped scenario lifecycle commands while preserving the no-shell/no-provider-execution boundary.
 
 The CLI is **not** a browser shell and does not spawn local or remote operating-system/provider processes.
 
@@ -57,11 +57,16 @@ inspect [area]
 show <area>
 show health
 scenario list
+scenario status
+scenario run <slug>
+scenario verify
+scenario remediate
+scenario reset
 evidence
 clear
 ```
 
-`scenario list` is intentionally read-only. Scenario mutation, remediation, verification, and reset are Phase 7 responsibilities.
+Phase 7 implements scenario lifecycle commands through `ScenarioEngineService`. They mutate only the browser session runtime overlay. Canonical Lab state and external infrastructure remain untouched.
 
 ## NETOPS commands
 
@@ -142,10 +147,10 @@ If evidence is missing, the CLI reports that it is not recorded or not represent
 
 ## Execution boundary
 
-`UnifiedCliService` performs command parsing and read-only interpretation only. It must not import or call `child_process`, SSH libraries, shell runners, provider SDK executors, or mutation APIs.
+`UnifiedCliService` performs command parsing, recorded-state inspection, and delegation to the Phase 7 session Scenario Engine. It must not import or call `child_process`, SSH libraries, shell runners, provider SDK executors, or external infrastructure mutation APIs.
 
 Phase 6 enables **CLI command execution against recorded portfolio state**, not operating-system or infrastructure command execution.
 
-## Phase 7 boundary
+## Phase 7 integration
 
-Phase 7 will own shared mutable scenario state and commands such as scenario run/reset/remediation/verification. Until then, any scenario mutation request returns an explicit non-zero CLI result explaining that the operation is unavailable.
+Phase 7 owns the shared session-scoped Scenario Engine. `scenario run/status/verify/remediate/reset` delegate to that service and reuse the same `X-Lab-Session` identifier as the visual Lab workspaces. An ACTIVE runtime changes CLI `executionMode` to `SCENARIO_RUNTIME`; remediation/reset return it to `RECORDED_STATE`. This is simulation-state execution only, not shell/provider execution.

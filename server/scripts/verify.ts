@@ -34,6 +34,7 @@ const staticTests: Step[] = [
   { label: 'Linux engine static audit', command: 'npm', args: ['run', 'test:linux:static'] },
   { label: 'DevOps engine static audit', command: 'npm', args: ['run', 'test:devops:static'] },
   { label: 'Unified CLI static audit', command: 'npm', args: ['run', 'test:cli:static'] },
+  { label: 'Scenario engine static audit', command: 'npm', args: ['run', 'test:scenarios:static'] },
   { label: 'API client regression', command: 'npm', args: ['run', 'test:api-client'] },
 ];
 
@@ -77,6 +78,8 @@ const databaseTests: Step[] = [
   { label: 'DevOps operations HTTP regression', command: 'npm', args: ['run', 'test:devops:operations:http'], requiresDatabase: true },
   { label: 'Unified CLI regression', command: 'npm', args: ['run', 'test:cli'], requiresDatabase: true },
   { label: 'Unified CLI HTTP regression', command: 'npm', args: ['run', 'test:cli:http'], requiresDatabase: true },
+  { label: 'Scenario engine regression', command: 'npm', args: ['run', 'test:scenarios'], requiresDatabase: true },
+  { label: 'Scenario engine HTTP regression', command: 'npm', args: ['run', 'test:scenarios:http'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [

@@ -62,8 +62,11 @@ async function main(): Promise<void> {
   assert.match(operationsPanel, /getDevOpsContext/);
   assert.match(operationsPanel, /Recorded-state health/i);
   assert.match(operationsPanel, /Scenario-ready definitions/i);
-  assert.match(operationsPanel, /command execution remains Phase 6/i);
-  assert.match(operationsPanel, /Scenario run, remediation and reset remain Phase 7/i);
+  assert.match(operationsPanel, /Unified CLI prompt/i);
+  assert.match(operationsPanel, /session runnable/i);
+  assert.match(operationsPanel, /shared Scenario Engine/i);
+  assert.match(operationsPanel, /External provider execution remains disabled/i);
+  assert.doesNotMatch(operationsPanel, /Future CLI prompt|command execution remains Phase 6|Scenario run, remediation and reset remain Phase 7/i);
   assert.doesNotMatch(operationsPanel, /child_process|spawn\(|exec\(|setTimeout\(|Math\.random/i);
 
   assert.match(route, /devOpsService/);

@@ -114,7 +114,7 @@ async function main(): Promise<void> {
     assert.equal(networkCheck?.status, 'FAIL');
 
     assert.equal(operations.scenarioReadiness.length, 1);
-    assert.equal(operations.scenarioReadiness[0]?.executionAvailable, false);
+    assert.equal(operations.scenarioReadiness[0]?.executionAvailable, true);
     assert.deepEqual(operations.scenarioReadiness[0]?.observableSignals, ['service:httpd.service=FAILED', 'journal:httpd.service=ERROR']);
 
     const hostContext = await linuxOperationsService.getContext(lab.slug, 'host-a');

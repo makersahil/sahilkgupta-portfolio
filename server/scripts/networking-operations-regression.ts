@@ -86,7 +86,7 @@ async function main(): Promise<void> {
     assert.equal(operations.ospfNeighbors[0]?.state, 'FULL/BDR');
     assert.equal(operations.gatewayRedundancy[0]?.virtualIp, '10.0.0.1');
     assert.ok(operations.healthChecks.some((check) => check.category === 'BGP' && check.status === 'PASS'));
-    assert.equal(operations.scenarioReadiness[0]?.executionAvailable, false);
+    assert.equal(operations.scenarioReadiness[0]?.executionAvailable, true);
     assert.deepEqual(operations.scenarioReadiness[0]?.observableSignals, ['link:r1-isp=DOWN', 'bgp:bgp-r1-isp!=ESTABLISHED']);
 
     const route = await networkingOperationsService.lookupRoute(lab.slug, '10.20.30.99', 'r1');

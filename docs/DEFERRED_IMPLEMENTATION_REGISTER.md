@@ -9,8 +9,8 @@ Reason Deferred: CLI output must come from lab state or be clearly marked repres
 Target Phase: Phase 6 — Context-Aware CLI
 Priority: P1
 Verification: All CLI output must come from lab state or be clearly marked representative/simulated.
-Implementation State: Phase 6 replaces the legacy hard-coded terminal route with `UnifiedCliService`, removes fabricated runtime/ping/deployment/benchmark output, and maps supported familiar command forms to persisted recorded-state inspectors. Final Phase 6 consolidated verification and exit audit are still required before closure.
-Status: OPEN
+Implementation State: DONE. Phase 6 replaces the legacy hard-coded terminal route with `UnifiedCliService`, removes fabricated runtime/ping/deployment/benchmark output, and maps supported familiar command forms to recorded-state inspectors. The dependency-complete Phase 6 verification gate passed before merge to `main`.
+Status: DONE
 
 ### [PH1-DEFER-002]
 Origin Phase: Phase 1
@@ -18,7 +18,8 @@ Item: Remaining RHCSA/Linux verified/compliant counters or hard-coded check tota
 Reason Deferred: Status must be generated from actual implemented lab checks in future phases.
 Target Phase: Phase 4 — Linux Systems Console / Phase 7 Scenario Verification
 Priority: P1
-Verification: Verification status must be generated from actual implemented lab checks. Phase 4A persists recorded Linux verification records and Phase 4B derives recorded-state health/investigation results, but aggregate verified/compliant counters remain intentionally unimplemented until scenario verification is authoritative.
+Verification: Verification status must be generated from actual implemented lab checks. Phase 4A persists recorded Linux verification records and Phase 4B derives recorded-state health/investigation results. Phase 7 adds explicit active-scenario/recovery verification and removes the public hard-coded RHCSA "Hardened" total badge in favor of recorded objective counts.
+Implementation State: IMPLEMENTED PENDING EXIT. Runtime verification is now authoritative for Phase 7 scenarios; dependency-complete regression and browser verification remain required before closure.
 Status: OPEN
 
 ### [PH1-DEFER-003]
@@ -123,6 +124,7 @@ Reason Deferred: Evidence status must be derived from implemented lab checks and
 Target Phase: Phase 7 — Real Lab & Simulation Engine
 Priority: P1
 Verification: Evidence Vault verification state is generated from implemented scenario checks and traceable evidence, or is explicitly presented as unverified/representative.
+Implementation State: IMPLEMENTED PENDING EXIT. The generic project Evidence Vault no longer claims `LAB CHECKS PASSED`; it directs visitors to run scenario checks in the Lab, while the Phase 7 Scenario Runtime displays persisted active-scenario/recovery verification results. Dependency-complete verification remains required.
 Status: OPEN
 
 ### [PH2A-FIX-005]
@@ -160,8 +162,8 @@ Item: Complete the Networking operations path from persisted snapshots through o
 Reason Deferred: Phase 3B now implements recorded-state route lookup, health analysis, structured path/ACL assessment, `NETOPS/...` operator-context contracts, and scenario-ready definitions. A full device CLI emulator is intentionally not claimed, and scenario mutation/reset belongs to the shared engines rather than the Networking core.
 Target Phase: Phase 6 / Phase 7
 Priority: P1
-Verification: The unified CLI consumes the same selected Lab/operator context; failure scenarios mutate canonical state consistently; visual, CLI, runbook, and evidence outputs remain synchronized and resettable.
-Implementation State: PARTIAL. Phase 3B satisfies the recorded-state investigation and policy-analysis portion. Phase 6 now exposes that state through the unified read-only CLI; mutable scenario execution/reset remains Phase 7.
+Verification: The unified CLI consumes the same selected Lab/operator context; failure scenarios apply a session overlay consistently without rewriting canonical state; visual and CLI reads remain synchronized and resettable; scenario verification remains traceable.
+Implementation State: IMPLEMENTED PENDING EXIT. Phase 3B provides recorded-state investigation, Phase 6 provides contextual CLI inspection, and Phase 7 adds session-scoped Networking mutation, active-scenario/recovery verification, remediation, and reset. Full executable/browser verification remains required.
 Status: OPEN
 
 
@@ -182,8 +184,8 @@ Item: Complete the Linux operations path from recorded-state diagnostics through
 Reason Deferred: Phase 4B intentionally provides health derivation, investigation findings, suggested commands, remediation guidance, `RHEL/...` context contracts, and scenario-ready definitions without spawning shells or mutating host state.
 Target Phase: Phase 6 / Phase 7
 Priority: P1
-Verification: The unified CLI uses the same selected Lab/host context; Linux scenarios mutate canonical state consistently; visual, CLI, runbook, and evidence outputs remain synchronized and resettable.
-Implementation State: PARTIAL. Recorded-state investigation is implemented in Phase 4B. Phase 6 now exposes it through the unified read-only CLI; mutable scenario execution/reset remains Phase 7.
+Verification: The unified CLI uses the same selected Lab/host context; Linux scenarios apply a session overlay consistently without rewriting canonical state; visual and CLI reads remain synchronized and resettable; scenario verification remains traceable.
+Implementation State: IMPLEMENTED PENDING EXIT. Phase 4B provides recorded-state investigation, Phase 6 provides contextual CLI inspection, and Phase 7 adds whitelisted Linux simulation, active-scenario/recovery verification, remediation, and reset without spawning shell commands. Full executable/browser verification remains required.
 Status: OPEN
 
 ### [PH5A-DEFER-001]
@@ -192,6 +194,6 @@ Item: Complete the DevOps operations path from recorded delivery state through i
 Reason Deferred: Phase 5A intentionally provides a reusable recorded-state delivery model and UI without pretending to execute pipelines, Terraform, kubectl, Helm, ArgoCD, Cilium, or cloud APIs.
 Target Phase: Phase 5B / Phase 6 / Phase 7
 Priority: P1
-Verification: Phase 5B derives evidence-backed delivery findings and `GITOPS/...` context from the same `devops.v1` state; Phase 6 executes only supported contextual commands; Phase 7 mutates and resets scenario state consistently across UI, CLI, runbook, and evidence.
-Implementation State: PARTIAL. Phase 5A provides the core `devops.v1` model, APIs, seed normalization, and dynamic UI. Phase 5B provides capability-aware recorded-state health/diagnostics, remediation guidance, durable `GITOPS/...` context contracts, and non-mutating scenario readiness. Phase 6 now exposes this state through the unified read-only CLI; mutable scenario execution/reset remains Phase 7.
+Verification: Phase 5B derives evidence-backed delivery findings and `GITOPS/...` context from the same `devops.v1` state; Phase 6 executes only supported contextual inspection commands; Phase 7 applies and resets a session overlay consistently across UI and CLI while provider execution stays disabled.
+Implementation State: IMPLEMENTED PENDING EXIT. Phase 5A provides the core model, Phase 5B recorded-state diagnostics, Phase 6 contextual CLI inspection, and Phase 7 whitelisted DevOps simulation with active-scenario/recovery verification, remediation, and reset. Full executable/browser verification remains required.
 Status: OPEN

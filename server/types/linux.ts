@@ -244,7 +244,7 @@ export interface LinuxScenarioReadiness {
   summary: string;
   enabled: boolean;
   observableSignals: string[];
-  executionAvailable: false;
+  executionAvailable: boolean;
 }
 
 export interface LinuxOperationsSnapshot {
@@ -267,7 +267,7 @@ export interface LinuxOperationsSnapshot {
     recordedLogs: number;
     findings: number;
   };
-  executionAvailable: false;
+  executionAvailable: boolean;
   note: string;
 }
 
@@ -280,6 +280,6 @@ export interface LinuxOperatorContext {
   availableInspectors: Array<
     'host' | 'services' | 'storage' | 'fstab' | 'selinux' | 'network' | 'logs' | 'configurations' | 'verification' | 'health' | 'scenarios' | 'evidence'
   >;
-  executionAvailable: false;
+  executionAvailable: boolean;
   note: string;
 }

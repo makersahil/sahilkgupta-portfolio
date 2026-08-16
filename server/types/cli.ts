@@ -17,8 +17,8 @@ export interface UnifiedCliContext {
   lab: { id: string; slug: string; title: string } | null;
   target: UnifiedCliTarget | null;
   availableInspectors: string[];
-  executionMode: 'RECORDED_STATE';
-  mutable: false;
+  executionMode: 'RECORDED_STATE' | 'SCENARIO_RUNTIME';
+  mutable: boolean;
   note: string;
 }
 

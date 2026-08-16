@@ -20,13 +20,14 @@ async function main(): Promise<void> {
   await assertMissing('src/components/NetworkingLabExplorer.tsx');
   await assertMissing('server/services/networking/networking-state.ts');
 
-  const [domainWorkspace, explorer, operationsPanel, route, service, operationsService, adapter, seed, packageJsonText] = await Promise.all([
+  const [domainWorkspace, explorer, operationsPanel, route, service, operationsService, topologyHelper, adapter, seed, packageJsonText] = await Promise.all([
     text('src/components/DomainWorkspace.tsx'),
     text('src/components/networking/NetworkingLabExplorer.tsx'),
     text('src/components/networking/NetworkOperationsPanel.tsx'),
     text('server/routes/network.routes.ts'),
     text('server/services/networking/networking.service.ts'),
     text('server/services/networking/networking-operations.service.ts'),
+    text('server/services/networking/networking-topology.ts'),
     text('server/services/networking/networking-lab-adapter.ts'),
     text('prisma/seed.ts'),
     text('package.json'),
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
   assert.match(service, /LabManifestService/);
   assert.match(service, /NetworkingLabAdapter/);
   assert.match(service, /PATH_FOUND/);
+  assert.match(service, /buildOperationalNetworkingTopology/);
   assert.doesNotMatch(service, /cisco-wan-topology|proj-cisco|Math\.random/);
 
   assert.match(operationsService, /RECORDED_ROUTE_TABLE_LONGEST_PREFIX_MATCH/);
@@ -67,7 +69,15 @@ async function main(): Promise<void> {
   assert.match(operationsService, /NOT_EVALUATED/);
   assert.match(operationsService, /NETOPS\//);
   assert.match(operationsService, /executionAvailable:\s*false/);
+  assert.match(operationsService, /buildOperationalNetworkingTopology/);
   assert.doesNotMatch(operationsService, /Math\.random|cisco-wan-topology|proj-cisco|latency|roundTrip/i);
+
+  assert.match(topologyHelper, /left\.status === 'DOWN'/);
+  assert.match(topologyHelper, /right\.status === 'DOWN'/);
+  assert.match(topologyHelper, /link\.status === 'DOWN'/);
+  assert.match(topologyHelper, /leftInterface\?\.status !== 'DOWN'/);
+  assert.match(topologyHelper, /rightInterface\?\.status !== 'DOWN'/);
+  assert.match(topologyHelper, /adjacency/);
 
   assert.match(adapter, /manifest\.topology\.nodes/);
   assert.match(adapter, /manifest\.topology\.links/);

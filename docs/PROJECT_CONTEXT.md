@@ -226,7 +226,7 @@ Admin CMS
 
 PostgreSQL/Prisma is the only supported runtime persistence path. There is no silent in-memory fallback when PostgreSQL is unavailable. An old `PERSISTENCE_MODE=prisma` environment entry is tolerated only for local migration compatibility; `legacy` is rejected.
 
-Phase 2B content persistence, Phase 2C persistent authentication/RBAC, Phase 2D Canonical Lab Platform + Admin Core, and Phase 2E Prisma-only runtime retirement are COMPLETE and exit-verified. Phase 3 Dynamic Networking and Phase 4 Dynamic Linux are complete baselines. Phase 5A Core Dynamic DevOps is the verified/code-audited baseline, and Phase 5B DevOps Investigation and Operations is implemented in the current package pending local/full-ZIP exit verification.
+Phase 2B content persistence, Phase 2C persistent authentication/RBAC, Phase 2D Canonical Lab Platform + Admin Core, and Phase 2E Prisma-only runtime retirement are COMPLETE and exit-verified. Phase 3 Dynamic Networking, Phase 4 Dynamic Linux, Phase 5 Dynamic DevOps, and Phase 6 Unified Context-Aware CLI are complete and exit-verified platform/domain baselines. Phase 7 Session-Scoped Scenario Engine is code-complete in the current closeout candidate and must pass the canonical 45-step verifier plus browser/session-isolation validation after any closeout change before final checkpoint.
 
 ---
 
@@ -597,7 +597,7 @@ Production Security, Testing, Performance and Deployment
 
 Phase 3 is complete in two layers. Phase 3A provides the persisted multi-project/multi-Lab Networking adapter, reusable topology/device rendering, recorded control-plane snapshots, and deterministic topology reachability. Phase 3B adds recorded BGP/OSPF and first-hop redundancy inspection, derived health, longest-prefix route lookup, conservative structured ACL/path analysis, durable `NETOPS/...` context contracts, and scenario-ready definitions.
 
-The Networking engine does not claim arbitrary Packet Tracer binary parsing or live device execution. Phase 6 now provides unified read-only recorded-state CLI inspection; shared scenario mutation/reset remains Phase 7.
+The Networking engine does not claim arbitrary Packet Tracer binary parsing or live device execution. Phase 6 provides unified contextual CLI inspection. Phase 7 applies supported Networking faults as session-only overlays over cloned canonical state; no device command is executed and canonical `Lab.normalizedState` is not rewritten.
 
 ---
 
@@ -605,7 +605,7 @@ The Networking engine does not claim arbitrary Packet Tracer binary parsing or l
 
 Phase 4 is complete in two layers. Phase 4A provides reusable `linux.v1` state for RHEL 9.4 hosts, services, storage/LVM/mount/fstab, SELinux, networking, logs/configuration, verification, and multi-project/multi-Lab rendering. Phase 4B adds recorded-state service/storage/SELinux/network/log investigation, remediation guidance, durable `RHEL/...` context contracts, and scenario-ready definitions.
 
-The Linux engine does not execute shell commands or mutate scenarios. Phase 6 now provides unified read-only recorded-state CLI inspection; shared scenario mutation/reset remains Phase 7.
+The Linux engine does not execute shell commands. Phase 6 provides unified contextual CLI inspection. Phase 7 applies supported Linux faults as session-only overlays and restores the canonical baseline on remediation/reset without running system commands.
 
 ---
 
@@ -624,7 +624,7 @@ ARGOCD_DRIFT
 CANARY_FAILURE
 CILIUM_POLICY_REGRESSION
 
-Phase 5 does not execute provider commands or mutate scenarios. Phase 6 now provides unified contextual read-only recorded-state commands, while Phase 7 owns shared scenario mutation/remediation/reset.
+Phase 5 does not execute provider commands. Phase 6 provides unified contextual recorded-state commands. Phase 7 adds shared session-scoped scenario mutation/remediation/verification/reset while keeping provider command execution disabled.
 
 ---
 
@@ -648,16 +648,21 @@ inspect
 show <area>
 show health
 scenario list
+scenario status
+scenario run <slug>
+scenario verify
+scenario remediate
+scenario reset
 evidence
 clear
 
-CLI output now comes from persisted normalized Lab state or explicit CLI metadata. The CLI does not execute shell/provider binaries. `scenario run`, remediation, verification, and reset are deliberately rejected until the shared mutable Scenario Engine in Phase 7.
+CLI output comes from persisted normalized Lab state, an optional Phase 7 session scenario overlay, or explicit CLI metadata. The CLI does not execute shell/provider binaries. Active scenario contexts report `SCENARIO_RUNTIME`; normal contexts report `RECORDED_STATE`.
 
 ---
 
 # 21. Scenario Lifecycle
 
-Future simulations should approximately follow:
+Phase 7 simulations now follow:
 
 MISSION
 → ACTION
@@ -666,7 +671,7 @@ MISSION
 → VERIFICATION
 → RESET
 
-Visitors should be able to understand what failed, investigate it, fix it, and verify recovery.
+Visitors can run a supported persisted scenario, observe the session-only fault through the visual workspace and CLI, verify the injected condition, remediate to the canonical baseline, verify recovery, and reset the runtime. The portfolio does not execute external infrastructure commands during this lifecycle.
 
 ---
 
@@ -720,9 +725,11 @@ The repository is authoritative.
 
 **Phase 5 — Dynamic DevOps Engine is COMPLETE.** The reusable `devops.v1` model supports repositories, pipelines, Terraform/IaC, Kubernetes, GitOps/ArgoCD, Helm, network-policy observations, observability, and capability-aware recorded-state operations with `GITOPS/...` contexts and scenario readiness.
 
-**Phase 6 — Unified Context-Aware CLI is implemented in the current package pending exit verification.** `UnifiedCliService` resolves `NETOPS/...`, `RHEL/...`, and `GITOPS/...` contexts and executes read-only inspection commands against persisted domain state. The legacy hard-coded terminal runtime is retired. External shell/provider execution and scenario mutation remain disabled.
+**Phase 6 — Unified Context-Aware CLI is COMPLETE and exit-verified.** `UnifiedCliService` resolves `NETOPS/...`, `RHEL/...`, and `GITOPS/...` contexts and reads the same state as the domain workspaces. The legacy hard-coded terminal runtime is retired. External shell/provider execution remains disabled.
 
-Routine validation is consolidated under `npm run verify`; targeted domain scripts remain durable debugging/regression tools.
+**Phase 7 — Session-Scoped Scenario Engine is code-complete in the current closeout candidate.** `LabScenarioRuntime`, `ScenarioEngineService`, safe mutation adapters, `/api/scenarios/*`, the shared Scenario Runtime UI, and Unified CLI lifecycle commands synchronize session simulation across Networking, Linux, and DevOps while keeping canonical Lab state immutable. Final checkpoint requires a fresh canonical 45-step verifier pass and the browser/session-isolation runbook after the closeout patch.
+
+Routine validation is consolidated under `npm run verify`; targeted domain/CLI/scenario scripts remain durable debugging/regression tools.
 
 Multi-Project Dynamic Lab Principle: Domain workspaces and interactive labs must be data-driven and reusable. Networking, Linux, and DevOps experiences must not be hard-coded for one flagship project. A Project may contain zero or more Labs; a Lab may contain zero or more Scenarios and Artifacts. Domain-specific adapters normalize project/lab inputs into a canonical lab state consumed by reusable renderers, CLI contexts, scenario engines, runbooks, and evidence views. Adding a supported project or lab should normally require data/artifact configuration rather than new frontend components.
 
@@ -745,10 +752,22 @@ The canonical GitOps project is a recorded project fixture, not live production 
 
 `DevOpsOperationsService` consumes the same `devops.v1` state and exposes `devops.operations.v1`. Health checks are capability/input-aware: a Terraform-only Lab is evaluated from its Terraform evidence rather than being marked unknown because Kubernetes or GitOps are absent. Represented but inconclusive evidence stays `UNKNOWN`. Explicit failure/warning state produces evidence-backed findings and remediation guidance.
 
-The public operations contract adds `/operations` and `/context` endpoints. Context identifiers use `GITOPS/<LAB>` and optional `GITOPS/<LAB>/<PIPELINE>` forms and always report `executionAvailable: false` in Phase 5B. Persisted scenario definitions are surfaced with observable signals but are never applied.
+The public operations contract adds `/operations` and `/context` endpoints. Context identifiers use `GITOPS/<LAB>` and optional `GITOPS/<LAB>/<PIPELINE>` forms. Persisted scenario definitions are surfaced with observable signals; Phase 7 can now apply supported definitions through the shared session runtime while the operations layer itself remains non-executing.
 
 ## Phase 6 Unified Context-Aware CLI
 
 `UnifiedCliService` is the single command interpreter for all domains. The browser stores only the selected context identifier and sends it with each command; the backend resolves that context against public persisted Lab state. Lab/device/host/pipeline prompts reuse the domain context contracts. Global commands cover context switching, inspection, health, scenario listing, evidence, and clearing the transcript. Domain commands expose recorded routing/protocol state, RHEL host state, and DevOps delivery state. Familiar `cisco`, `systemctl`, `kubectl`, and `terraform` forms are read aliases only where supported.
 
-The CLI never spawns a shell, SSH session, network probe, IOS process, kubectl/Terraform/Helm/ArgoCD command, or scenario mutation. Phase 7 owns shared scenario mutation, remediation, verification, and reset.
+The CLI never spawns a shell, SSH session, network probe, IOS process, kubectl/Terraform/Helm/ArgoCD command, or provider process. Phase 7 adds scenario lifecycle commands, but those commands mutate only the persisted session runtime overlay and never canonical Lab state or external infrastructure.
+
+## Phase 7 Session-Scoped Scenario Engine
+
+Phase 7 persists one optional `LabScenarioRuntime` per `sessionKey + labId`. The browser creates an opaque identifier in `sessionStorage` and sends it as `X-Lab-Session`. The identifier is a simulation selector, not authentication.
+
+`ScenarioEngineService` loads only persisted, enabled `LabScenario` definitions. Clients send a scenario slug rather than arbitrary mutation code. `scenario-mutators.ts` validates a bounded whitelist of Networking, Linux, and DevOps state transitions and applies them to a clone of the current canonical domain state. `ScenarioStateService` overlays the result only while the runtime is `ACTIVE`.
+
+Lifecycle states are `ACTIVE`, `REMEDIATED`, and `VERIFIED`. Active-scenario verification records checks derived from the mutation contract. Remediation disables the overlay so reads return the canonical baseline. Recovery verification confirms the overlay is disabled and marks the runtime verified. Reset deletes the runtime. New scenario starts also prune runtimes that have been stale for more than 24 hours; distributed quotas/rate limiting remain Phase 9 hardening.
+
+The Scenario Runtime panel is integrated into all three domain explorers, and the Unified CLI supports `scenario list/status/run/verify/remediate/reset`. Visual domain reads, operations reads, and CLI reads use the same session header so the simulated state stays synchronized.
+
+Truthfulness boundary: Phase 7 is a session-scoped simulation engine, not a remote infrastructure executor. It does not SSH, spawn shells, send packets, run systemd/kubectl/Terraform/Helm/ArgoCD/Cilium/provider commands, or overwrite `Lab.normalizedState`. See `docs/SCENARIO_ENGINE_ARCHITECTURE.md`.

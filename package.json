@@ -56,7 +56,10 @@
     "test:devops:operations:http": "tsx server/scripts/devops-operations-http-regression.ts",
     "test:cli:static": "tsx server/scripts/cli-static-audit.ts",
     "test:cli": "tsx server/scripts/cli-regression.ts",
-    "test:cli:http": "tsx server/scripts/cli-http-regression.ts"
+    "test:cli:http": "tsx server/scripts/cli-http-regression.ts",
+    "test:scenarios:static": "tsx server/scripts/scenario-static-audit.ts",
+    "test:scenarios": "tsx server/scripts/scenario-regression.ts",
+    "test:scenarios:http": "tsx server/scripts/scenario-http-regression.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

@@ -90,7 +90,7 @@ export const DOMAIN_CONFIGS: Record<DomainSlug, DomainExperienceConfig> = {
       {
         step: '03',
         title: 'VERIFY CONFIGURATION',
-        description: 'Audit live configuration files (/etc/fstab, units) and CLI evidence.',
+        description: 'Audit recorded configuration files (/etc/fstab, units) and CLI evidence.',
       },
     ],
   },

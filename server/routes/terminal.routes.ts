@@ -1,6 +1,7 @@
 import { Router } from 'express';
 
 import { ValidationError } from '../lib/errors.js';
+import { scenarioSessionFromRequest } from '../lib/scenario-session.js';
 import { asyncHandler } from '../middlewares/async-handler.js';
 import { unifiedCliService } from '../services/cli/index.js';
 
@@ -15,18 +16,20 @@ function optionalText(value: unknown): string | undefined {
 router.get('/bootstrap', asyncHandler(async (request, response) => {
   response.json({
     success: true,
-    data: await unifiedCliService.bootstrap(optionalText(request.query.category) ?? optionalText(request.query.domain)),
+    data: await unifiedCliService.bootstrap(
+      optionalText(request.query.category) ?? optionalText(request.query.domain),
+      scenarioSessionFromRequest(request),
+    ),
   });
 }));
 
 router.post('/exec', asyncHandler(async (request, response) => {
   if (typeof request.body?.command !== 'string') throw new ValidationError('command is required', { field: 'command' });
-  const command = request.body.command;
-
   response.json(await unifiedCliService.execute(
-    command,
+    request.body.command,
     optionalText(request.body?.contextId),
     optionalText(request.body?.category),
+    scenarioSessionFromRequest(request),
   ));
 }));
 

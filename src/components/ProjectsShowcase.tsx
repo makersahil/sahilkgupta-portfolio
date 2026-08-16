@@ -236,7 +236,7 @@ export const ProjectsShowcase: React.FC = () => {
                         target="_blank"
                         rel="noreferrer"
                         className="p-1.5 rounded text-white/40 hover:text-white hover:bg-white/10 transition-colors"
-                        title="Live Demonstration"
+                        title="Project Demonstration"
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
@@ -417,7 +417,7 @@ export const ProjectsShowcase: React.FC = () => {
                       <div className="p-5 rounded-xl bg-black border border-white/10 space-y-3 font-mono">
                         <div className="flex items-center space-x-2 text-[#00d4ff] font-bold uppercase tracking-wider text-xs">
                           <FileCode className="w-4 h-4" />
-                          <span>4. OPERATOR RUNBOOK // Execution &amp; Verification Commands</span>
+                          <span>4. OPERATOR RUNBOOK // Reference Inspection Commands</span>
                         </div>
                         <div className="space-y-2">
                           <span className="text-white/40 text-[10px] block uppercase">Standard Operational Check Commands:</span>
@@ -452,13 +452,13 @@ export const ProjectsShowcase: React.FC = () => {
                       <div className="p-5 rounded-xl bg-black border border-white/10 space-y-4 font-mono">
                         <div className="flex items-center space-x-2 text-[#00ff41] font-bold uppercase tracking-wider text-xs">
                           <ShieldCheck className="w-4 h-4" />
-                          <span>5. EVIDENCE VAULT // Verification Proofs &amp; Artifacts</span>
+                          <span>5. EVIDENCE VAULT // Recorded Evidence &amp; Artifacts</span>
                         </div>
                         <div className="space-y-3">
                           <div className="p-3 rounded-lg bg-[#111114] border border-white/10 space-y-1 text-[11px]">
                             <div className="flex items-center justify-between text-white/60">
-                              <span>Audit &amp; Validation Status:</span>
-                              <span className="text-[#00ff41] font-bold">LAB CHECKS PASSED</span>
+                              <span>Verification Status:</span>
+                              <span className="text-amber-300 font-bold">RUN SCENARIO CHECKS IN LAB</span>
                             </div>
                             <div className="flex items-center justify-between text-white/60">
                               <span>Evidence Type:</span>
@@ -466,7 +466,7 @@ export const ProjectsShowcase: React.FC = () => {
                             </div>
                             <div className="flex items-center justify-between text-white/60">
                               <span>Environment:</span>
-                              <span className="text-[#00d4ff] truncate max-w-[220px]">Local Lab Network</span>
+                              <span className="text-[#00d4ff] truncate max-w-[220px]">Portfolio Recorded Lab Fixture</span>
                             </div>
                           </div>
 
@@ -494,7 +494,7 @@ export const ProjectsShowcase: React.FC = () => {
                       <div className="flex items-center justify-between pb-3 border-b border-white/10">
                         <div>
                           <h3 className="font-bold text-white text-sm uppercase">Cisco Packet Tracer Device Inventory</h3>
-                          <p className="text-white/40 text-[11px] mt-0.5">Parsed interfaces, IP subnets, and Cisco IOS CLI configs</p>
+                          <p className="text-white/40 text-[11px] mt-0.5">Recorded interfaces, IP subnets, and Cisco IOS configuration excerpts</p>
                         </div>
                       </div>
 
@@ -547,10 +547,10 @@ export const ProjectsShowcase: React.FC = () => {
                       <div className="flex items-center justify-between pb-3 border-b border-white/10">
                         <div>
                           <h3 className="font-bold text-white text-sm uppercase">Official RHCSA Objective Domains</h3>
-                          <p className="text-white/40 text-[11px] mt-0.5">Verification status and CLI hardening commands</p>
+                          <p className="text-white/40 text-[11px] mt-0.5">Recorded objective references and inspection commands</p>
                         </div>
                         <span className="px-2.5 py-1 rounded bg-[#00ff41]/10 text-[#00ff41] border border-[#00ff41]/40 font-bold">
-                          {activeProjectModal.rhcsaMatrixData?.verifiedCount || 10}/{activeProjectModal.rhcsaMatrixData?.totalCompetencies || 10} Hardened
+                          {activeProjectModal.rhcsaMatrixData?.objectives.length ?? 0} Objective Records
                         </span>
                       </div>
 
@@ -569,7 +569,7 @@ export const ProjectsShowcase: React.FC = () => {
                               </code>
                             </div>
                             <span className="px-2 py-0.5 rounded text-[10px] bg-[#00ff41]/10 text-[#00ff41] border border-[#00ff41]/30 font-bold uppercase self-start sm:self-center ml-6 sm:ml-0">
-                              {obj.auditStatus}
+                              REFERENCE RECORD
                             </span>
                           </div>
                         ))}

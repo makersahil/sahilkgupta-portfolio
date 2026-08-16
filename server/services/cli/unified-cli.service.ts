@@ -16,6 +16,7 @@ import type { LinuxOperationsService } from '../linux/linux-operations.service.j
 import type { LinuxService } from '../linux/linux.service.js';
 import type { NetworkingOperationsService } from '../networking/networking-operations.service.js';
 import type { NetworkingService } from '../networking/networking.service.js';
+import type { ScenarioEngineService } from '../scenarios/scenario-engine.service.js';
 
 const ROOT_CONTEXT: UnifiedCliContext = {
   contextId: 'PORTFOLIO',
@@ -39,6 +40,11 @@ const GLOBAL_HINTS = [
   'inspect',
   'show health',
   'scenario list',
+  'scenario status',
+  'scenario run <slug>',
+  'scenario verify',
+  'scenario remediate',
+  'scenario reset',
   'evidence',
   'clear',
 ];
@@ -119,27 +125,28 @@ export class UnifiedCliService {
     private readonly linuxOperations: LinuxOperationsService,
     private readonly devOps: DevOpsService,
     private readonly devOpsOperations: DevOpsOperationsService,
+    private readonly scenarios: ScenarioEngineService,
   ) {}
 
-  async bootstrap(category?: string): Promise<UnifiedCliBootstrap> {
+  async bootstrap(category?: string, sessionKey?: string): Promise<UnifiedCliBootstrap> {
     const domain = normalizeDomain(category);
     const contexts = await this.listLabContexts();
     const first = domain === 'PORTFOLIO' ? null : contexts.find((entry) => entry.domain === domain) ?? null;
-    const context = first ? await this.resolveContext(first.contextId) : ROOT_CONTEXT;
+    const context = first ? await this.resolveContext(first.contextId, sessionKey) : ROOT_CONTEXT;
     return {
       schemaVersion: 'cli.v1',
       context,
       contexts,
       commandHints: this.commandHints(context),
-      note: 'Unified CLI v1 executes portfolio inspection commands against persisted normalized Lab state. It never spawns a shell, network tool, kubectl, Terraform, or provider CLI.',
+      note: 'Unified CLI v1 reads canonical recorded Lab state plus an optional session-scoped scenario overlay. It never spawns a shell, network tool, kubectl, Terraform, or provider CLI.',
     };
   }
 
-  async execute(command: string, contextId?: string, category?: string): Promise<UnifiedCliExecutionResult> {
+  async execute(command: string, contextId?: string, category?: string, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
     const raw = command.trim();
     const current = contextId?.trim()
-      ? await this.resolveContext(contextId)
-      : (await this.bootstrap(category)).context;
+      ? await this.resolveContext(contextId, sessionKey)
+      : (await this.bootstrap(category, sessionKey)).context;
 
     if (!raw) return this.result(raw, '', 0, 'stdout', current);
 
@@ -150,18 +157,18 @@ export class UnifiedCliService {
 
       if (root === 'clear') return this.result(raw, '', 0, 'system', current, false, true);
       if (root === 'help' || root === '?') return this.result(raw, this.help(current), 0, 'banner', current);
-      if (root === 'ctx') return this.handleContextCommand(raw, args, current);
+      if (root === 'ctx') return await this.handleContextCommand(raw, args, current, sessionKey);
       if (root === 'whoami') {
         return this.result(raw, 'portfolio-visitor (recorded-state CLI; shell access disabled)', 0, 'stdout', current);
       }
-      if (root === 'scenario') return this.handleScenarioCommand(raw, args, current);
-      if (root === 'evidence') return this.handleEvidence(raw, current);
-      if (root === 'inspect') return this.handleInspect(raw, args, current);
-      if (root === 'show') return this.handleShow(raw, args, current);
-      if (root === 'trace') return this.handleTrace(raw, args, current);
-      if (root === 'route') return this.handleRoute(raw, args, current);
+      if (root === 'scenario') return await this.handleScenarioCommand(raw, args, current, sessionKey);
+      if (root === 'evidence') return await this.handleEvidence(raw, current, sessionKey);
+      if (root === 'inspect') return await this.handleInspect(raw, args, current, sessionKey);
+      if (root === 'show') return await this.handleShow(raw, args, current, sessionKey);
+      if (root === 'trace') return await this.handleTrace(raw, args, current, sessionKey);
+      if (root === 'route') return await this.handleRoute(raw, args, current, sessionKey);
 
-      const alias = await this.handleRecordedStateAlias(raw, root, args, current);
+      const alias = await this.handleRecordedStateAlias(raw, root, args, current, sessionKey);
       if (alias) return alias;
 
       return this.result(
@@ -172,7 +179,7 @@ export class UnifiedCliService {
         current,
       );
     } catch (error) {
-      if (error instanceof ApplicationError && ['VALIDATION_ERROR', 'NOT_FOUND'].includes(error.code)) {
+      if (error instanceof ApplicationError && ['VALIDATION_ERROR', 'NOT_FOUND', 'CONFLICT'].includes(error.code)) {
         return this.result(raw, error.message, 2, 'stderr', current);
       }
       throw error;
@@ -197,7 +204,7 @@ export class UnifiedCliService {
       context,
       contextChanged,
       clear,
-      note: 'Output is derived from persisted recorded Lab state or explicit CLI metadata. No host/provider command was executed.',
+      note: 'Output is derived from canonical recorded Lab state, an optional session-scoped scenario overlay, or explicit CLI metadata. No host/provider command was executed.',
     };
   }
 
@@ -233,7 +240,7 @@ export class UnifiedCliService {
     ].sort((a, b) => a.domain.localeCompare(b.domain) || a.labTitle.localeCompare(b.labTitle));
   }
 
-  private async resolveContext(contextId: string): Promise<UnifiedCliContext> {
+  private async resolveContext(contextId: string, sessionKey?: string): Promise<UnifiedCliContext> {
     const normalized = contextId.trim();
     if (!normalized || normalized.toUpperCase() === 'PORTFOLIO') return ROOT_CONTEXT;
 
@@ -247,39 +254,52 @@ export class UnifiedCliService {
       const labs = await this.networking.listPublic();
       const lab = labs.find((entry) => this.matchesSegment(entry.id, entry.slug, labSegment));
       if (!lab) throw new NotFoundError('Networking CLI Lab context not found');
-      const state = await this.networking.getPublic(lab.id);
+      const state = await this.networking.getPublic(lab.id, sessionKey);
       const target = targetSegment
         ? state.devices.find((entry) => this.matchesSegment(entry.key, entry.label, targetSegment))
         : undefined;
       if (targetSegment && !target) throw new NotFoundError('Networking CLI device context not found');
-      return this.fromNetworkingContext(await this.networkingOperations.getContext(lab.id, target?.key));
+      return this.withScenarioRuntime(this.fromNetworkingContext(await this.networkingOperations.getContext(lab.id, target?.key, sessionKey)), sessionKey);
     }
 
     if (prefix === 'RHEL') {
       const labs = await this.linux.listPublic();
       const lab = labs.find((entry) => this.matchesSegment(entry.id, entry.slug, labSegment));
       if (!lab) throw new NotFoundError('Linux CLI Lab context not found');
-      const state = await this.linux.getPublic(lab.id);
+      const state = await this.linux.getPublic(lab.id, sessionKey);
       const target = targetSegment
         ? state.hosts.find((entry) => this.matchesSegment(entry.key, entry.hostname, targetSegment))
         : undefined;
       if (targetSegment && !target) throw new NotFoundError('Linux CLI host context not found');
-      return this.fromLinuxContext(await this.linuxOperations.getContext(lab.id, target?.key));
+      return this.withScenarioRuntime(this.fromLinuxContext(await this.linuxOperations.getContext(lab.id, target?.key, sessionKey)), sessionKey);
     }
 
     if (prefix === 'GITOPS') {
       const labs = await this.devOps.listPublic();
       const lab = labs.find((entry) => this.matchesSegment(entry.id, entry.slug, labSegment));
       if (!lab) throw new NotFoundError('DevOps CLI Lab context not found');
-      const state = await this.devOps.getPublic(lab.id);
+      const state = await this.devOps.getPublic(lab.id, sessionKey);
       const target = targetSegment
         ? state.pipelines.find((entry) => this.matchesSegment(entry.id, entry.name, targetSegment))
         : undefined;
       if (targetSegment && !target) throw new NotFoundError('DevOps CLI pipeline context not found');
-      return this.fromDevOpsContext(await this.devOpsOperations.getContext(lab.id, target?.id));
+      return this.withScenarioRuntime(this.fromDevOpsContext(await this.devOpsOperations.getContext(lab.id, target?.id, sessionKey)), sessionKey);
     }
 
     throw new ValidationError('Unknown context prefix. Use PORTFOLIO, NETOPS, RHEL, or GITOPS.');
+  }
+
+  private async withScenarioRuntime(context: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliContext> {
+    if (!context.lab || !sessionKey) return context;
+    const active = await this.scenarios.hasActiveRuntime(context.lab.id, sessionKey);
+    return {
+      ...context,
+      executionMode: active ? 'SCENARIO_RUNTIME' : 'RECORDED_STATE',
+      mutable: true,
+      note: active
+        ? 'A session-scoped scenario overlay is active. Reads are synchronized to that simulated state; no external infrastructure command is executed.'
+        : context.note,
+    };
   }
 
   private matchesSegment(id: string, label: string, segment: string): boolean {
@@ -302,7 +322,7 @@ export class UnifiedCliService {
         : null,
       availableInspectors: [...context.availableInspectors],
       executionMode: 'RECORDED_STATE',
-      mutable: false,
+      mutable: true,
       note: 'NETOPS CLI reads persisted networking.v1 and networking.operations.v1 state. It does not execute IOS commands or send packets.',
     };
   }
@@ -322,7 +342,7 @@ export class UnifiedCliService {
         : null,
       availableInspectors: [...context.availableInspectors],
       executionMode: 'RECORDED_STATE',
-      mutable: false,
+      mutable: true,
       note: 'RHEL CLI reads persisted linux.v1 and linux.operations.v1 state. It does not spawn a shell or modify the host.',
     };
   }
@@ -342,7 +362,7 @@ export class UnifiedCliService {
         : null,
       availableInspectors: [...context.availableInspectors],
       executionMode: 'RECORDED_STATE',
-      mutable: false,
+      mutable: true,
       note: 'GITOPS CLI reads persisted devops.v1 and devops.operations.v1 state. It does not execute CI/CD, Terraform, kubectl, Helm, or ArgoCD commands.',
     };
   }
@@ -361,14 +381,14 @@ export class UnifiedCliService {
   }
 
   private help(context: UnifiedCliContext): string {
-    const global = `Unified Infrastructure CLI — recorded-state mode\n\nGlobal commands\n  help                         Show context-aware help\n  ctx                          Show current context\n  ctx list [domain]            List public Lab contexts\n  ctx use <context-id>         Switch context\n  ctx targets                  List devices/hosts/pipelines in current Lab\n  ctx target <key>             Select a device/host/pipeline\n  ctx lab                      Return to Lab scope\n  ctx root                     Return to PORTFOLIO\n  inspect [area]               Inspect current context or delegate to show\n  show <area>                  Read normalized recorded state\n  show health                  Read domain operations health\n  scenario list                List scenario definitions (read-only)\n  evidence                     List public Lab evidence\n  clear                        Clear the browser transcript\n\nSafety boundary: no shell, SSH, ICMP, IOS, kubectl, Terraform, Helm, ArgoCD, cloud, or scenario mutation is executed.`;
+    const global = `Unified Infrastructure CLI — recorded-state + session simulation mode\n\nGlobal commands\n  help                         Show context-aware help\n  ctx                          Show current context\n  ctx list [domain]            List public Lab contexts\n  ctx use <context-id>         Switch context\n  ctx targets                  List devices/hosts/pipelines in current Lab\n  ctx target <key>             Select a device/host/pipeline\n  ctx lab                      Return to Lab scope\n  ctx root                     Return to PORTFOLIO\n  inspect [area]               Inspect current context or delegate to show\n  show <area>                  Read normalized recorded state\n  show health                  Read domain operations health\n  scenario list                List runnable scenario definitions\n  scenario status              Show current session scenario runtime\n  scenario run <slug>          Apply the scenario to this browser session\n  scenario verify              Verify active scenario or recovery state\n  scenario remediate           Disable the scenario overlay and restore baseline\n  scenario reset               Delete the session runtime\n  evidence                     List public Lab evidence\n  clear                        Clear the browser transcript\n\nSafety boundary: scenario commands mutate only the persisted session runtime overlay. No shell, SSH, IOS, kubectl, Terraform, Helm, ArgoCD, cloud, or external infrastructure command is executed.`;
     if (context.domain === 'NETWORKING') return `${global}\n\nNETOPS areas\n  topology | device | interfaces | routes | bgp | ospf | gateway | vlans | acls | health\n  trace <source-device> <target-device> [protocol]\n  route <destination-ip> [device-key]`;
     if (context.domain === 'LINUX') return `${global}\n\nRHEL areas\n  host | services | storage | fstab | selinux | network | logs | configurations | verification | health\nLegacy read aliases such as \`sestatus\`, \`lsblk\`, \`ip route\`, and \`systemctl status <unit>\` resolve to recorded state; mutating systemctl operations are blocked.`;
     if (context.domain === 'DEVOPS') return `${global}\n\nGITOPS areas\n  repository | pipelines | terraform | kubernetes | gitops | helm | network-policy | observability | health\nLegacy read aliases such as \`kubectl get pods\`, \`terraform plan\`, \`argocd app list\`, and \`helm list\` resolve to recorded state only.`;
     return `${global}\n\nStart with \`ctx list\`, then \`ctx use <context-id>\`.`;
   }
 
-  private async handleContextCommand(raw: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
+  private async handleContextCommand(raw: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
     const action = (args[0] ?? '').toLowerCase();
     if (!action) return this.result(raw, this.describeContext(current), 0, 'system', current);
 
@@ -386,11 +406,11 @@ export class UnifiedCliService {
     if (action === 'lab') {
       if (!current.lab) return this.result(raw, 'Already at PORTFOLIO scope.', 0, 'system', current);
       const prefix = current.domain === 'NETWORKING' ? 'NETOPS' : current.domain === 'LINUX' ? 'RHEL' : 'GITOPS';
-      const next = await this.resolveContext(`${prefix}/${contextSegment(current.lab.slug)}`);
+      const next = await this.resolveContext(`${prefix}/${contextSegment(current.lab.slug)}`, sessionKey);
       return this.result(raw, `Context changed to ${next.contextId}.`, 0, 'system', next, next.contextId !== current.contextId);
     }
 
-    if (action === 'targets') return this.handleContextTargets(raw, current);
+    if (action === 'targets') return this.handleContextTargets(raw, current, sessionKey);
 
     if (action === 'target') {
       const key = args[1];
@@ -398,14 +418,14 @@ export class UnifiedCliService {
       if (!current.lab) throw new ValidationError('Select a Lab context before selecting a target');
       const prefix = current.domain === 'NETWORKING' ? 'NETOPS' : current.domain === 'LINUX' ? 'RHEL' : current.domain === 'DEVOPS' ? 'GITOPS' : null;
       if (!prefix) throw new ValidationError('PORTFOLIO has no target selector');
-      const next = await this.resolveContext(`${prefix}/${contextSegment(current.lab.slug)}/${contextSegment(key)}`);
+      const next = await this.resolveContext(`${prefix}/${contextSegment(current.lab.slug)}/${contextSegment(key)}`, sessionKey);
       return this.result(raw, `Context changed to ${next.contextId}.`, 0, 'system', next, next.contextId !== current.contextId);
     }
 
     if (action === 'use') {
       const requested = args.slice(1).join(' ');
       if (!requested) throw new ValidationError('Usage: ctx use <context-id>');
-      const next = await this.resolveContext(requested);
+      const next = await this.resolveContext(requested, sessionKey);
       return this.result(raw, `Context changed to ${next.contextId}.`, 0, 'system', next, next.contextId !== current.contextId);
     }
 
@@ -415,7 +435,7 @@ export class UnifiedCliService {
       const lab = args[1];
       if (!lab) throw new ValidationError(`Usage: ctx ${action} <lab> [target]`);
       const requested = [prefix, contextSegment(lab), args[2] ? contextSegment(args[2]) : null].filter(Boolean).join('/');
-      const next = await this.resolveContext(requested);
+      const next = await this.resolveContext(requested, sessionKey);
       return this.result(raw, `Context changed to ${next.contextId}.`, 0, 'system', next, next.contextId !== current.contextId);
     }
 
@@ -432,34 +452,35 @@ export class UnifiedCliService {
       `Lab: ${context.lab.title} (${context.lab.slug})`,
       context.target ? `Target: ${context.target.label} [${context.target.key}]${context.target.status ? ` — ${context.target.status}` : ''}` : 'Target: Lab scope',
       `Inspectors: ${context.availableInspectors.join(', ')}`,
-      'Mutable operations: disabled',
+      `Mode: ${context.executionMode}`,
+      'Scenario mutation: session-scoped simulation enabled; canonical Lab state is read-only',
       context.note,
     ].join('\n');
   }
 
-  private async handleContextTargets(raw: string, current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
+  private async handleContextTargets(raw: string, current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
     if (!current.lab) throw new ValidationError('Select a Lab context before listing targets');
     if (current.domain === 'NETWORKING') {
-      const state = await this.networking.getPublic(current.lab.id);
+      const state = await this.networking.getPublic(current.lab.id, sessionKey);
       return this.result(raw, renderTable(['KEY', 'DEVICE', 'KIND', 'STATUS'], state.devices.map((entry) => [entry.key, entry.label, entry.kind, entry.status])), 0, 'table', current);
     }
     if (current.domain === 'LINUX') {
-      const state = await this.linux.getPublic(current.lab.id);
+      const state = await this.linux.getPublic(current.lab.id, sessionKey);
       return this.result(raw, renderTable(['KEY', 'HOSTNAME', 'OS', 'STATUS'], state.hosts.map((entry) => [entry.key, entry.hostname, [entry.osName, entry.osVersion].filter(Boolean).join(' '), entry.status])), 0, 'table', current);
     }
     if (current.domain === 'DEVOPS') {
-      const state = await this.devOps.getPublic(current.lab.id);
+      const state = await this.devOps.getPublic(current.lab.id, sessionKey);
       return this.result(raw, state.pipelines.length ? renderTable(['ID', 'PIPELINE', 'STATUS', 'FRAMEWORK'], state.pipelines.map((entry) => [entry.id, entry.name, entry.status, entry.framework])) : 'No pipelines are recorded in this Lab.', 0, 'table', current);
     }
     throw new ValidationError('PORTFOLIO has no target list');
   }
 
-  private async handleInspect(raw: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
-    if (args[0]) return this.handleShow(raw, args, current);
+  private async handleInspect(raw: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
+    if (args[0]) return this.handleShow(raw, args, current, sessionKey);
     if (!current.lab) return this.result(raw, this.describeContext(current), 0, 'system', current);
 
     if (current.domain === 'NETWORKING') {
-      const state = await this.networking.getPublic(current.lab.id);
+      const state = await this.networking.getPublic(current.lab.id, sessionKey);
       const selected = current.target ? state.devices.find((entry) => entry.key === current.target?.key) : null;
       const output = selected ? this.describeNetworkDevice(selected) : [
         `Lab: ${state.lab.title}`,
@@ -475,7 +496,7 @@ export class UnifiedCliService {
     }
 
     if (current.domain === 'LINUX') {
-      const state = await this.linux.getPublic(current.lab.id);
+      const state = await this.linux.getPublic(current.lab.id, sessionKey);
       const selected = current.target ? state.hosts.find((entry) => entry.key === current.target?.key) : null;
       const output = selected ? this.describeLinuxHost(selected) : [
         `Lab: ${state.lab.title}`,
@@ -489,7 +510,7 @@ export class UnifiedCliService {
     }
 
     if (current.domain === 'DEVOPS') {
-      const state = await this.devOps.getPublic(current.lab.id);
+      const state = await this.devOps.getPublic(current.lab.id, sessionKey);
       const pipeline = current.target ? state.pipelines.find((entry) => entry.id === current.target?.key) : null;
       const output = pipeline ? this.describePipeline(pipeline) : [
         `Lab: ${state.lab.title}`,
@@ -509,19 +530,19 @@ export class UnifiedCliService {
     return this.result(raw, this.describeContext(current), 0, 'system', current);
   }
 
-  private async handleShow(raw: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
+  private async handleShow(raw: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
     const area = (args[0] ?? '').toLowerCase();
     if (!area) throw new ValidationError('Usage: show <area>. Run `help` for available areas.');
     if (!current.lab) throw new ValidationError('Select a Lab context with `ctx list` and `ctx use <context-id>`');
 
-    if (current.domain === 'NETWORKING') return this.showNetworking(raw, area, args.slice(1), current);
-    if (current.domain === 'LINUX') return this.showLinux(raw, area, args.slice(1), current);
-    if (current.domain === 'DEVOPS') return this.showDevOps(raw, area, args.slice(1), current);
+    if (current.domain === 'NETWORKING') return this.showNetworking(raw, area, args.slice(1), current, sessionKey);
+    if (current.domain === 'LINUX') return this.showLinux(raw, area, args.slice(1), current, sessionKey);
+    if (current.domain === 'DEVOPS') return this.showDevOps(raw, area, args.slice(1), current, sessionKey);
     throw new ValidationError('PORTFOLIO has no domain state. Select a Lab context first.');
   }
 
-  private async showNetworking(raw: string, area: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
-    const state = await this.networking.getPublic(current.lab!.id);
+  private async showNetworking(raw: string, area: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
+    const state = await this.networking.getPublic(current.lab!.id, sessionKey);
     const deviceKey = args[0] ?? (current.target?.kind === 'DEVICE' ? current.target.key : undefined);
     const device = deviceKey ? state.devices.find((entry) => this.matchesSegment(entry.key, entry.label, deviceKey)) : undefined;
 
@@ -549,17 +570,17 @@ export class UnifiedCliService {
       return this.result(raw, routes.length ? renderTable(['DEVICE', 'NETWORK', 'NEXT-HOP', 'INTERFACE', 'PROTOCOL', 'AD/METRIC'], routes.map((entry) => [entry.deviceKey, entry.network, entry.nextHop, entry.interface, entry.protocolName || entry.protocol, [entry.administrativeDistance, entry.metric].filter((value) => value !== null).join('/')])) : 'No recorded routes match this selection.', 0, 'table', current);
     }
     if (area === 'bgp') {
-      const ops = await this.networkingOperations.getOperations(current.lab!.id);
+      const ops = await this.networkingOperations.getOperations(current.lab!.id, sessionKey);
       const neighbors = device ? ops.bgpNeighbors.filter((entry) => entry.deviceKey === device.key) : ops.bgpNeighbors;
       return this.result(raw, neighbors.length ? renderTable(['DEVICE', 'PEER', 'REMOTE-AS', 'TYPE', 'STATE', 'HEALTH', 'PREFIXES'], neighbors.map((entry) => [entry.deviceKey, entry.peerAddress, entry.remoteAs, entry.sessionType, entry.state, entry.health, entry.prefixesReceived])) : 'No BGP neighbor state is recorded for this selection.', 0, 'table', current);
     }
     if (area === 'ospf') {
-      const ops = await this.networkingOperations.getOperations(current.lab!.id);
+      const ops = await this.networkingOperations.getOperations(current.lab!.id, sessionKey);
       const neighbors = device ? ops.ospfNeighbors.filter((entry) => entry.deviceKey === device.key) : ops.ospfNeighbors;
       return this.result(raw, neighbors.length ? renderTable(['DEVICE', 'NEIGHBOR', 'ADDRESS', 'INTERFACE', 'AREA', 'STATE', 'HEALTH'], neighbors.map((entry) => [entry.deviceKey, entry.neighborId, entry.neighborAddress, entry.interface, entry.area, entry.state, entry.health])) : 'No OSPF neighbor state is recorded for this selection.', 0, 'table', current);
     }
     if (['gateway', 'hsrp'].includes(area)) {
-      const ops = await this.networkingOperations.getOperations(current.lab!.id);
+      const ops = await this.networkingOperations.getOperations(current.lab!.id, sessionKey);
       const rows = ops.gatewayRedundancy.flatMap((group) => group.members
         .filter((member) => !device || member.deviceKey === device.key)
         .map((member) => [group.protocol, group.group, group.virtualIp, member.deviceKey, member.role, member.priority, member.status, group.health]));
@@ -573,7 +594,7 @@ export class UnifiedCliService {
       return this.result(raw, rules.length ? renderTable(['SEQ', 'NAME', 'ACTION', 'PROTO', 'SOURCE', 'DESTINATION', 'DEVICE', 'INTERFACE', 'DIR'], rules.map((entry) => [entry.sequence, entry.name, entry.action, entry.protocol, entry.source, entry.destination, entry.deviceKey, entry.interface, entry.direction])) : 'No structured ACL rules are recorded for this selection.', 0, 'table', current);
     }
     if (area === 'health') {
-      const ops = await this.networkingOperations.getOperations(current.lab!.id);
+      const ops = await this.networkingOperations.getOperations(current.lab!.id, sessionKey);
       const table = renderTable(['STATUS', 'CATEGORY', 'CHECK', 'SUMMARY'], ops.healthChecks.map((entry) => [entry.status, entry.category, entry.title, entry.summary]));
       return this.result(raw, `Overall: ${ops.overallStatus}\n${table}`, 0, 'table', current);
     }
@@ -594,8 +615,8 @@ export class UnifiedCliService {
     ].join('\n');
   }
 
-  private async showLinux(raw: string, area: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
-    const state = await this.linux.getPublic(current.lab!.id);
+  private async showLinux(raw: string, area: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
+    const state = await this.linux.getPublic(current.lab!.id, sessionKey);
     const hostKey = args[0] ?? (current.target?.kind === 'HOST' ? current.target.key : undefined);
     const host = hostKey ? state.hosts.find((entry) => this.matchesSegment(entry.key, entry.hostname, hostKey)) : undefined;
     if (hostKey && !host) throw new NotFoundError('Linux host not found');
@@ -651,7 +672,7 @@ export class UnifiedCliService {
     }
     if (area === 'health') {
       const selectedHosts = host ? [host] : state.hosts;
-      const snapshots = await Promise.all(selectedHosts.map((entry) => this.linuxOperations.getOperations(current.lab!.id, entry.key)));
+      const snapshots = await Promise.all(selectedHosts.map((entry) => this.linuxOperations.getOperations(current.lab!.id, entry.key, sessionKey)));
       const rows = snapshots.flatMap((snapshot) => snapshot.healthChecks.map((check) => [snapshot.hostname, snapshot.overallStatus, check.status, check.category, check.title, check.summary]));
       return this.result(raw, rows.length ? renderTable(['HOST', 'OVERALL', 'STATUS', 'CATEGORY', 'CHECK', 'SUMMARY'], rows) : 'No Linux health checks are available.', 0, 'table', current);
     }
@@ -672,8 +693,8 @@ export class UnifiedCliService {
     ].join('\n');
   }
 
-  private async showDevOps(raw: string, area: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
-    const state = await this.devOps.getPublic(current.lab!.id);
+  private async showDevOps(raw: string, area: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
+    const state = await this.devOps.getPublic(current.lab!.id, sessionKey);
     const pipelineId = args[0] ?? (current.target?.kind === 'PIPELINE' ? current.target.key : undefined);
     const pipeline = pipelineId ? state.pipelines.find((entry) => this.matchesSegment(entry.id, entry.name, pipelineId)) : undefined;
     if (pipelineId && !pipeline) throw new NotFoundError('DevOps pipeline not found');
@@ -712,7 +733,7 @@ export class UnifiedCliService {
       return this.result(raw, state.observability.length ? renderTable(['NAME', 'PROVIDER', 'STATUS', 'SUMMARY', 'RECORDED OUTPUT'], state.observability.map((entry) => [entry.name, entry.provider, entry.status, entry.summary, entry.recordedOutput])) : 'No observability snapshots are recorded.', 0, 'table', current);
     }
     if (area === 'health') {
-      const ops = await this.devOpsOperations.getOperations(current.lab!.id);
+      const ops = await this.devOpsOperations.getOperations(current.lab!.id, sessionKey);
       const table = renderTable(['STATUS', 'CATEGORY', 'CHECK', 'SUMMARY'], ops.healthChecks.map((entry) => [entry.status, entry.category, entry.title, entry.summary]));
       return this.result(raw, `Overall: ${ops.overallStatus}\n${table}`, 0, 'table', current);
     }
@@ -724,42 +745,69 @@ export class UnifiedCliService {
     return `Pipeline: ${pipeline.name} [${pipeline.id}]\nFramework: ${pipeline.framework ?? 'not recorded'}\nStatus: ${pipeline.status}\nSource: ${pipeline.source}\n\n${stages}`;
   }
 
-  private async handleScenarioCommand(raw: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
+  private async handleScenarioCommand(raw: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
+    if (!current.lab) throw new ValidationError('Select a Lab context before using scenarios');
+    if (!sessionKey) throw new ValidationError('Scenario commands require a browser Lab session identifier');
     const action = (args[0] ?? 'list').toLowerCase();
-    if (action !== 'list') {
-      return this.result(raw, 'Scenario mutation is not available in Phase 6. `scenario list` is read-only; run/reset/remediation state belongs to Phase 7.', 2, 'stderr', current);
+    let overview;
+    if (action === 'list' || action === 'status') {
+      overview = await this.scenarios.getOverview(current.lab.id, sessionKey);
+    } else if (action === 'run') {
+      const slug = args[1];
+      if (!slug) throw new ValidationError('Usage: scenario run <slug>');
+      overview = await this.scenarios.run(current.lab.id, sessionKey, slug);
+    } else if (action === 'verify') {
+      overview = await this.scenarios.verify(current.lab.id, sessionKey);
+    } else if (action === 'remediate') {
+      overview = await this.scenarios.remediate(current.lab.id, sessionKey);
+    } else if (action === 'reset') {
+      overview = await this.scenarios.reset(current.lab.id, sessionKey);
+    } else {
+      throw new ValidationError('Usage: scenario list|status|run <slug>|verify|remediate|reset');
     }
-    if (!current.lab) throw new ValidationError('Select a Lab context before listing scenarios');
-    const state = await this.getDomainState(current);
-    const scenarios = state.scenarios;
-    const output = scenarios.length
-      ? renderTable(['SLUG', 'ENABLED', 'TITLE', 'SUMMARY', 'OBSERVABLE SIGNALS'], scenarios.map((entry) => [entry.slug, entry.isEnabled ? 'yes' : 'no', entry.title, entry.summary, scenarioSignals(entry.expectedObservations).join(', ')]))
-      : 'No scenario definitions are recorded for this Lab.';
-    return this.result(raw, output, 0, 'table', current);
-  }
 
-  private async handleEvidence(raw: string, current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
+    const refreshed = await this.resolveContext(current.contextId, sessionKey);
+    if (action === 'list') {
+      const output = overview.scenarios.length
+        ? renderTable(['SLUG', 'TITLE', 'SUMMARY'], overview.scenarios.map((entry) => [entry.slug, entry.title, entry.summary]))
+        : 'No enabled scenario definitions are recorded for this Lab.';
+      return this.result(raw, output, 0, 'table', refreshed);
+    }
+    if (action === 'status') {
+      const runtime = overview.runtime;
+      return this.result(raw, runtime
+        ? ['Scenario: ' + runtime.scenarioTitle + ' (' + runtime.scenarioSlug + ')', 'Status: ' + runtime.status, 'Mode: ' + runtime.executionMode, runtime.verification ? 'Last verification: ' + (runtime.verification.passed ? 'PASS' : 'FAIL') + ' [' + runtime.verification.phase + ']' : 'Last verification: not run', runtime.note].join('\n')
+        : 'No scenario runtime is active for this browser session and Lab.', 0, 'stdout', refreshed);
+    }
+    const runtime = overview.runtime;
+    const verb = action === 'run' ? 'started' : action === 'remediate' ? 'remediated to canonical baseline' : action === 'verify' ? 'verified' : 'reset';
+    const verification = runtime?.verification ? '\nVerification: ' + (runtime.verification.passed ? 'PASS' : 'FAIL') + ' [' + runtime.verification.phase + ']' : '';
+    return this.result(raw, runtime
+      ? 'Scenario ' + verb + ': ' + runtime.scenarioTitle + ' (' + runtime.status + ')' + verification + '\n' + runtime.note
+      : 'Scenario runtime reset. Canonical recorded Lab state is active.', 0, 'system', refreshed, refreshed.executionMode !== current.executionMode);
+  }
+  private async handleEvidence(raw: string, current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
     if (!current.lab) throw new ValidationError('Select a Lab context before inspecting evidence');
-    const state = await this.getDomainState(current);
+    const state = await this.getDomainState(current, sessionKey);
     const output = state.evidence.length
       ? renderTable(['KIND', 'TITLE', 'DESCRIPTION', 'ARTIFACT', 'EXTERNAL'], state.evidence.map((entry) => [entry.kind, entry.title, entry.description, entry.artifact?.fileName ?? null, entry.externalUrl ? 'reference present' : null]))
       : 'No public evidence records are available for this Lab.';
     return this.result(raw, output, 0, 'table', current);
   }
 
-  private async getDomainState(current: UnifiedCliContext): Promise<NetworkingLabState | LinuxLabState | DevOpsLabState> {
+  private async getDomainState(current: UnifiedCliContext, sessionKey?: string): Promise<NetworkingLabState | LinuxLabState | DevOpsLabState> {
     if (!current.lab) throw new ValidationError('Select a Lab context first');
-    if (current.domain === 'NETWORKING') return this.networking.getPublic(current.lab.id);
-    if (current.domain === 'LINUX') return this.linux.getPublic(current.lab.id);
-    if (current.domain === 'DEVOPS') return this.devOps.getPublic(current.lab.id);
+    if (current.domain === 'NETWORKING') return this.networking.getPublic(current.lab.id, sessionKey);
+    if (current.domain === 'LINUX') return this.linux.getPublic(current.lab.id, sessionKey);
+    if (current.domain === 'DEVOPS') return this.devOps.getPublic(current.lab.id, sessionKey);
     throw new ValidationError('PORTFOLIO has no Lab state');
   }
 
-  private async handleTrace(raw: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
+  private async handleTrace(raw: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
     if (current.domain !== 'NETWORKING' || !current.lab) throw new ValidationError('`trace` is available only in a NETOPS Lab context');
     const [source, target, protocol = 'ICMP'] = args;
     if (!source || !target) throw new ValidationError('Usage: trace <source-device> <target-device> [protocol]');
-    const analysis = await this.networkingOperations.analyzePath(current.lab.id, source, target, protocol);
+    const analysis = await this.networkingOperations.analyzePath(current.lab.id, source, target, protocol, sessionKey);
     const blockers = analysis.blockers.length ? `\nBlockers:\n${renderList(analysis.blockers.map((entry) => `${entry.type}: ${entry.message}`), '')}` : '';
     const output = [
       `Status: ${analysis.status}`,
@@ -775,12 +823,12 @@ export class UnifiedCliService {
     return this.result(raw, output, analysis.status === 'BLOCKED' || analysis.status === 'UNREACHABLE' ? 1 : 0, 'stdout', current);
   }
 
-  private async handleRoute(raw: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult> {
+  private async handleRoute(raw: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult> {
     if (current.domain !== 'NETWORKING' || !current.lab) throw new ValidationError('`route` is available only in a NETOPS Lab context');
     const destination = args[0];
     if (!destination) throw new ValidationError('Usage: route <destination-ip> [device-key]');
     const device = args[1] ?? (current.target?.kind === 'DEVICE' ? current.target.key : undefined);
-    const lookup = await this.networkingOperations.lookupRoute(current.lab.id, destination, device);
+    const lookup = await this.networkingOperations.lookupRoute(current.lab.id, destination, device, sessionKey);
     const route = lookup.matchedRoute;
     const output = route
       ? `Status: ${lookup.status}\nDestination: ${lookup.destination}\nDevice: ${lookup.deviceKey ?? 'all recorded routes'}\nMatched: ${route.network}\nNext hop: ${route.nextHop}\nInterface: ${route.interface}\nProtocol: ${route.protocolName || route.protocol}\nPrefix length: ${lookup.prefixLength}\n${lookup.note}`
@@ -788,37 +836,37 @@ export class UnifiedCliService {
     return this.result(raw, output, lookup.status === 'MATCH_FOUND' ? 0 : 1, 'stdout', current);
   }
 
-  private async handleRecordedStateAlias(raw: string, root: string, args: string[], current: UnifiedCliContext): Promise<UnifiedCliExecutionResult | null> {
+  private async handleRecordedStateAlias(raw: string, root: string, args: string[], current: UnifiedCliContext, sessionKey?: string): Promise<UnifiedCliExecutionResult | null> {
     if (['ping', 'traceroute'].includes(root)) {
       return this.result(raw, 'Live ICMP/traceroute execution is disabled. In NETOPS use `trace <source-device> <target-device> [protocol]` for deterministic recorded-state path analysis.', 2, 'stderr', current);
     }
     if (root.startsWith('./')) {
-      return this.result(raw, 'Automation scripts are not executed by the portfolio CLI. Use `show`, `inspect`, `scenario list`, and `evidence`; mutable scenarios belong to Phase 7.', 126, 'stderr', current);
+      return this.result(raw, 'Automation scripts are not executed by the portfolio CLI. Use `show`, `inspect`, `scenario`, and `evidence`; automation scripts remain disabled.', 126, 'stderr', current);
     }
 
     if (current.domain === 'NETWORKING' && root === 'cisco') {
       const sub = args.join(' ').toLowerCase();
-      if (sub.includes('show running-config') || sub.includes('show run')) return this.showNetworking(raw, 'device', [], current);
-      if (sub.includes('show ip route')) return this.showNetworking(raw, 'routes', [], current);
-      if (sub.includes('show vlan')) return this.showNetworking(raw, 'vlans', [], current);
+      if (sub.includes('show running-config') || sub.includes('show run')) return this.showNetworking(raw, 'device', [], current, sessionKey);
+      if (sub.includes('show ip route')) return this.showNetworking(raw, 'routes', [], current, sessionKey);
+      if (sub.includes('show vlan')) return this.showNetworking(raw, 'vlans', [], current, sessionKey);
       return this.result(raw, 'IOS is not executed. Supported recorded-state aliases: `cisco show run`, `cisco show ip route`, `cisco show vlan`.', 2, 'stderr', current);
     }
 
     if (current.domain === 'LINUX') {
-      if (root === 'uname') return this.showLinux(raw, 'host', [], current);
-      if (['sestatus', 'getenforce'].includes(root)) return this.showLinux(raw, 'selinux', [], current);
-      if (root === 'lsblk') return this.showLinux(raw, 'storage', [], current);
-      if (root === 'ip' && (args[0] === 'a' || args[0] === 'addr' || args[0] === 'address' || args[0] === 'route' || args[0] === 'r')) return this.showLinux(raw, 'network', [], current);
-      if (root === 'journalctl') return this.showLinux(raw, 'logs', [], current);
+      if (root === 'uname') return this.showLinux(raw, 'host', [], current, sessionKey);
+      if (['sestatus', 'getenforce'].includes(root)) return this.showLinux(raw, 'selinux', [], current, sessionKey);
+      if (root === 'lsblk') return this.showLinux(raw, 'storage', [], current, sessionKey);
+      if (root === 'ip' && (args[0] === 'a' || args[0] === 'addr' || args[0] === 'address' || args[0] === 'route' || args[0] === 'r')) return this.showLinux(raw, 'network', [], current, sessionKey);
+      if (root === 'journalctl') return this.showLinux(raw, 'logs', [], current, sessionKey);
       if (root === 'systemctl') {
         const action = (args[0] ?? '').toLowerCase();
-        if (action === 'list-units' || !action) return this.showLinux(raw, 'services', [], current);
+        if (action === 'list-units' || !action) return this.showLinux(raw, 'services', [], current, sessionKey);
         if (action === 'status') {
           const unit = args[1];
-          const state = await this.linux.getPublic(current.lab!.id);
+          const state = await this.linux.getPublic(current.lab!.id, sessionKey);
           const host = current.target?.kind === 'HOST' ? state.hosts.find((entry) => entry.key === current.target?.key) : state.hosts[0];
           if (!host) throw new NotFoundError('Linux host not found');
-          if (!unit) return this.showLinux(raw, 'services', [host.key], current);
+          if (!unit) return this.showLinux(raw, 'services', [host.key], current, sessionKey);
           const service = host.services.find((entry) => entry.unit === unit || entry.unit === `${unit}.service` || entry.unit.replace(/\.service$/i, '') === unit.replace(/\.service$/i, ''));
           if (!service) throw new NotFoundError('Recorded systemd unit not found');
           return this.result(raw, [
@@ -833,15 +881,15 @@ export class UnifiedCliService {
             '\nRecorded-state result only; systemctl was not executed.',
           ].filter(Boolean).join('\n'), 0, 'stdout', current);
         }
-        return this.result(raw, `Mutating systemctl action '${action}' is disabled. Phase 6 is a read-only recorded-state CLI.`, 126, 'stderr', current);
+        return this.result(raw, `Mutating systemctl action '${action}' is disabled. External host mutation is disabled; use scenario commands for session-scoped simulation.`, 126, 'stderr', current);
       }
     }
 
     if (current.domain === 'DEVOPS') {
-      if (root === 'terraform' && (args[0] ?? '').toLowerCase() === 'plan') return this.showDevOps(raw, 'terraform', [], current);
-      if (root === 'kubectl' && (args[0] ?? '').toLowerCase() === 'get') return this.showDevOps(raw, 'kubernetes', [], current);
-      if (root === 'argocd' && (args[0] ?? '').toLowerCase() === 'app') return this.showDevOps(raw, 'gitops', [], current);
-      if (root === 'helm' && (args[0] ?? '').toLowerCase() === 'list') return this.showDevOps(raw, 'helm', [], current);
+      if (root === 'terraform' && (args[0] ?? '').toLowerCase() === 'plan') return this.showDevOps(raw, 'terraform', [], current, sessionKey);
+      if (root === 'kubectl' && (args[0] ?? '').toLowerCase() === 'get') return this.showDevOps(raw, 'kubernetes', [], current, sessionKey);
+      if (root === 'argocd' && (args[0] ?? '').toLowerCase() === 'app') return this.showDevOps(raw, 'gitops', [], current, sessionKey);
+      if (root === 'helm' && (args[0] ?? '').toLowerCase() === 'list') return this.showDevOps(raw, 'helm', [], current, sessionKey);
       if (root === 'docker') return this.result(raw, 'No container-runtime process model exists in devops.v1. Docker commands are not executed or fabricated.', 2, 'stderr', current);
     }
 
