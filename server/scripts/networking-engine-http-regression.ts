@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 interface ApiResult { response: Response; payload: Record<string, any>; }
 
@@ -28,10 +29,11 @@ async function main(): Promise<void> {
     assert.ok(project);
 
     const lab = await labService.create({
-      slug: `network-http-${suffix}`, title: 'Networking HTTP Fixture', summary: 'HTTP fixture', domain: 'NETWORKING', kind: 'NETWORK_TOPOLOGY', status: 'READY',
+      slug: `network-http-${suffix}`, title: 'Networking HTTP Fixture', summary: 'HTTP fixture', domain: 'NETWORKING', kind: 'NETWORK_TOPOLOGY', status: 'DRAFT',
       projectId: project.id, isInteractive: true, manifestVersion: '1.0', capabilities: ['topology', 'packet-path'],
       normalizedState: { schemaVersion: 'networking.v1', overview: 'HTTP fixture', routingTable: [], vlans: [], accessControlLists: [], verificationChecks: [], specifications: { protocols: [], addressing: [] }, provenance: { sourceType: 'CANONICAL_MANIFEST', notes: [] } },
     });
+    await markRegressionLabReady(lab.id);
     labId = lab.id;
     const draft = await labService.create({
       slug: `network-http-draft-${suffix}`, title: 'Draft Networking Fixture', domain: 'NETWORKING', kind: 'NETWORK_TOPOLOGY', status: 'DRAFT',

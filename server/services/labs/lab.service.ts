@@ -26,6 +26,7 @@ import type {
   LabStatus,
 } from '../../types/lab-platform.js';
 import { getLabInputType, listLabInputTypes } from './lab-input-registry.js';
+import { portfolioOrchestratorRepository } from '../../repositories/prisma/portfolio-orchestrator.repository.js';
 
 const LAB_DOMAINS = new Set<LabDomain>(['NETWORKING', 'LINUX', 'DEVOPS']);
 const LAB_KINDS = new Set<LabKind>(['NETWORK_TOPOLOGY', 'LINUX_SYSTEM', 'DEVOPS_PIPELINE']);
@@ -119,7 +120,8 @@ export class LabService {
     const project = await this.requireProject(input.projectId);
     const duplicate = await this.labs.findBySlug(input.slug);
     if (duplicate) throw new ConflictError('A lab with this slug already exists');
-    const normalized = this.validateLabInput(input, project.domain);
+    if (input.status !== 'DRAFT') throw new ValidationError('Admin Lab creation must start in DRAFT; use the Orchestrator readiness workflow');
+    const normalized = this.validateLabInput({ ...input, status: 'DRAFT' }, project.domain);
     return this.labs.create({ ...normalized, projectId: project.id });
   }
 
@@ -131,13 +133,24 @@ export class LabService {
       const duplicate = await this.labs.findBySlug(input.slug);
       if (duplicate && duplicate.id !== id) throw new ConflictError('A lab with this slug already exists');
     }
+    if (input.status !== undefined && input.status !== current.status) {
+      throw new ValidationError('Use the Orchestrator readiness/archive workflow to change Lab status');
+    }
+    if (
+      input.domain !== undefined || input.kind !== undefined || input.projectId !== undefined ||
+      input.manifestVersion !== undefined || input.capabilities !== undefined ||
+      input.normalizedState !== undefined || input.metadata !== undefined
+    ) {
+      await this.assertNoActiveRuntime(id);
+    }
     const merged: CreateLabInput = {
       slug: input.slug ?? current.slug,
       title: input.title ?? current.title,
       summary: input.summary !== undefined ? input.summary : current.summary,
       domain: input.domain ?? current.domain,
       kind: input.kind ?? current.kind,
-      status: input.status ?? current.status,
+      status: current.status,
+      sortOrder: input.sortOrder ?? current.sortOrder,
       projectId: project.id,
       isInteractive: input.isInteractive ?? current.isInteractive,
       manifestVersion: input.manifestVersion ?? current.manifestVersion,
@@ -155,10 +168,12 @@ export class LabService {
   }
 
   async delete(id: string): Promise<void> {
+    await this.assertNoActiveRuntime(id);
     if (!(await this.labs.delete(id))) throw new NotFoundError('Lab not found');
   }
 
   async createInput(labId: string, input: CreateLabSourceInput): Promise<LabInputRecord> {
+    await this.assertNoActiveRuntime(labId);
     const lab = await this.requireAggregate(labId);
     const normalized = await this.validateSourceInput(lab, input);
     if (lab.inputs.some((entry) => entry.inputKey === normalized.inputKey)) throw new ConflictError('A lab input with this key already exists');
@@ -167,6 +182,7 @@ export class LabService {
   }
 
   async updateInput(labId: string, inputId: string, input: UpdateLabSourceInput): Promise<LabInputRecord> {
+    await this.assertNoActiveRuntime(labId);
     const lab = await this.requireAggregate(labId);
     const current = lab.inputs.find((entry) => entry.id === inputId);
     if (!current) throw new NotFoundError('Lab input not found');
@@ -197,11 +213,13 @@ export class LabService {
   }
 
   async deleteInput(labId: string, inputId: string): Promise<void> {
+    await this.assertNoActiveRuntime(labId);
     await this.requireLab(labId);
     if (!(await this.labs.deleteInput(labId, inputId))) throw new NotFoundError('Lab input not found');
   }
 
   async replaceTopology(labId: string, nodes: LabNodeInput[], links: LabLinkInput[]) {
+    await this.assertNoActiveRuntime(labId);
     await this.requireLab(labId);
     if (nodes.length > 500) throw new ValidationError('A lab topology may contain at most 500 nodes');
     if (links.length > 2000) throw new ValidationError('A lab topology may contain at most 2000 links');
@@ -226,6 +244,7 @@ export class LabService {
   }
 
   async createScenario(labId: string, input: CreateLabScenarioInput) {
+    await this.assertNoActiveRuntime(labId);
     const lab = await this.requireAggregate(labId);
     const normalized = this.validateScenario(input);
     if (lab.scenarios.some((entry) => entry.slug === normalized.slug)) throw new ConflictError('A scenario with this slug already exists in this lab');
@@ -233,6 +252,7 @@ export class LabService {
   }
 
   async updateScenario(labId: string, scenarioId: string, input: UpdateLabScenarioInput) {
+    await this.assertNoActiveRuntime(labId);
     const lab = await this.requireAggregate(labId);
     const current = lab.scenarios.find((entry) => entry.id === scenarioId);
     if (!current) throw new NotFoundError('Lab scenario not found');
@@ -255,6 +275,7 @@ export class LabService {
   }
 
   async deleteScenario(labId: string, scenarioId: string): Promise<void> {
+    await this.assertNoActiveRuntime(labId);
     await this.requireLab(labId);
     if (!(await this.labs.deleteScenario(labId, scenarioId))) throw new NotFoundError('Lab scenario not found');
   }
@@ -326,7 +347,7 @@ export class LabService {
     if (input.domain !== projectDomain) throw new ValidationError('Lab domain must match its project domain', { labDomain: input.domain, projectDomain });
     assertDomainKind(input.domain, input.kind);
     if (input.manifestVersion !== '1.0') throw new ValidationError('Only Lab Manifest v1.0 is supported', { manifestVersion: input.manifestVersion });
-    return { ...input, slug, title, summary: optionalText(input.summary), capabilities: capabilities(input.capabilities) };
+    return { ...input, slug, title, summary: optionalText(input.summary), sortOrder: integer(input.sortOrder ?? 0, 'sortOrder'), capabilities: capabilities(input.capabilities) };
   }
 
   private async validateSourceInput(lab: LabAggregate, input: CreateLabSourceInput): Promise<CreateLabSourceInput> {
@@ -371,7 +392,7 @@ export class LabService {
     const artifactId = input.artifactId ? text(input.artifactId, 'artifactId') : null;
     if (artifactId) await this.assertArtifactScope(lab, artifactId);
     const externalUrl = input.externalUrl ? assertHttpUrl(input.externalUrl, 'externalUrl') : null;
-    return { ...input, title: text(input.title, 'title'), description: optionalText(input.description), artifactId, externalUrl, sortOrder: integer(input.sortOrder, 'sortOrder') };
+    return { ...input, title: text(input.title, 'title'), description: optionalText(input.description), artifactId, externalUrl, sortOrder: integer(input.sortOrder ?? 0, 'sortOrder') };
   }
 
   private async requireProject(projectId: string | null | undefined) {
@@ -401,6 +422,13 @@ export class LabService {
 
   private requireAggregate(id: string): Promise<LabAggregate> {
     return this.findAggregate(id);
+  }
+
+  private async assertNoActiveRuntime(labId: string): Promise<void> {
+    const count = await portfolioOrchestratorRepository.activeRuntimeCount(labId);
+    if (count > 0) {
+      throw new ConflictError(`Lab has ${count} active scenario runtime(s). Reset them through the Portfolio Orchestrator before changing canonical state.`);
+    }
   }
 
   private async assertArtifactScope(lab: LabAggregate, artifactId: string): Promise<void> {

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "portfolio.project-bundle.v1",
+  "project": {
+    "slug": "example-networking-project",
+    "title": "Example Networking Project",
+    "domain": "NETWORKING",
+    "summary": "Portable recorded-state Project example.",
+    "descriptionMarkdown": null,
+    "mission": null,
+    "architectureSummary": null,
+    "whatIBuilt": null,
+    "lifecycleStatus": "PLANNED",
+    "formatType": "STANDARD",
+    "featured": false,
+    "sortOrder": 0,
+    "coverImageUrl": null,
+    "architectureSvg": null,
+    "liveUrl": null,
+    "githubUrl": null,
+    "packetTracerFile": null,
+    "topologyConfigJson": null,
+    "metrics": null,
+    "technologies": [],
+    "tags": [],
+    "categorySlug": "networking"
+  },
+  "runbook": [],
+  "evidence": [],
+  "artifacts": [],
+  "labs": []
+}

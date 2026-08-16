@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for Networking operations regression');
@@ -25,7 +26,7 @@ async function main(): Promise<void> {
       summary: 'Recorded-state operations fixture',
       domain: 'NETWORKING',
       kind: 'NETWORK_TOPOLOGY',
-      status: 'READY',
+      status: 'DRAFT',
       projectId: project.id,
       isInteractive: true,
       manifestVersion: '1.0',
@@ -55,6 +56,7 @@ async function main(): Promise<void> {
         provenance: { sourceType: 'CANONICAL_MANIFEST', notes: ['Regression fixture'] },
       },
     });
+    await markRegressionLabReady(lab.id);
     labId = lab.id;
 
     await labService.createInput(lab.id, {

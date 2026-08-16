@@ -10,14 +10,14 @@ The dark cyber-terminal/control-plane visual language is intentional. Representa
 
 ## Current architecture
 
-Phase 2 through Phase 6 are complete and exit-verified platform/domain baselines. Phase 7 implements the session-scoped Scenario Engine and is the current closeout candidate; after any Phase 7 code change, rerun the canonical 45-step verifier and the browser/session-isolation runbook before marking the phase complete.
+Phase 2 through Phase 6 are established platform/domain baselines. The uploaded Phase 7 source provides the session-scoped Scenario Engine. Phase 8 now adds the Portfolio Orchestrator implementation as a closeout candidate. Do not mark Phase 8 complete until the additive migration, canonical 49-step verifier, and `docs/PHASE8_VALIDATION_RUNBOOK.md` pass in the real repository environment.
 
 ```text
 Browser / React
   ├─ public content → Express routes → content services → Prisma repositories → PostgreSQL
   ├─ labs → /api/labs/* → LabService / LabManifestService → PrismaLabRepository → PostgreSQL
   ├─ auth → /api/auth/* → AuthService → PrismaAuthRepository → User + AuthSession
-  ├─ admin → authenticated content/lab APIs → PostgreSQL + persisted AuditLog
+  ├─ admin → Portfolio Orchestrator → validation/preview/publication → Prisma transactions → PostgreSQL
   ├─ unified CLI → /api/terminal/* → UnifiedCliService → domain engines → recorded/session state
   ├─ scenarios → /api/scenarios/* → ScenarioEngineService → LabScenarioRuntime → session overlay
   ├─ media references → MediaService → PrismaArtifactRepository → Artifact
@@ -60,6 +60,7 @@ server/services/linux/                dynamic Linux adapter and core host-state 
 server/services/devops/               dynamic DevOps adapter, delivery-state engine, and recorded-state operations
 server/services/cli/                  unified context-aware recorded-state + scenario command interpreter
 server/services/scenarios/            session-scoped scenario lifecycle and safe state overlays
+server/services/orchestrator/          revision-safe validation, preview, lifecycle, bundle and artifact orchestration
 server/repositories/contracts/        repository contracts
 server/repositories/prisma/           PostgreSQL/Prisma repositories
 server/middlewares/                   persisted auth, async, and error middleware
@@ -118,7 +119,7 @@ npm run verify:quick
 npm run verify:tests
 ```
 
-The full verifier covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin orchestration, restart persistence, media/artifact persistence, architecture metrics, runtime retirement, all three dynamic domain engines and operations layers, unified CLI regressions, and the Phase 7 Scenario Engine static/service/HTTP regressions.
+The full Phase 8 verifier contains 49 derived steps and covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin audit behavior, persistence, all three dynamic domain engines and operations layers, Unified CLI, Phase 7 scenarios, plus the Phase 8 Orchestrator static/service/HTTP/bundle regressions.
 
 ## Media and Packet Tracer truthfulness
 
@@ -168,6 +169,20 @@ RUN → OBSERVE/TROUBLESHOOT → VERIFY SCENARIO STATE → REMEDIATE → VERIFY 
 ```
 
 See `docs/SCENARIO_ENGINE_ARCHITECTURE.md`.
+
+## Phase 8 Portfolio Orchestrator
+
+Phase 8 upgrades the authenticated Admin area into the single writable control plane for Projects, Labs, inputs, normalized state, topology, scenarios, runbooks, evidence, artifact references, validation, exact preview, publication, archive/restore, duplication, ordering, and bounded JSON import/export.
+
+The workflow is:
+
+```text
+DRAFT → CONFIGURE → VALIDATE → PREVIEW → MARK LAB READY → PUBLISH → MAINTAIN → ARCHIVE
+```
+
+Project and Lab revisions provide optimistic concurrency. Canonical Lab edits are blocked while Phase 7 session runtimes are active until an Admin explicitly resets those runtimes. Publication revalidates the complete Project/Lab revision snapshot in a transaction. Imports are JSON-only, bounded to 2 MiB in the service, prototype-safe, atomic, never fetched/executed, and always persisted as DRAFT. Exports omit secrets, users, sessions, audit/runtime rows, private storage keys, and unsupported byte/hash claims.
+
+A documented `networking.companion-manifest.v1` format can round-trip canonical Networking inputs, nodes, links, normalized state, and reference metadata. It does not parse arbitrary Packet Tracer binaries. See `docs/ADMIN_ORCHESTRATOR.md`, `docs/PORTFOLIO_BUNDLE_FORMAT.md`, and `docs/NETWORKING_COMPANION_MANIFEST.md`.
 
 ## Git workflow
 

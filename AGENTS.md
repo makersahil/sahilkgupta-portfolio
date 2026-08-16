@@ -157,3 +157,16 @@ If a requirement conflicts with repository state, stop and explain instead of gu
 - If a stored runtime action no longer matches the canonical Lab model, fail safe to the canonical baseline with a warning; do not corrupt public Lab reads.
 - Keep scenario behavior data-driven across projects/Labs. Do not branch on flagship project names or slugs inside the reusable engine.
 - Scenario runtimes have a basic 24-hour opportunistic retention cleanup on new scenario starts. Stronger distributed abuse controls, quotas, and scheduled cleanup remain Phase 9 deployment hardening.
+
+## Phase 8 Portfolio Orchestrator invariants
+
+- `AdminOrchestrator` is the single writable Project/Lab control surface. Do not restore a competing legacy Project/Lab editor.
+- All Orchestrator routes require persisted ADMIN or SUPER_ADMIN authorization; permanent deletion is SUPER_ADMIN-only.
+- New Projects and Labs are always DRAFT. Only validated Orchestrator workflows may set `Project.status=PUBLISHED` or `Lab.status=READY`.
+- Every orchestrator-managed Project/Lab write uses the expected revision. A stale revision is a 409 conflict, never a last-write-wins overwrite.
+- Canonical input, topology, scenario, normalized-state, and artifact-association edits must reject active Phase 7 runtimes until an Admin explicitly resets them.
+- Validation and preview are side-effect-free and reuse the existing Lab Manifest, domain adapters, scenario mutators, and public mappers.
+- Import accepts bounded versioned JSON only, never executes/fetches imported content, and always persists DRAFT state transactionally.
+- Export excludes users, sessions, audit rows, scenario runtimes, credentials, storage keys, environment values, and unsupported claims about stored bytes or verified hashes.
+- Packet Tracer companion JSON is supported as a canonical data format; arbitrary `.pkt` binary parsing remains unsupported and reference-only.
+- `PH2A-DEFER-004` remains OPEN unless genuine byte storage, calculated hashes, retrieval, deletion, and access control are implemented and verified.

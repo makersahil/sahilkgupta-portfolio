@@ -109,6 +109,7 @@ export function parseLabCreate(value: unknown): CreateLabInput {
     domain, kind, status: parseOptionalLabStatus(b.status) ?? 'DRAFT', projectId: required(b, 'projectId'),
     isInteractive: optionalBool(b, 'isInteractive') ?? true, manifestVersion: optionalString(b, 'manifestVersion') ?? '1.0',
     capabilities: optionalStrings(b, 'capabilities') ?? [], normalizedState: json(b, 'normalizedState'), metadata: json(b, 'metadata'),
+    sortOrder: optionalInt(b, 'sortOrder') ?? 0,
   };
 }
 export function parseLabUpdate(value: unknown): UpdateLabInput {
@@ -125,6 +126,7 @@ export function parseLabUpdate(value: unknown): UpdateLabInput {
   if (own(b, 'capabilities')) out.capabilities = strings(b.capabilities, 'capabilities');
   if (own(b, 'normalizedState')) out.normalizedState = b.normalizedState;
   if (own(b, 'metadata')) out.metadata = b.metadata;
+  if (own(b, 'sortOrder')) out.sortOrder = int(b.sortOrder, 'sortOrder');
   return out;
 }
 export function parseLabSourceCreate(value: unknown): CreateLabSourceInput {

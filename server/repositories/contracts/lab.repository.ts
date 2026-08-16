@@ -31,6 +31,7 @@ export interface CreateLabInput {
   domain: LabDomain;
   kind: LabKind;
   status: LabStatus;
+  sortOrder?: number;
   projectId: string;
   isInteractive: boolean;
   manifestVersion: string;

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "networking.companion-manifest.v1",
+  "lab": {
+    "slug": "example-companion-lab",
+    "title": "Example Companion Networking Lab",
+    "summary": "Canonical JSON companion; no Packet Tracer binary parsing is claimed.",
+    "domain": "NETWORKING",
+    "kind": "NETWORK_TOPOLOGY",
+    "sortOrder": 0,
+    "isInteractive": true,
+    "manifestVersion": "1.0",
+    "capabilities": ["topology", "packet-path"],
+    "normalizedState": {
+      "schemaVersion": "networking.v1",
+      "overview": "Recorded-state companion example",
+      "routingTable": [],
+      "vlans": [],
+      "accessControlLists": [],
+      "verificationChecks": [],
+      "specifications": { "environment": "Recorded fixture", "protocols": [], "addressing": [] },
+      "provenance": { "sourceType": "CANONICAL_MANIFEST", "packetTracerReference": null, "notes": ["Example only"] }
+    },
+    "metadata": { "sourceType": "COMPANION_MANIFEST" }
+  },
+  "input": {
+    "inputKey": "network-topology",
+    "inputType": "NETWORK_TOPOLOGY",
+    "label": "Canonical topology",
+    "description": "Structured companion input",
+    "sourceKind": "INLINE",
+    "schemaVersion": "networking.input.v1",
+    "payload": { "schemaVersion": "networking.input.v1" },
+    "externalUrl": null,
+    "artifactReference": null,
+    "isPrimary": true,
+    "sortOrder": 0
+  },
+  "topology": {
+    "nodes": [
+      { "nodeKey": "r1", "label": "R1", "kind": "router", "description": null, "position": { "x": 200, "y": 200 }, "configuration": { "device": { "status": "UP", "interfaces": [] } }, "metadata": {} }
+    ],
+    "links": []
+  },
+  "packetTracerReference": {
+    "fileName": "example.pkt",
+    "sizeBytes": null,
+    "sha256": null,
+    "referenceOnly": true
+  }
+}

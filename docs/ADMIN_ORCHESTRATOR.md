@@ -1,61 +1,76 @@
-# Admin Orchestrator
+# Portfolio Orchestrator
 
-The Admin CMS is the authenticated control surface for persistent portfolio content and canonical lab configuration. It is operational product documentation, not a phase checklist.
+Phase 8 replaces the primitive writable Project/Lab Admin experience with one authenticated **Portfolio Orchestrator**. Blogs, Categories, Certifications, Skills, Inquiries, and Audit remain separate Admin tools.
 
-## Persistent workflow
+## Control flow
 
 ```text
-Project
-  -> Lab
-     -> standardized Inputs
-     -> normalized state / topology
-     -> Scenarios
-     -> Runbook
-     -> Evidence
-     -> Manifest preview
-     -> publish when ready
+AdminOrchestrator UI
+  -> /api/admin/orchestrator/*
+  -> PortfolioOrchestratorService
+  -> validation / preview / bundle services
+  -> repository contracts
+  -> Prisma transactions
+  -> PostgreSQL
 ```
 
-ADMIN and SUPER_ADMIN can manage this state through authenticated APIs. The UI never claims that entering metadata uploads a real artifact or parses an arbitrary source format unless a later implementation actually provides that capability.
+Every route requires the current persisted `ADMIN` or `SUPER_ADMIN` role. Permanent deletion additionally requires `SUPER_ADMIN`, DRAFT/ARCHIVED state, no active scenario runtime, and typed confirmation.
 
-## Admin surfaces
+## Lifecycle
 
-- Projects, including persisted `mission`, `architectureSummary`, and `whatIBuilt` story fields.
-- Lab Builder for multiple Labs per Project.
-- LabInputs constrained by the domain input registry.
-- Atomic topology replacement for normalized nodes and links.
-- Scenario, runbook, and evidence metadata management.
-- Canonical Lab Manifest v1 preview before publication.
-- Blogs and Categories.
-- Certification/preparation-track CRUD.
-- Skill/competency CRUD.
-- Inquiry status management.
-- Persisted system audit log.
+```text
+DRAFT
+  -> CONFIGURE
+  -> VALIDATE
+  -> PREVIEW
+  -> MARK LAB READY
+  -> PUBLISH PROJECT
+  -> OBSERVE / MAINTAIN
+  -> ARCHIVE
+```
 
-## Audit behavior
+Legacy Project/Lab create operations can no longer publish or mark READY directly. New Project and Lab records start DRAFT. Only the validated Orchestrator transaction may publish or mark READY.
 
-Admin mutations write `AuditLog` records containing the authenticated actor, action, entity type/id, request method/path, and limited request metadata. The audit UI reads these persisted records through `GET /api/admin/audit`.
+## Revision and runtime safety
 
-Audit display rules:
+`Project.revision` and `Lab.revision` start at 1. Orchestrator writes carry an expected revision and return HTTP 409 when stale. Lab child writes increment the Lab revision atomically. Publication compares the complete current Project/Lab revision snapshot again inside its transaction.
 
-- Never synthesize events or timestamps when the table is empty.
-- Audit-write failure is logged server-side and does not turn an already-committed business mutation into a false client failure.
-- Audit records are visible only to ADMIN/SUPER_ADMIN.
-- Secrets, password hashes, session tokens, and full request bodies are not stored in audit metadata.
+Canonical changes that can invalidate Phase 7 overlays—inputs, normalized state, topology, scenarios, or artifact associations—are blocked while active runtimes exist. The Admin may explicitly reset all runtimes for the Lab; only the deleted count is audited, never session keys.
 
-## Verification
+## Validation and preview
 
-The durable project verifier includes Admin orchestration checks:
+Validation is computed from the current aggregate and is never persisted as an authoritative pass. It reuses:
+
+- Lab Manifest v1
+- the domain input registry
+- Networking, Linux, and DevOps adapters
+- safe scenario action application and verification
+- public manifest shaping
+
+Preview is read-only and uses the same public mappers/adapters. It never toggles publication, creates a scenario runtime, fetches an external URL, or mutates canonical state.
+
+## Bundle and companion formats
+
+The Orchestrator imports and exports versioned JSON:
+
+- `portfolio.project-bundle.v1`
+- `portfolio.lab-bundle.v1`
+- `networking.companion-manifest.v1`
+
+Import is bounded, prototype-safe, atomic, DRAFT-only, and never executes commands or fetches URLs. Export contains reference metadata only and excludes credentials, users, sessions, AuditLog rows, scenario runtimes, environment values, and internal storage keys.
+
+## Artifact catalog
+
+The Admin catalog manages safe Artifact metadata and associations. It does not claim that reference registration uploaded bytes. SHA-256 stays null unless bytes were genuinely read and hashed. Real byte storage remains deferred.
+
+## Focused verification
 
 ```bash
+npm run test:orchestrator:static
+npm run test:orchestrator
+npm run test:orchestrator:http
+npm run test:orchestrator:bundle
 npm run verify
 ```
 
-For focused debugging:
-
-```bash
-npm run test:admin:static
-npm run test:admin:http
-```
-
-The HTTP regression creates only `__smoke_*`/temporary fixture data and removes it in cleanup.
+Phase 8 is not complete until the canonical 49-step verifier and `docs/PHASE8_VALIDATION_RUNBOOK.md` both pass.

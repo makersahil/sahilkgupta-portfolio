@@ -17,6 +17,7 @@ async function main(): Promise<void> {
   const suffix = randomUUID().replaceAll('-', '');
   const testSecret = `${randomUUID()}${randomUUID()}`;
   const testPassword = `Test-${randomUUID()}!`;
+  const testSuperAdminEmail = `content-super-admin-${suffix}@example.invalid`;
   const testAdminEmail = `content-admin-${suffix}@example.invalid`;
   const testEditorEmail = `content-editor-${suffix}@example.invalid`;
 
@@ -120,6 +121,17 @@ async function main(): Promise<void> {
 
   try {
     const passwordHash = await bcrypt.hash(testPassword, 12);
+    const superAdminUser = await prisma.user.create({
+      data: {
+        email: testSuperAdminEmail,
+        displayName: 'Content Regression Super Admin',
+        passwordHash,
+        role: 'SUPER_ADMIN',
+        isActive: true,
+      },
+    });
+    createdUserIds.push(superAdminUser.id);
+
     const adminUser = await prisma.user.create({
       data: {
         email: testAdminEmail,
@@ -141,6 +153,11 @@ async function main(): Promise<void> {
     });
     createdUserIds.push(editorUser.id);
 
+    const superAdminLogin = await expectStatus('/api/auth/login', 200, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: testSuperAdminEmail, password: testPassword }),
+    });
     const adminLogin = await expectStatus('/api/auth/login', 200, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -151,6 +168,10 @@ async function main(): Promise<void> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: testEditorEmail, password: testPassword }),
     });
+    const superAdminHeaders = {
+      Cookie: cookieHeader(superAdminLogin),
+      'Content-Type': 'application/json',
+    };
     const adminHeaders = {
       Cookie: cookieHeader(adminLogin),
       'Content-Type': 'application/json',
@@ -341,9 +362,15 @@ async function main(): Promise<void> {
       headers: adminHeaders,
     });
     created.blog = undefined;
-    await expectStatus(`/api/projects/${created.project}`, 200, {
+    await expectStatus(`/api/projects/${created.project}`, 403, {
       method: 'DELETE',
       headers: adminHeaders,
+      body: JSON.stringify({ confirmation: project.payload.data.title }),
+    });
+    await expectStatus(`/api/projects/${created.project}`, 200, {
+      method: 'DELETE',
+      headers: superAdminHeaders,
+      body: JSON.stringify({ confirmation: project.payload.data.title }),
     });
     created.project = undefined;
     await expectStatus(`/api/categories/${created.category}`, 200, {

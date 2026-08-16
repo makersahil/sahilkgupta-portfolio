@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 interface ApiResult { response: Response; payload: Record<string, any>; }
 
@@ -70,7 +71,8 @@ async function main(): Promise<void> {
     const preview=await expect(`/api/labs/admin/${labId}/manifest`,200,{headers:{Cookie:adminCookie}}); assert.equal(preview.payload.data.lab.status,'DRAFT');
     await expect(`/api/labs/${labId}/manifest`,404);
 
-    await expect(`/api/labs/${labId}`,200,{method:'PUT',headers:adminHeaders,body:JSON.stringify({status:'READY'})});
+    await expect(`/api/labs/${labId}`,400,{method:'PUT',headers:adminHeaders,body:JSON.stringify({status:'READY'})});
+    await markRegressionLabReady(labId);
     const publicLab=await expect(`/api/labs/${created.payload.data.slug}`,200); assert.equal(publicLab.payload.data.status,'READY');
     const manifest=await expect(`/api/labs/${created.payload.data.slug}/manifest`,200); assert.equal(manifest.payload.data.inputs.length,1); assert.equal(manifest.payload.data.topology.nodes.length,2);
 

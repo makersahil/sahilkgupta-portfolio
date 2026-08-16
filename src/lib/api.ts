@@ -41,6 +41,16 @@ import {
   UnifiedCliBootstrap,
   UnifiedCliExecutionResult,
   ScenarioOverview,
+  OrchestratorArtifactAdminRecord,
+  OrchestratorDashboardSummary,
+  OrchestratorImportDryRunResult,
+  OrchestratorImportResult,
+  OrchestratorLabRecord,
+  OrchestratorProjectAggregate,
+  OrchestratorProjectPreview,
+  OrchestratorProjectRecord,
+  OrchestratorReorderItem,
+  OrchestratorValidationReport,
 } from '../types.js';
 
 export type ApiErrorCode =
@@ -932,6 +942,180 @@ class ApiClient {
 
   async deleteLabEvidence(labId: string, evidenceId: string): Promise<void> {
     await this.requestEnvelope(`/api/labs/${labId}/evidence/${evidenceId}`, { method: 'DELETE', headers: this.getHeaders() });
+  }
+
+  // Phase 8 Portfolio Orchestrator
+  async getOrchestratorDashboard(): Promise<OrchestratorDashboardSummary> {
+    return this.requestData<OrchestratorDashboardSummary>('/api/admin/orchestrator/dashboard', { headers: this.getHeaders() });
+  }
+
+  async getOrchestratorProjects(): Promise<OrchestratorProjectRecord[]> {
+    return this.requestArray<OrchestratorProjectRecord>('/api/admin/orchestrator/projects', { headers: this.getHeaders() });
+  }
+
+  async getOrchestratorProject(projectId: string): Promise<OrchestratorProjectAggregate> {
+    return this.requestData<OrchestratorProjectAggregate>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}`, { headers: this.getHeaders() });
+  }
+
+  async createOrchestratorProject(input: Record<string, unknown>): Promise<OrchestratorProjectAggregate> {
+    return this.requestData<OrchestratorProjectAggregate>('/api/admin/orchestrator/projects', {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async updateOrchestratorProject(projectId: string, input: Record<string, unknown>): Promise<OrchestratorProjectAggregate> {
+    return this.requestData<OrchestratorProjectAggregate>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}`, {
+      method: 'PATCH', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async duplicateOrchestratorProject(projectId: string, input: { slug?: string; title?: string } = {}): Promise<OrchestratorProjectAggregate> {
+    return this.requestData<OrchestratorProjectAggregate>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/duplicate`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async reorderOrchestratorProjects(items: OrchestratorReorderItem[]): Promise<OrchestratorProjectRecord[]> {
+    return this.requestData<OrchestratorProjectRecord[]>('/api/admin/orchestrator/projects/reorder', {
+      method: 'PUT', headers: this.getHeaders(), body: JSON.stringify({ items }),
+    });
+  }
+
+  async validateOrchestratorProject(projectId: string): Promise<OrchestratorValidationReport> {
+    return this.requestData<OrchestratorValidationReport>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/validate`, {
+      method: 'POST', headers: this.getHeaders(), body: '{}',
+    });
+  }
+
+  async previewOrchestratorProject(projectId: string): Promise<OrchestratorProjectPreview> {
+    return this.requestData<OrchestratorProjectPreview>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/preview`, { headers: this.getHeaders() });
+  }
+
+  async publishOrchestratorProject(projectId: string, input: { expectedProjectRevision: number; expectedLabRevisions: Record<string, number>; readyLabIds: string[] }): Promise<unknown> {
+    return this.requestData<unknown>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/publish`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async archiveOrchestratorProject(projectId: string, expectedRevision: number): Promise<OrchestratorProjectAggregate> {
+    return this.requestData<OrchestratorProjectAggregate>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/archive`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ expectedRevision }),
+    });
+  }
+
+  async restoreOrchestratorProject(projectId: string, expectedRevision: number, lifecycleStatus: 'COMPLETED' | 'IN_PROGRESS' | 'PLANNED'): Promise<OrchestratorProjectAggregate> {
+    return this.requestData<OrchestratorProjectAggregate>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/restore-draft`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ expectedRevision, lifecycleStatus }),
+    });
+  }
+
+  async exportOrchestratorProject(projectId: string): Promise<unknown> {
+    return this.request<unknown>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/export`, { headers: this.getHeaders() });
+  }
+
+  async createOrchestratorLab(projectId: string, input: Record<string, unknown>): Promise<OrchestratorProjectAggregate> {
+    return this.requestData<OrchestratorProjectAggregate>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/labs`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async updateOrchestratorLab(labId: string, input: Record<string, unknown>): Promise<LabAggregate> {
+    return this.requestData<LabAggregate>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}`, {
+      method: 'PATCH', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async duplicateOrchestratorLab(labId: string, input: { projectId?: string; slug?: string; title?: string } = {}): Promise<LabAggregate> {
+    return this.requestData<LabAggregate>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}/duplicate`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async reorderOrchestratorLabs(projectId: string, items: OrchestratorReorderItem[]): Promise<LabAggregate[]> {
+    return this.requestData<LabAggregate[]>(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}/labs/reorder`, {
+      method: 'PUT', headers: this.getHeaders(), body: JSON.stringify({ items }),
+    });
+  }
+
+  async validateOrchestratorLab(labId: string): Promise<OrchestratorValidationReport> {
+    return this.requestData<OrchestratorValidationReport>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}/validate`, {
+      method: 'POST', headers: this.getHeaders(), body: '{}',
+    });
+  }
+
+  async previewOrchestratorLab(labId: string): Promise<OrchestratorProjectPreview['labs'][number]> {
+    return this.requestData<OrchestratorProjectPreview['labs'][number]>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}/preview`, { headers: this.getHeaders() });
+  }
+
+  async markOrchestratorLabReady(labId: string, expectedRevision: number): Promise<{ lab: LabAggregate; validation: OrchestratorValidationReport }> {
+    return this.requestData<{ lab: LabAggregate; validation: OrchestratorValidationReport }>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}/mark-ready`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ expectedRevision }),
+    });
+  }
+
+  async archiveOrchestratorLab(labId: string, expectedRevision: number): Promise<{ lab: LabAggregate; deletedRuntimes: number }> {
+    return this.requestData<{ lab: LabAggregate; deletedRuntimes: number }>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}/archive`, {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ expectedRevision }),
+    });
+  }
+
+  async resetOrchestratorLabRuntimes(labId: string): Promise<{ deletedRuntimes: number }> {
+    return this.requestData<{ deletedRuntimes: number }>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}/reset-runtimes`, {
+      method: 'POST', headers: this.getHeaders(), body: '{}',
+    });
+  }
+
+  async exportOrchestratorLab(labId: string): Promise<unknown> {
+    return this.request<unknown>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}/export`, { headers: this.getHeaders() });
+  }
+
+  async exportNetworkingCompanion(labId: string): Promise<unknown> {
+    return this.request<unknown>(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}/export?format=networking-companion`, { headers: this.getHeaders() });
+  }
+
+  async deleteOrchestratorProject(projectId: string, confirmation: string): Promise<void> {
+    await this.requestEnvelope(`/api/admin/orchestrator/projects/${encodeURIComponent(projectId)}`, {
+      method: 'DELETE', headers: this.getHeaders(), body: JSON.stringify({ confirmation }),
+    });
+  }
+
+  async deleteOrchestratorLab(labId: string, confirmation: string): Promise<void> {
+    await this.requestEnvelope(`/api/admin/orchestrator/labs/${encodeURIComponent(labId)}`, {
+      method: 'DELETE', headers: this.getHeaders(), body: JSON.stringify({ confirmation }),
+    });
+  }
+
+  async orchestratorImportDryRun(bundle: unknown, conflictMode: 'REJECT' | 'RENAME' = 'REJECT', targetProjectId?: string): Promise<OrchestratorImportDryRunResult> {
+    return this.requestData<OrchestratorImportDryRunResult>('/api/admin/orchestrator/import/dry-run', {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ bundle, conflictMode, targetProjectId }),
+    });
+  }
+
+  async orchestratorImport(bundle: unknown, conflictMode: 'REJECT' | 'RENAME' = 'REJECT', targetProjectId?: string): Promise<OrchestratorImportResult> {
+    return this.requestData<OrchestratorImportResult>('/api/admin/orchestrator/import', {
+      method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ bundle, conflictMode, targetProjectId }),
+    });
+  }
+
+  async getOrchestratorArtifacts(query: { projectId?: string; labId?: string; isPublic?: boolean; mimeType?: string; storageProvider?: string } = {}): Promise<OrchestratorArtifactAdminRecord[]> {
+    const params = new URLSearchParams();
+    if (query.projectId) params.set('projectId', query.projectId);
+    if (query.labId) params.set('labId', query.labId);
+    if (query.isPublic !== undefined) params.set('isPublic', String(query.isPublic));
+    if (query.mimeType) params.set('mimeType', query.mimeType);
+    if (query.storageProvider) params.set('storageProvider', query.storageProvider);
+    const suffix = params.toString();
+    return this.requestArray<OrchestratorArtifactAdminRecord>(`/api/admin/orchestrator/artifacts${suffix ? `?${suffix}` : ''}`, { headers: this.getHeaders() });
+  }
+
+  async updateOrchestratorArtifact(artifactId: string, input: Record<string, unknown>): Promise<OrchestratorArtifactAdminRecord> {
+    return this.requestData<OrchestratorArtifactAdminRecord>(`/api/admin/orchestrator/artifacts/${encodeURIComponent(artifactId)}`, {
+      method: 'PATCH', headers: this.getHeaders(), body: JSON.stringify(input),
+    });
+  }
+
+  async deleteOrchestratorArtifact(artifactId: string): Promise<void> {
+    await this.requestEnvelope(`/api/admin/orchestrator/artifacts/${encodeURIComponent(artifactId)}`, { method: 'DELETE', headers: this.getHeaders() });
   }
 
   // Architecture Blueprint

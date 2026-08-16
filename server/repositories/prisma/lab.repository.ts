@@ -85,6 +85,8 @@ function mapLab(row: LabBareRow | LabWithProjectRow | AggregateRow): LabRecord {
     domain: row.domain,
     kind: row.kind,
     status: row.status,
+    sortOrder: row.sortOrder,
+    revision: row.revision,
     projectId: row.projectId,
     isInteractive: row.isInteractive,
     manifestVersion: row.manifestVersion,
@@ -190,7 +192,7 @@ export class PrismaLabRepository implements LabRepository {
         ...(query.status ? { status: query.status } : {}),
       },
       include: { project: { select: projectSelect } },
-      orderBy: [{ createdAt: 'asc' }, { title: 'asc' }],
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }, { title: 'asc' }],
     });
     return rows.map(mapLab);
   }
@@ -237,6 +239,7 @@ export class PrismaLabRepository implements LabRepository {
         domain: input.domain,
         kind: input.kind,
         status: input.status,
+        sortOrder: input.sortOrder ?? 0,
         projectId: input.projectId,
         isInteractive: input.isInteractive,
         manifestVersion: input.manifestVersion,
@@ -261,12 +264,14 @@ export class PrismaLabRepository implements LabRepository {
         ...(input.domain !== undefined ? { domain: input.domain } : {}),
         ...(input.kind !== undefined ? { kind: input.kind } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
         ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
         ...(input.isInteractive !== undefined ? { isInteractive: input.isInteractive } : {}),
         ...(input.manifestVersion !== undefined ? { manifestVersion: input.manifestVersion } : {}),
         ...(input.capabilities !== undefined ? { capabilities: input.capabilities } : {}),
         ...(input.normalizedState !== undefined ? { normalizedState: jsonWrite(input.normalizedState) } : {}),
         ...(input.metadata !== undefined ? { metadata: jsonWrite(input.metadata) } : {}),
+        revision: { increment: 1 },
       },
       include: { project: { select: projectSelect } },
     });
@@ -279,52 +284,61 @@ export class PrismaLabRepository implements LabRepository {
   }
 
   async createInput(labId: string, input: CreateLabSourceInput): Promise<LabInputRecord> {
-    const row = await this.client.labInput.create({
-      data: {
-        labId,
-        inputKey: input.inputKey,
-        inputType: input.inputType,
-        label: input.label,
-        description: input.description ?? null,
-        sourceKind: input.sourceKind,
-        schemaVersion: input.schemaVersion,
-        payload: jsonWrite(input.payload),
-        externalUrl: input.externalUrl ?? null,
-        artifactId: input.artifactId ?? null,
-        isPrimary: input.isPrimary,
-        sortOrder: input.sortOrder,
-      },
-      include: { artifact: { select: artifactSelect } },
+    return this.client.$transaction(async (tx) => {
+      const row = await tx.labInput.create({
+        data: {
+          labId,
+          inputKey: input.inputKey,
+          inputType: input.inputType,
+          label: input.label,
+          description: input.description ?? null,
+          sourceKind: input.sourceKind,
+          schemaVersion: input.schemaVersion,
+          payload: jsonWrite(input.payload),
+          externalUrl: input.externalUrl ?? null,
+          artifactId: input.artifactId ?? null,
+          isPrimary: input.isPrimary,
+          sortOrder: input.sortOrder,
+        },
+        include: { artifact: { select: artifactSelect } },
+      });
+      await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return mapInput(row);
     });
-    return mapInput(row);
   }
 
   async updateInput(labId: string, inputId: string, input: UpdateLabSourceInput): Promise<LabInputRecord | null> {
-    const existing = await this.client.labInput.findFirst({ where: { id: inputId, labId }, select: { id: true } });
-    if (!existing) return null;
-    const row = await this.client.labInput.update({
-      where: { id: inputId },
-      data: {
-        ...(input.inputKey !== undefined ? { inputKey: input.inputKey } : {}),
-        ...(input.inputType !== undefined ? { inputType: input.inputType } : {}),
-        ...(input.label !== undefined ? { label: input.label } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.sourceKind !== undefined ? { sourceKind: input.sourceKind } : {}),
-        ...(input.schemaVersion !== undefined ? { schemaVersion: input.schemaVersion } : {}),
-        ...(input.payload !== undefined ? { payload: jsonWrite(input.payload) } : {}),
-        ...(input.externalUrl !== undefined ? { externalUrl: input.externalUrl } : {}),
-        ...(input.artifactId !== undefined ? { artifactId: input.artifactId } : {}),
-        ...(input.isPrimary !== undefined ? { isPrimary: input.isPrimary } : {}),
-        ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
-      },
-      include: { artifact: { select: artifactSelect } },
+    return this.client.$transaction(async (tx) => {
+      const existing = await tx.labInput.findFirst({ where: { id: inputId, labId }, select: { id: true } });
+      if (!existing) return null;
+      const row = await tx.labInput.update({
+        where: { id: inputId },
+        data: {
+          ...(input.inputKey !== undefined ? { inputKey: input.inputKey } : {}),
+          ...(input.inputType !== undefined ? { inputType: input.inputType } : {}),
+          ...(input.label !== undefined ? { label: input.label } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.sourceKind !== undefined ? { sourceKind: input.sourceKind } : {}),
+          ...(input.schemaVersion !== undefined ? { schemaVersion: input.schemaVersion } : {}),
+          ...(input.payload !== undefined ? { payload: jsonWrite(input.payload) } : {}),
+          ...(input.externalUrl !== undefined ? { externalUrl: input.externalUrl } : {}),
+          ...(input.artifactId !== undefined ? { artifactId: input.artifactId } : {}),
+          ...(input.isPrimary !== undefined ? { isPrimary: input.isPrimary } : {}),
+          ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+        },
+        include: { artifact: { select: artifactSelect } },
+      });
+      await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return mapInput(row);
     });
-    return mapInput(row);
   }
 
   async deleteInput(labId: string, inputId: string): Promise<boolean> {
-    const result = await this.client.labInput.deleteMany({ where: { id: inputId, labId } });
-    return result.count > 0;
+    return this.client.$transaction(async (tx) => {
+      const result = await tx.labInput.deleteMany({ where: { id: inputId, labId } });
+      if (result.count > 0) await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return result.count > 0;
+    });
   }
 
   async replaceTopology(
@@ -372,6 +386,8 @@ export class PrismaLabRepository implements LabRepository {
           });
         }
 
+        await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+
         const [persistedNodes, persistedLinks] = await Promise.all([
           tx.labNode.findMany({
             where: { labId },
@@ -396,106 +412,136 @@ export class PrismaLabRepository implements LabRepository {
   }
 
   async createScenario(labId: string, input: CreateLabScenarioInput): Promise<LabScenarioRecord> {
-    const row = await this.client.labScenario.create({
-      data: {
-        labId,
-        slug: input.slug,
-        title: input.title,
-        summary: input.summary,
-        description: input.description ?? null,
-        order: input.order,
-        isEnabled: input.isEnabled,
-        baselineState: jsonWrite(input.baselineState),
-        actions: jsonWrite(input.actions),
-        expectedObservations: jsonWrite(input.expectedObservations),
-        verificationCriteria: jsonWrite(input.verificationCriteria),
-      },
+    return this.client.$transaction(async (tx) => {
+      const row = await tx.labScenario.create({
+        data: {
+          labId,
+          slug: input.slug,
+          title: input.title,
+          summary: input.summary,
+          description: input.description ?? null,
+          order: input.order,
+          isEnabled: input.isEnabled,
+          baselineState: jsonWrite(input.baselineState),
+          actions: jsonWrite(input.actions),
+          expectedObservations: jsonWrite(input.expectedObservations),
+          verificationCriteria: jsonWrite(input.verificationCriteria),
+        },
+      });
+      await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return mapScenario(row);
     });
-    return mapScenario(row);
   }
 
   async updateScenario(labId: string, scenarioId: string, input: UpdateLabScenarioInput): Promise<LabScenarioRecord | null> {
-    const existing = await this.client.labScenario.findFirst({ where: { id: scenarioId, labId }, select: { id: true } });
-    if (!existing) return null;
-    const row = await this.client.labScenario.update({
-      where: { id: scenarioId },
-      data: {
-        ...(input.slug !== undefined ? { slug: input.slug } : {}),
-        ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.summary !== undefined ? { summary: input.summary } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.order !== undefined ? { order: input.order } : {}),
-        ...(input.isEnabled !== undefined ? { isEnabled: input.isEnabled } : {}),
-        ...(input.baselineState !== undefined ? { baselineState: jsonWrite(input.baselineState) } : {}),
-        ...(input.actions !== undefined ? { actions: jsonWrite(input.actions) } : {}),
-        ...(input.expectedObservations !== undefined ? { expectedObservations: jsonWrite(input.expectedObservations) } : {}),
-        ...(input.verificationCriteria !== undefined ? { verificationCriteria: jsonWrite(input.verificationCriteria) } : {}),
-      },
+    return this.client.$transaction(async (tx) => {
+      const existing = await tx.labScenario.findFirst({ where: { id: scenarioId, labId }, select: { id: true } });
+      if (!existing) return null;
+      const row = await tx.labScenario.update({
+        where: { id: scenarioId },
+        data: {
+          ...(input.slug !== undefined ? { slug: input.slug } : {}),
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.summary !== undefined ? { summary: input.summary } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.order !== undefined ? { order: input.order } : {}),
+          ...(input.isEnabled !== undefined ? { isEnabled: input.isEnabled } : {}),
+          ...(input.baselineState !== undefined ? { baselineState: jsonWrite(input.baselineState) } : {}),
+          ...(input.actions !== undefined ? { actions: jsonWrite(input.actions) } : {}),
+          ...(input.expectedObservations !== undefined ? { expectedObservations: jsonWrite(input.expectedObservations) } : {}),
+          ...(input.verificationCriteria !== undefined ? { verificationCriteria: jsonWrite(input.verificationCriteria) } : {}),
+        },
+      });
+      await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return mapScenario(row);
     });
-    return mapScenario(row);
   }
 
   async deleteScenario(labId: string, scenarioId: string): Promise<boolean> {
-    const result = await this.client.labScenario.deleteMany({ where: { id: scenarioId, labId } });
-    return result.count > 0;
+    return this.client.$transaction(async (tx) => {
+      const result = await tx.labScenario.deleteMany({ where: { id: scenarioId, labId } });
+      if (result.count > 0) await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return result.count > 0;
+    });
   }
 
   async createRunbookStep(labId: string, input: CreateLabRunbookStepInput): Promise<LabRunbookStepRecord> {
-    return mapRunbook(await this.client.labRunbookStep.create({ data: { labId, ...input } }));
+    return this.client.$transaction(async (tx) => {
+      const row = await tx.labRunbookStep.create({ data: { labId, ...input } });
+      await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return mapRunbook(row);
+    });
   }
 
   async updateRunbookStep(labId: string, stepId: string, input: UpdateLabRunbookStepInput): Promise<LabRunbookStepRecord | null> {
-    const existing = await this.client.labRunbookStep.findFirst({ where: { id: stepId, labId }, select: { id: true } });
-    if (!existing) return null;
-    return mapRunbook(await this.client.labRunbookStep.update({ where: { id: stepId }, data: input }));
+    return this.client.$transaction(async (tx) => {
+      const existing = await tx.labRunbookStep.findFirst({ where: { id: stepId, labId }, select: { id: true } });
+      if (!existing) return null;
+      const row = await tx.labRunbookStep.update({ where: { id: stepId }, data: input });
+      await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return mapRunbook(row);
+    });
   }
 
   async deleteRunbookStep(labId: string, stepId: string): Promise<boolean> {
-    const result = await this.client.labRunbookStep.deleteMany({ where: { id: stepId, labId } });
-    return result.count > 0;
+    return this.client.$transaction(async (tx) => {
+      const result = await tx.labRunbookStep.deleteMany({ where: { id: stepId, labId } });
+      if (result.count > 0) await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return result.count > 0;
+    });
   }
 
   async createEvidence(labId: string, projectId: string, input: CreateLabEvidenceInput): Promise<LabEvidenceRecord> {
-    const row = await this.client.evidence.create({
-      data: {
-        labId,
-        projectId,
-        kind: input.kind,
-        title: input.title,
-        description: input.description ?? null,
-        content: jsonWrite(input.content),
-        artifactId: input.artifactId ?? null,
-        externalUrl: input.externalUrl ?? null,
-        isPublic: input.isPublic,
-        sortOrder: input.sortOrder,
-      },
-      include: { artifact: { select: artifactSelect } },
+    return this.client.$transaction(async (tx) => {
+      const row = await tx.evidence.create({
+        data: {
+          labId,
+          projectId,
+          kind: input.kind,
+          title: input.title,
+          description: input.description ?? null,
+          content: jsonWrite(input.content),
+          artifactId: input.artifactId ?? null,
+          externalUrl: input.externalUrl ?? null,
+          isPublic: input.isPublic,
+          sortOrder: input.sortOrder,
+        },
+        include: { artifact: { select: artifactSelect } },
+      });
+      await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return mapEvidence(row);
     });
-    return mapEvidence(row);
   }
 
   async updateEvidence(labId: string, evidenceId: string, input: UpdateLabEvidenceInput): Promise<LabEvidenceRecord | null> {
-    const existing = await this.client.evidence.findFirst({ where: { id: evidenceId, labId }, select: { id: true } });
-    if (!existing) return null;
-    const row = await this.client.evidence.update({
-      where: { id: evidenceId },
-      data: {
-        ...(input.kind !== undefined ? { kind: input.kind } : {}),
-        ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.description !== undefined ? { description: input.description } : {}),
-        ...(input.content !== undefined ? { content: jsonWrite(input.content) } : {}),
-        ...(input.artifactId !== undefined ? { artifactId: input.artifactId } : {}),
-        ...(input.externalUrl !== undefined ? { externalUrl: input.externalUrl } : {}),
-        ...(input.isPublic !== undefined ? { isPublic: input.isPublic } : {}),
-        ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
-      },
-      include: { artifact: { select: artifactSelect } },
+    return this.client.$transaction(async (tx) => {
+      const existing = await tx.evidence.findFirst({ where: { id: evidenceId, labId }, select: { id: true } });
+      if (!existing) return null;
+      const row = await tx.evidence.update({
+        where: { id: evidenceId },
+        data: {
+          ...(input.kind !== undefined ? { kind: input.kind } : {}),
+          ...(input.title !== undefined ? { title: input.title } : {}),
+          ...(input.description !== undefined ? { description: input.description } : {}),
+          ...(input.content !== undefined ? { content: jsonWrite(input.content) } : {}),
+          ...(input.artifactId !== undefined ? { artifactId: input.artifactId } : {}),
+          ...(input.externalUrl !== undefined ? { externalUrl: input.externalUrl } : {}),
+          ...(input.isPublic !== undefined ? { isPublic: input.isPublic } : {}),
+          ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+        },
+        include: { artifact: { select: artifactSelect } },
+      });
+      await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return mapEvidence(row);
     });
-    return mapEvidence(row);
   }
 
   async deleteEvidence(labId: string, evidenceId: string): Promise<boolean> {
-    const result = await this.client.evidence.deleteMany({ where: { id: evidenceId, labId } });
-    return result.count > 0;
+    return this.client.$transaction(async (tx) => {
+      const result = await tx.evidence.deleteMany({ where: { id: evidenceId, labId } });
+      if (result.count > 0) await tx.lab.update({ where: { id: labId }, data: { revision: { increment: 1 } } });
+      return result.count > 0;
+    });
   }
+
 }

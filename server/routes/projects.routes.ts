@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middlewares/auth.middleware.js';
 import { asyncHandler } from '../middlewares/async-handler.js';
 import { contentServices } from '../services/content/index.js';
+import { portfolioOrchestratorService, parseDeleteConfirmation } from '../services/orchestrator/index.js';
 import { recordAdminAudit } from './admin-audit.js';
 import { optionalQueryString, parseProjectCreate, parseProjectUpdate } from './content-input.js';
 
@@ -51,9 +52,9 @@ router.put(
 router.delete(
   '/:id',
   authenticateToken,
-  requireRole('SUPER_ADMIN', 'ADMIN'),
+  requireRole('SUPER_ADMIN'),
   asyncHandler(async (request, response) => {
-    await contentServices.projects.delete(request.params.id);
+    await portfolioOrchestratorService.deleteProjectPermanent(request.params.id, parseDeleteConfirmation(request.body));
     await recordAdminAudit(request, { action: 'PROJECT_DELETE', entityType: 'Project', entityId: request.params.id });
     response.json({ success: true, message: 'Project deleted successfully' });
   }),

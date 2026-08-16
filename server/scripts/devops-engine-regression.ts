@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for DevOps engine regression');
@@ -63,9 +64,10 @@ async function main(): Promise<void> {
     };
 
     const labOne = await labService.create({
-      slug: `devops-engine-a-${suffix}`, title: 'DevOps Engine Regression A', summary: 'Full DevOps regression fixture', domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'READY',
+      slug: `devops-engine-a-${suffix}`, title: 'DevOps Engine Regression A', summary: 'Full DevOps regression fixture', domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'DRAFT',
       projectId: canonicalProject.id, isInteractive: true, manifestVersion: '1.0', capabilities: ['pipeline', 'terraform', 'kubernetes', 'gitops', 'observability'], normalizedState,
     });
+    await markRegressionLabReady(labOne.id);
     labIds.push(labOne.id);
     await labService.createInput(labOne.id, { inputKey: 'pipeline', inputType: 'CI_PIPELINE', label: 'Pipeline', sourceKind: 'INLINE', schemaVersion: 'devops.input.v1', payload: {}, isPrimary: true, sortOrder: 0 });
 
@@ -87,9 +89,10 @@ async function main(): Promise<void> {
       provenance: { sourceType: 'CANONICAL_MANIFEST', notes: ['Terraform only'] },
     };
     const labTwo = await labService.create({
-      slug: `devops-engine-b-${suffix}`, title: 'DevOps Engine Regression B', domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'READY',
+      slug: `devops-engine-b-${suffix}`, title: 'DevOps Engine Regression B', domain: 'DEVOPS', kind: 'DEVOPS_PIPELINE', status: 'DRAFT',
       projectId: tempProject.id, isInteractive: true, manifestVersion: '1.0', capabilities: ['repository', 'terraform'], normalizedState: terraformOnlyState,
     });
+    await markRegressionLabReady(labTwo.id);
     labIds.push(labTwo.id);
     await labService.createInput(labTwo.id, { inputKey: 'terraform', inputType: 'TERRAFORM', label: 'Terraform', sourceKind: 'INLINE', schemaVersion: 'devops.terraform.v1', payload: {}, isPrimary: true, sortOrder: 0 });
 

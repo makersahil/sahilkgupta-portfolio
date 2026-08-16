@@ -149,6 +149,7 @@ model Project {
   formatType          ProjectFormatType      @default(STANDARD)
   featured            Boolean                @default(false)
   sortOrder           Int                    @default(0)
+  revision            Int                    @default(1)
   coverImageUrl       String?
   architectureSvg     String?                @db.Text
   liveUrl             String?
@@ -174,6 +175,7 @@ model Project {
   @@index([featured])
   @@index([publishedAt])
   @@index([categoryId, sortOrder])
+  @@index([status, lifecycleStatus, sortOrder])
 }
 
 model ProjectRunbookStep {
@@ -254,6 +256,8 @@ model Lab {
   domain          Domain
   kind            LabKind
   status          LabStatus @default(READY)
+  sortOrder       Int       @default(0)
+  revision        Int       @default(1)
   projectId       String?
   isInteractive   Boolean   @default(true)
   manifestVersion String    @default("1.0")
@@ -277,6 +281,7 @@ model Lab {
   @@index([kind])
   @@index([status])
   @@index([projectId, status])
+  @@index([projectId, status, sortOrder])
 }
 
 model LabInput {

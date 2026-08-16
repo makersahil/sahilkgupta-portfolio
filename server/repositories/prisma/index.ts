@@ -10,3 +10,5 @@ export * from './lab.repository.js';
 export { PrismaAuditRepository, auditRepository } from './audit.repository.js';
 export { PrismaArtifactRepository, artifactRepository } from './artifact.repository.js';
 export { PrismaSystemRepository, systemRepository } from './system.repository.js';
+
+export { PrismaPortfolioOrchestratorRepository, portfolioOrchestratorRepository } from './portfolio-orchestrator.repository.js';

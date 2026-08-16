@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
+import { markRegressionLabReady } from './orchestrator-test-helpers.js';
 
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) throw new Error('DATABASE_URL is required for Linux operations HTTP regression');
@@ -37,10 +38,11 @@ async function main(): Promise<void> {
     const lab = await labService.create({
       slug: `linux-ops-http-${suffix}`,
       title: 'Linux Operations HTTP Regression',
-      domain: 'LINUX', kind: 'LINUX_SYSTEM', status: 'READY', projectId: project.id,
+      domain: 'LINUX', kind: 'LINUX_SYSTEM', status: 'DRAFT', projectId: project.id,
       isInteractive: true, manifestVersion: '1.0', capabilities: ['host-state', 'health-analysis', 'operator-context'],
       normalizedState: { schemaVersion: 'linux.v1', hosts: [host] },
     });
+    await markRegressionLabReady(lab.id);
     labId = lab.id;
     await labService.createInput(lab.id, { inputKey: 'system', inputType: 'SYSTEM_SNAPSHOT', label: 'System Snapshot', sourceKind: 'INLINE', schemaVersion: 'linux.input.v1', payload: {}, isPrimary: true, sortOrder: 0 });
     await labService.replaceTopology(lab.id, [{ nodeKey: 'rhel-node', label: 'RHEL Node', kind: 'linux_host', configuration: { host } }], []);
