@@ -141,8 +141,14 @@ async function main() {
     if (!Array.isArray(kubernetes?.clusters) || kubernetes.clusters.length < 1) throw new Error('DevOps Lab is missing recorded Kubernetes cluster state');
     if (!Array.isArray(devOpsState.gitops) || devOpsState.gitops.length < 1) throw new Error('DevOps Lab is missing normalized GitOps state');
     if (!Array.isArray(devOpsState.observability) || devOpsState.observability.length < 1) throw new Error('DevOps Lab is missing recorded observability snapshots');
-    for (const capability of ['pipeline', 'repository', 'terraform', 'kubernetes', 'gitops', 'observability']) {
-      if (!devOpsLab.capabilities.includes(capability)) throw new Error(`DevOps Lab is missing Phase 5A capability: ${capability}`);
+    for (const capability of ['pipeline', 'repository', 'terraform', 'kubernetes', 'gitops', 'observability', 'health-analysis', 'diagnostics', 'operator-context', 'scenario-readiness']) {
+      if (!devOpsLab.capabilities.includes(capability)) throw new Error(`DevOps Lab is missing Phase 5B capability: ${capability}`);
+    }
+    const expectedDevOpsScenarios = ['pipeline-failure', 'terraform-drift', 'kubernetes-rollout-failure', 'argocd-drift', 'canary-failure', 'cilium-policy-regression'];
+    for (const slug of expectedDevOpsScenarios) {
+      if (!devOpsLab.scenarios.some((scenario) => scenario.slug === slug && scenario.isEnabled)) {
+        throw new Error(`DevOps Lab is missing enabled scenario-ready definition: ${slug}`);
+      }
     }
 
     if (blogCount < 3) throw new Error(`Expected at least 3 blogs, found ${blogCount}`);
@@ -157,7 +163,7 @@ async function main() {
     console.log(`LAB PLATFORM: OK (${labs.length} labs, ${labInputCount} inputs, ${labRunbookCount} runbook steps)`);
     console.log(`NETWORKING ENGINE: OK (${networkingLab.nodes.length} devices, ${networkingLab.links.length} links, ${networkingLab.inputs.length} inputs, ${networkingLab.scenarios.length} scenario definitions)`);
     console.log(`LINUX ENGINE: OK (${linuxLab.nodes.length} hosts, ${linuxLab.inputs.length} inputs, ${linuxLab.scenarios.length} scenario-ready definitions)`);
-    console.log(`DEVOPS ENGINE: OK (${devOpsLab.inputs.length} inputs, normalized delivery state available)`);
+    console.log(`DEVOPS ENGINE: OK (${devOpsLab.inputs.length} inputs, ${devOpsLab.scenarios.length} scenario-ready definitions, normalized delivery state available)`);
     console.log(
       `CONTENT BASELINE: OK (${categories.length} categories, ${projects.length} projects, ${blogCount} blogs, ${certificationCount} certifications, ${skillCount} skills)`,
     );

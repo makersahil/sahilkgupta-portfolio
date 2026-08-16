@@ -24,6 +24,8 @@ import {
   DevOpsLabState,
   DevOpsLabSummary,
   DevOpsPipelineState,
+  DevOpsOperationsSnapshot,
+  DevOpsOperatorContext,
   LabAggregate,
   LabRecord,
   LabInputRecord,
@@ -650,6 +652,22 @@ class ApiClient {
   async getDevOpsPipeline(identifier: string, pipelineId: string): Promise<DevOpsPipelineState> {
     return this.requestData<DevOpsPipelineState>(
       `/api/devops/labs/${encodeURIComponent(identifier)}/pipelines/${encodeURIComponent(pipelineId)}`,
+    );
+  }
+
+
+  async getDevOpsOperations(identifier: string): Promise<DevOpsOperationsSnapshot> {
+    return this.requestData<DevOpsOperationsSnapshot>(
+      `/api/devops/labs/${encodeURIComponent(identifier)}/operations`,
+    );
+  }
+
+  async getDevOpsContext(identifier: string, pipelineId?: string): Promise<DevOpsOperatorContext> {
+    const params = new URLSearchParams();
+    if (pipelineId) params.set('pipelineId', pipelineId);
+    const query = params.toString();
+    return this.requestData<DevOpsOperatorContext>(
+      `/api/devops/labs/${encodeURIComponent(identifier)}/context${query ? `?${query}` : ''}`,
     );
   }
 

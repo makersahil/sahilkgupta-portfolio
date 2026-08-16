@@ -51,7 +51,9 @@
     "test:linux:operations:http": "tsx server/scripts/linux-operations-http-regression.ts",
     "test:devops:static": "tsx server/scripts/devops-engine-static-audit.ts",
     "test:devops": "tsx server/scripts/devops-engine-regression.ts",
-    "test:devops:http": "tsx server/scripts/devops-engine-http-regression.ts"
+    "test:devops:http": "tsx server/scripts/devops-engine-http-regression.ts",
+    "test:devops:operations": "tsx server/scripts/devops-operations-regression.ts",
+    "test:devops:operations:http": "tsx server/scripts/devops-operations-http-regression.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

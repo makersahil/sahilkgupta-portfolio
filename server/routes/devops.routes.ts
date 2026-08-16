@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { asyncHandler } from '../middlewares/async-handler.js';
-import { devOpsService } from '../services/devops/index.js';
+import { devOpsOperationsService, devOpsService } from '../services/devops/index.js';
 
 const router = Router();
 
@@ -14,6 +14,24 @@ router.get('/labs', asyncHandler(async (request, response) => {
   response.json({
     success: true,
     data: await devOpsService.listPublic(optionalText(request.query.projectSlug)),
+  });
+}));
+
+
+router.get('/labs/:identifier/operations', asyncHandler(async (request, response) => {
+  response.json({
+    success: true,
+    data: await devOpsOperationsService.getOperations(request.params.identifier),
+  });
+}));
+
+router.get('/labs/:identifier/context', asyncHandler(async (request, response) => {
+  response.json({
+    success: true,
+    data: await devOpsOperationsService.getContext(
+      request.params.identifier,
+      optionalText(request.query.pipelineId),
+    ),
   });
 }));
 

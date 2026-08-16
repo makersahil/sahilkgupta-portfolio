@@ -1299,7 +1299,7 @@ const labIdentities: Partial<
 const labCapabilities: Partial<Record<NonNullable<ApiProject['formatType']>, string[]>> = {
   cisco_pkt_lab: ['topology', 'device-inventory', 'interfaces', 'device-config', 'routing-state', 'vlans', 'acls', 'packet-path', 'control-plane', 'route-lookup', 'health-analysis', 'operator-context', 'scenario-readiness'],
   rhcsa_matrix: ['host-state', 'services', 'storage', 'filesystems', 'fstab', 'systemd', 'selinux', 'network', 'logs', 'configurations', 'verification', 'health-analysis', 'diagnostics', 'operator-context', 'scenario-readiness'],
-  devops_pipeline: ['pipeline', 'repository', 'iac', 'terraform', 'gitops', 'kubernetes', 'helm', 'network-policy', 'observability', 'artifacts'],
+  devops_pipeline: ['pipeline', 'repository', 'iac', 'terraform', 'gitops', 'kubernetes', 'helm', 'network-policy', 'observability', 'artifacts', 'health-analysis', 'diagnostics', 'operator-context', 'scenario-readiness'],
 };
 
 const primaryLabInputs: Partial<
@@ -1419,6 +1419,69 @@ const linuxScenarioDefinitions = [
     actions: { schemaVersion: 'linux.scenario.v1', mutations: [{ type: 'SET_INTERFACE_STATE', hostKey: 'rhel9-lab-01', interfaceName: 'bond0', state: 'DOWN' }] },
     expectedObservations: { observableSignals: ['interface:bond0=DOWN', 'network-health=DEGRADED'] },
     verificationCriteria: { checks: ['interface state is visible to diagnostics', 'engine does not fabricate reachability'] },
+  },
+] as const;
+
+const devOpsScenarioDefinitions = [
+  {
+    slug: 'pipeline-failure',
+    title: 'CI/CD Pipeline Failure',
+    summary: 'Scenario contract for investigating a failed delivery stage using recorded pipeline output, source revision, and produced artifacts.',
+    order: 10,
+    baselineState: { schemaVersion: 'devops.scenario.v1', requiredSignals: ['pipeline:delivery=SUCCESS'] },
+    actions: { schemaVersion: 'devops.scenario.v1', mutations: [{ type: 'SET_PIPELINE_STAGE_STATUS', pipelineId: 'delivery', stageId: 'build', status: 'FAILED' }] },
+    expectedObservations: { observableSignals: ['pipeline:delivery=FAILED', 'failed-stage-visible', 'recorded-output-correlatable'] },
+    verificationCriteria: { checks: ['failed stage is surfaced by operations health', 'no pipeline execution is performed by the portfolio'] },
+  },
+  {
+    slug: 'terraform-drift',
+    title: 'Terraform Drift',
+    summary: 'Scenario contract for a recorded Terraform plan that reports infrastructure drift or pending changes.',
+    order: 20,
+    baselineState: { schemaVersion: 'devops.scenario.v1', requiredSignals: ['terraform-files-present'] },
+    actions: { schemaVersion: 'devops.scenario.v1', mutations: [{ type: 'SET_TERRAFORM_DRIFT_STATUS', status: 'DRIFTED' }] },
+    expectedObservations: { observableSignals: ['terraform:drift=DRIFTED', 'terraform-health=DEGRADED'] },
+    verificationCriteria: { checks: ['drift is visible from recorded state', 'portfolio does not run terraform apply'] },
+  },
+  {
+    slug: 'kubernetes-rollout-failure',
+    title: 'Kubernetes Rollout Failure',
+    summary: 'Scenario contract for a workload that fails to reach its desired replica count.',
+    order: 30,
+    baselineState: { schemaVersion: 'devops.scenario.v1', requiredSignals: ['kubernetes-workload-record-present'] },
+    actions: { schemaVersion: 'devops.scenario.v1', mutations: [{ type: 'SET_WORKLOAD_READINESS', readyReplicas: 0, status: 'DEGRADED' }] },
+    expectedObservations: { observableSignals: ['workload-ready-replicas-below-desired', 'kubernetes-health=DEGRADED'] },
+    verificationCriteria: { checks: ['replica mismatch is surfaced by operations analysis', 'no kubectl command is executed by Phase 5B'] },
+  },
+  {
+    slug: 'argocd-drift',
+    title: 'ArgoCD Drift',
+    summary: 'Scenario contract for an application whose recorded desired and live state are out of sync.',
+    order: 40,
+    baselineState: { schemaVersion: 'devops.scenario.v1', requiredSignals: ['gitops-application-record-present'] },
+    actions: { schemaVersion: 'devops.scenario.v1', mutations: [{ type: 'SET_GITOPS_SYNC_STATUS', syncStatus: 'OUT_OF_SYNC' }] },
+    expectedObservations: { observableSignals: ['gitops:sync=OUT_OF_SYNC', 'gitops-health=DEGRADED'] },
+    verificationCriteria: { checks: ['out-of-sync state is surfaced', 'portfolio does not force an ArgoCD sync'] },
+  },
+  {
+    slug: 'canary-failure',
+    title: 'Canary Verification Failure',
+    summary: 'Scenario contract for a recorded canary or observability signal moving from pass to fail during delivery verification.',
+    order: 50,
+    baselineState: { schemaVersion: 'devops.scenario.v1', requiredSignals: ['observability-snapshot-present'] },
+    actions: { schemaVersion: 'devops.scenario.v1', mutations: [{ type: 'SET_OBSERVATION_STATUS', status: 'FAIL' }] },
+    expectedObservations: { observableSignals: ['observability=FAIL', 'delivery-health=CRITICAL'] },
+    verificationCriteria: { checks: ['failing recorded observation creates a diagnostic finding', 'recovery must be verified using the same signal source'] },
+  },
+  {
+    slug: 'cilium-policy-regression',
+    title: 'Cilium Policy Verification Gap',
+    summary: 'Scenario contract for a network-policy record whose enforcement can no longer be proven from the recorded snapshot.',
+    order: 60,
+    baselineState: { schemaVersion: 'devops.scenario.v1', requiredSignals: ['network-policy-record-present'] },
+    actions: { schemaVersion: 'devops.scenario.v1', mutations: [{ type: 'SET_NETWORK_POLICY_STATUS', status: 'UNKNOWN' }] },
+    expectedObservations: { observableSignals: ['network-policy=UNKNOWN', 'policy-verification-required'] },
+    verificationCriteria: { checks: ['unknown enforcement is never reported as pass', 'live eBPF enforcement is not fabricated'] },
   },
 ] as const;
 
@@ -1982,6 +2045,9 @@ interface SeedDevOpsFixture {
       present: true;
       workspace: null;
       backend: string | null;
+      driftStatus: 'CLEAN' | 'DRIFTED' | 'ERROR' | 'UNKNOWN';
+      driftSummary: string | null;
+      recordedPlanOutput: string | null;
       files: Array<{
         name: string;
         path: string;
@@ -2090,6 +2156,9 @@ function devOpsFixture(project: ApiProject): SeedDevOpsFixture | null {
         present: true,
         workspace: null,
         backend: backendMatch?.[1] ?? null,
+        driftStatus: 'UNKNOWN',
+        driftSummary: null,
+        recordedPlanOutput: null,
         files,
         source: 'RECORDED_PROJECT_FIXTURE',
       } : null,
@@ -2157,7 +2226,7 @@ function devOpsFixture(project: ApiProject): SeedDevOpsFixture | null {
         notes: [
           'The DevOps engine renders persisted normalized Lab state and recorded pipeline/IaC snapshots.',
           'Cluster, workload, GitOps and observability values are recorded project-fixture observations, not live production telemetry.',
-          'The UI does not execute pipelines, Terraform, kubectl, Helm or ArgoCD commands in Phase 5A.',
+          'Phase 5B derives recorded-state diagnostics and command guidance but does not execute pipelines, Terraform, kubectl, Helm, ArgoCD, Cilium, or cloud commands.',
         ],
       },
     },
@@ -2781,6 +2850,37 @@ async function upsertCompatibilityLab(
           payload: jsonValue(input.payload),
           isPrimary: false,
           sortOrder: input.sortOrder,
+        },
+      });
+    }
+
+
+    for (const scenario of devOpsScenarioDefinitions) {
+      await prisma.labScenario.upsert({
+        where: { labId_slug: { labId: lab.id, slug: scenario.slug } },
+        update: {
+          title: scenario.title,
+          summary: scenario.summary,
+          description: 'Scenario definition only. Shared mutation, remediation, verification, and reset execution is implemented by the later Scenario Engine.',
+          order: scenario.order,
+          isEnabled: true,
+          baselineState: jsonValue(scenario.baselineState),
+          actions: jsonValue(scenario.actions),
+          expectedObservations: jsonValue(scenario.expectedObservations),
+          verificationCriteria: jsonValue(scenario.verificationCriteria),
+        },
+        create: {
+          labId: lab.id,
+          slug: scenario.slug,
+          title: scenario.title,
+          summary: scenario.summary,
+          description: 'Scenario definition only. Shared mutation, remediation, verification, and reset execution is implemented by the later Scenario Engine.',
+          order: scenario.order,
+          isEnabled: true,
+          baselineState: jsonValue(scenario.baselineState),
+          actions: jsonValue(scenario.actions),
+          expectedObservations: jsonValue(scenario.expectedObservations),
+          verificationCriteria: jsonValue(scenario.verificationCriteria),
         },
       });
     }
