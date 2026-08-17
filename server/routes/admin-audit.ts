@@ -1,5 +1,7 @@
 import type { Request } from 'express';
 
+import { log } from '../lib/logger.js';
+
 import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 import { auditService } from '../services/admin/audit.service.js';
 
@@ -17,10 +19,7 @@ export async function recordAdminAudit(request: Request, event: AdminAuditEvent)
   const transportMetadata: Record<string, unknown> = {
     method: request.method,
     path: request.originalUrl.split('?')[0],
-    ...(request.ip ? { ipAddress: request.ip } : {}),
-    ...(typeof request.headers['user-agent'] === 'string'
-      ? { userAgent: request.headers['user-agent'] }
-      : {}),
+    ...(request.requestId ? { requestId: request.requestId } : {}),
   };
 
   try {
@@ -33,11 +32,11 @@ export async function recordAdminAudit(request: Request, event: AdminAuditEvent)
     });
   } catch (error) {
     // The mutation has already committed. Do not turn a successful write into a false failure.
-    console.error('[Admin Audit] Failed to persist audit event', {
+    log('error', 'admin_audit_persist_failed', {
       action: event.action,
       entityType: event.entityType,
       entityId: event.entityId ?? null,
-      error: error instanceof Error ? error.message : String(error),
+      error,
     });
   }
 }

@@ -64,9 +64,11 @@ async function main(): Promise<void> {
   assertNotContains(env, "export type PersistenceMode = 'legacy'", 'environment validation');
 
   const server = await text('server.ts');
-  assertContains(server, 'contentRepositories.checkHealth()', 'health endpoint');
-  assertContains(server, 'Number(env.PORT)', 'server port configuration');
-  assertContains(server, "app.use('/api', errorHandler)", 'global API error handler');
+  const app = await text('server/app.ts');
+  const health = await text('server/routes/health.routes.ts');
+  assertContains(health, 'contentRepositories.checkHealth()', 'health endpoint');
+  assertContains(server, 'env.PORT', 'server port configuration');
+  assertContains(app, 'app.use(errorHandler)', 'global error handler');
 
   const network = await text('server/routes/network.routes.ts');
   assertNotContains(network, 'upload-pkt', 'retired Packet Tracer parser endpoint');

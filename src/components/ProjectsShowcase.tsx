@@ -94,7 +94,7 @@ export const ProjectsShowcase: React.FC = () => {
               Specialized Infrastructure Portfolios
             </h2>
             <p className="text-sm text-white/70 max-w-2xl mt-1">
-              Target production blueprints and verification workspaces for Cisco Packet Tracer labs, RHEL 9.4 RHCSA competency matrices, and GitOps Kubernetes pipelines.
+              Recorded-state engineering blueprints and verification workspaces for Cisco Packet Tracer labs, RHEL 9.4 RHCSA competency matrices, and GitOps Kubernetes pipelines.
             </p>
           </div>
 

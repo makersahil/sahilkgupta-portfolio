@@ -20,6 +20,7 @@ export interface ArtifactListQuery {
   isPublic?: boolean;
   projectId?: string;
   labId?: string;
+  storageProvider?: string;
 }
 
 export interface CreateArtifactInput {
@@ -37,9 +38,16 @@ export interface CreateArtifactInput {
   isPublic: boolean;
 }
 
+export interface ArtifactAssociation {
+  projectId: string | null;
+  labId: string | null;
+}
+
 export interface ArtifactRepository {
   findMany(query?: ArtifactListQuery): Promise<ArtifactRecord[]>;
   findById(id: string): Promise<ArtifactRecord | null>;
   create(input: CreateArtifactInput): Promise<ArtifactRecord>;
+  resolveAssociation(projectId?: string | null, labId?: string | null): Promise<ArtifactAssociation | null>;
+  countByStorageKey(storageProvider: string, storageKey: string): Promise<number>;
   delete(id: string): Promise<boolean>;
 }

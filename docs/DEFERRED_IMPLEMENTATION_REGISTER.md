@@ -19,8 +19,8 @@ Reason Deferred: Status must be generated from actual implemented lab checks in 
 Target Phase: Phase 4 — Linux Systems Console / Phase 7 Scenario Verification
 Priority: P1
 Verification: Verification status must be generated from actual implemented lab checks. Phase 4A persists recorded Linux verification records and Phase 4B derives recorded-state health/investigation results. Phase 7 adds explicit active-scenario/recovery verification and removes the public hard-coded RHCSA "Hardened" total badge in favor of recorded objective counts.
-Implementation State: IMPLEMENTED PENDING EXIT. Runtime verification is now authoritative for Phase 7 scenarios; dependency-complete regression and browser verification remain required before closure.
-Status: OPEN
+Implementation State: DONE. Phase 4 recorded verification and Phase 7 scenario-state/recovery verification passed the consolidated Phase 8 closeout before merge.
+Status: DONE
 
 ### [PH1-DEFER-003]
 Origin Phase: Phase 1
@@ -29,7 +29,8 @@ Reason Deferred: Clean up of simulated infrastructure naming requires domain imp
 Target Phase: Phase 3/4/5 domain lab implementation or Phase 9 cleanup.
 Priority: P2
 Verification: Public simulated infrastructure uses consistent Sahil portfolio lab naming.
-Status: OPEN
+Status: DONE
+Implementation State: DONE. Repository-wide source inspection found no public `nexus-*` infrastructure naming; durable CLI/static audits continue guarding the former examples.
 
 ### [PH1-DEFER-004]
 Origin Phase: Phase 1
@@ -39,6 +40,7 @@ Target Phase: Relevant domain phase or Phase 9.
 Priority: P1
 Verification: No lab state is presented as real production state unless actually connected.
 Status: OPEN
+Implementation State: IMPLEMENTED PENDING PHASE 9 EXIT. Public wording now distinguishes recorded state, production-like design targets, target-environment readiness, and measured deployment evidence. Final browser/deployment review remains part of the Phase 9 runbook.
 
 ### [PH1-DEFER-005]
 Origin Phase: Phase 1
@@ -48,6 +50,7 @@ Target Phase: Every phase and final Phase 9.
 Priority: P1
 Verification: `npm run build` and `npm run lint` successful in a complete environment.
 Status: OPEN
+Implementation State: IMPLEMENTED PENDING PHASE 9 EXIT. The verifier now contains 55 derived steps including production build, performance budget, security, shared throttling, managed storage, and deployment checks. Final dependency-complete target run remains required.
 
 ### [PH2A-DEFER-001]
 Origin Phase: Phase 2A
@@ -83,10 +86,11 @@ Status: DONE
 Origin Phase: Phase 2A
 Item: Real Artifact Storage.
 Reason Deferred: Requires S3 or local bucket pipeline configuration.
-Target Phase: Phase 8 or Phase 9
+Target Phase: Phase 9 — Production Security, Testing, Performance and Deployment
 Priority: P2
 Verification: `Artifact` model contains genuine SHA hashes and functional storage references.
 Status: OPEN
+Implementation State: IMPLEMENTED PENDING PHASE 9 EXIT. Phase 9 adds private content-addressed managed bytes, server-calculated SHA-256, authorized retrieval, integrity verification, safe deletion, Admin UI, regression coverage, and backup/restore procedures. Close after the target artifact and restore gates pass.
 
 ### [PH2A-FIX-001]
 Origin Phase: Phase 2A-Fix
@@ -95,7 +99,8 @@ Reason Deferred: The seed currently contains arbitrary learning objectives (e.g.
 Target Phase: Phase 4/5/8
 Priority: P2
 Verification: Genuine explicit learning objectives mapped to users instead of static seed numbers.
-Status: OPEN
+Status: DONE
+Implementation State: DONE. Seed learning tracks no longer publish arbitrary progress totals; progress remains zero/untracked until a genuine user/objective model exists.
 
 ### [PH2A-FIX-002]
 Origin Phase: Phase 2A-Fix
@@ -124,8 +129,8 @@ Reason Deferred: Evidence status must be derived from implemented lab checks and
 Target Phase: Phase 7 — Real Lab & Simulation Engine
 Priority: P1
 Verification: Evidence Vault verification state is generated from implemented scenario checks and traceable evidence, or is explicitly presented as unverified/representative.
-Implementation State: IMPLEMENTED PENDING EXIT. The generic project Evidence Vault no longer claims `LAB CHECKS PASSED`; it directs visitors to run scenario checks in the Lab, while the Phase 7 Scenario Runtime displays persisted active-scenario/recovery verification results. Dependency-complete verification remains required.
-Status: OPEN
+Implementation State: DONE. Phase 7 scenario and recovery verification plus truthful Evidence Vault wording passed the Phase 8 consolidated closeout before merge.
+Status: DONE
 
 ### [PH2A-FIX-005]
 Origin Phase: Phase 2A Documentation Reconciliation
@@ -135,6 +140,7 @@ Target Phase: Phase 9 — Production Security, Testing, Performance and Deployme
 Priority: P1
 Verification: Every architecture endpoint claim is backed by inspected runtime configuration and tests, or is clearly labeled as target/planned architecture.
 Status: OPEN
+Implementation State: IMPLEMENTED PENDING PHASE 9 EXIT. The architecture endpoint now describes inspected host/origin/HTTPS, signed CSRF, persistent auth, shared limits, managed storage, readiness, timeout, and graceful-shutdown controls. Phase 9 HTTP/deployment evidence remains required.
 
 ### [PH2A-FIX-006]
 Origin Phase: Phase 2A Documentation Reconciliation
@@ -155,6 +161,7 @@ Target Phase: Phase 9 — Production Security, Testing, Performance and Deployme
 Priority: P2
 Verification: Production deployment architecture is reviewed; if multiple instances are used, login throttling is enforced through shared storage or an upstream gateway/WAF and covered by security tests.
 Status: OPEN
+Implementation State: IMPLEMENTED PENDING PHASE 9 EXIT. Failed-login and protected-flow limits are stored as HMAC-hashed PostgreSQL buckets and have multi-instance-compatible regression coverage. Target two-process validation remains required.
 
 ### [PH3A-DEFER-001]
 Origin Phase: Phase 3A — Core Networking Engine
@@ -163,8 +170,8 @@ Reason Deferred: Phase 3B now implements recorded-state route lookup, health ana
 Target Phase: Phase 6 / Phase 7
 Priority: P1
 Verification: The unified CLI consumes the same selected Lab/operator context; failure scenarios apply a session overlay consistently without rewriting canonical state; visual and CLI reads remain synchronized and resettable; scenario verification remains traceable.
-Implementation State: IMPLEMENTED PENDING EXIT. Phase 3B provides recorded-state investigation, Phase 6 provides contextual CLI inspection, and Phase 7 adds session-scoped Networking mutation, active-scenario/recovery verification, remediation, and reset. Full executable/browser verification remains required.
-Status: OPEN
+Implementation State: DONE. Phase 6/7 CLI and session overlays passed consolidated verification and were merged; Networking visual, operations, CLI, remediation, verification, and reset use the same effective state.
+Status: DONE
 
 
 
@@ -175,8 +182,8 @@ Reason Deferred: Phase 3A deliberately treats `.pkt` as reference metadata and r
 Target Phase: Phase 8 — Portfolio Orchestrator
 Priority: P1
 Verification: A documented supported importer/exporter derives `LabInput`, `LabNode`, `LabLink`, and normalized Networking state from a genuine artifact or companion manifest; unsupported `.pkt` files remain clearly reference-only and never produce fabricated parsed data.
-Implementation State: IMPLEMENTED PENDING EXIT. Phase 8 adds documented `networking.companion-manifest.v1` JSON import/export, canonical `LabInput`/`LabNode`/`LabLink`/`networking.v1` round-trip coverage, bounded validation through the real Networking adapter, and explicit reference-only Packet Tracer metadata. Arbitrary `.pkt` binary parsing remains unsupported. Close this item only after the Phase 8 bundle regression and browser import/export validation pass in the real repository environment.
-Status: OPEN
+Implementation State: DONE. Phase 8 companion-manifest import/export and bundle regressions passed before merge. Arbitrary `.pkt` binary parsing remains explicitly unsupported/reference-only.
+Status: DONE
 
 ### [PH4B-DEFER-001]
 Origin Phase: Phase 4B — Linux Investigation and Operations
@@ -185,8 +192,8 @@ Reason Deferred: Phase 4B intentionally provides health derivation, investigatio
 Target Phase: Phase 6 / Phase 7
 Priority: P1
 Verification: The unified CLI uses the same selected Lab/host context; Linux scenarios apply a session overlay consistently without rewriting canonical state; visual and CLI reads remain synchronized and resettable; scenario verification remains traceable.
-Implementation State: IMPLEMENTED PENDING EXIT. Phase 4B provides recorded-state investigation, Phase 6 provides contextual CLI inspection, and Phase 7 adds whitelisted Linux simulation, active-scenario/recovery verification, remediation, and reset without spawning shell commands. Full executable/browser verification remains required.
-Status: OPEN
+Implementation State: DONE. Linux recorded-state operations, contextual CLI, whitelisted session overlays, remediation, verification, and reset passed the consolidated closeout before merge.
+Status: DONE
 
 ### [PH5A-DEFER-001]
 Origin Phase: Phase 5A — Core Dynamic DevOps Engine
@@ -195,5 +202,5 @@ Reason Deferred: Phase 5A intentionally provides a reusable recorded-state deliv
 Target Phase: Phase 5B / Phase 6 / Phase 7
 Priority: P1
 Verification: Phase 5B derives evidence-backed delivery findings and `GITOPS/...` context from the same `devops.v1` state; Phase 6 executes only supported contextual inspection commands; Phase 7 applies and resets a session overlay consistently across UI and CLI while provider execution stays disabled.
-Implementation State: IMPLEMENTED PENDING EXIT. Phase 5A provides the core model, Phase 5B recorded-state diagnostics, Phase 6 contextual CLI inspection, and Phase 7 whitelisted DevOps simulation with active-scenario/recovery verification, remediation, and reset. Full executable/browser verification remains required.
-Status: OPEN
+Implementation State: DONE. DevOps recorded-state operations, contextual CLI, deterministic whitelisted session scenarios, remediation, verification, and reset passed the consolidated closeout before merge.
+Status: DONE

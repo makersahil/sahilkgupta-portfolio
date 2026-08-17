@@ -54,3 +54,10 @@ desktop.ini
 
 # Prisma local cache/artifacts
 prisma/dev.db
+# Phase 9 private runtime state
+.runtime/
+artifacts-data/
+backups/
+restore-work/
+*.dump
+*.manifest.json

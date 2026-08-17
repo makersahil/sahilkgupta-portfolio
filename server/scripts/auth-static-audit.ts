@@ -27,6 +27,8 @@ async function main(): Promise<void> {
   const migration = await text('prisma/migrations/20260815000000_phase_2c_persistent_auth/migration.sql');
   const apiClient = await text('src/lib/api.ts');
   const authContract = await text('server/repositories/contracts/auth.repository.ts');
+  const loginLimiter = await text('server/security/login-rate-limiter.ts');
+  const rateLimitService = await text('server/security/rate-limit.service.ts');
 
   for (const [source, label] of [
     [authRoute, 'auth route'],
@@ -62,6 +64,9 @@ async function main(): Promise<void> {
 
   assertNotContains(authContract, "'VIEWER'", 'server RBAC roles');
   assertContains(authContract, "'SUPER_ADMIN' | 'ADMIN' | 'EDITOR'", 'server RBAC roles');
+  assertContains(loginLimiter, 'DatabaseRateLimitService', 'shared login limiter');
+  assertContains(rateLimitService, 'rateLimitBucket', 'PostgreSQL rate-limit persistence');
+  assertNotContains(loginLimiter, 'new Map', 'shared login limiter');
 
   console.log('Authentication static audit: PASS');
 }

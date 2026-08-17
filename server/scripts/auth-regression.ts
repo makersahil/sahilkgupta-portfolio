@@ -17,6 +17,7 @@ async function main(): Promise<void> {
 
   const suffix = randomUUID().replaceAll('-', '');
   process.env.NODE_ENV = 'test';
+  process.env.RATE_LIMIT_ENABLED = 'true';
   process.env.JWT_SECRET = `${randomUUID()}${randomUUID()}`;
 
   const adminEmail = `auth-admin-${suffix}@example.invalid`;
@@ -242,7 +243,7 @@ async function main(): Promise<void> {
       headers: { Cookie: adminCookie },
     });
 
-    // Basic process-local failed-login throttling.
+    // Shared PostgreSQL-backed failed-login throttling.
     for (let attempt = 0; attempt < 5; attempt += 1) {
       await expectStatus(baseUrl, '/api/auth/login', 401, {
         method: 'POST',
@@ -264,6 +265,7 @@ async function main(): Promise<void> {
         server!.close((error) => (error ? reject(error) : resolve()));
       });
     }
+    await prisma.rateLimitBucket.deleteMany({ where: { scope: 'auth.failed-login' } });
     for (const userId of createdUserIds) {
       await prisma.user.deleteMany({ where: { id: userId } });
     }

@@ -43,7 +43,7 @@ async function main(): Promise<void> {
     text('prisma/seed.ts'),
     text('src/lib/api.ts'),
     text('package.json'),
-    text('server.ts'),
+    text('server/app.ts'),
     text('docs/DEVOPS_ENGINE_ARCHITECTURE.md'),
   ]);
 

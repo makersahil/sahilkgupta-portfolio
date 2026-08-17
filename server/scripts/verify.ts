@@ -37,6 +37,8 @@ const staticTests: Step[] = [
   { label: 'Unified CLI static audit', command: 'npm', args: ['run', 'test:cli:static'] },
   { label: 'Scenario engine static audit', command: 'npm', args: ['run', 'test:scenarios:static'] },
   { label: 'API client regression', command: 'npm', args: ['run', 'test:api-client'] },
+  { label: 'Phase 9 production security static audit', command: 'npm', args: ['run', 'test:phase9:static'] },
+  { label: 'Production performance budget', command: 'npm', args: ['run', 'test:performance'] },
 ];
 
 const databaseTests: Step[] = [
@@ -84,6 +86,10 @@ const databaseTests: Step[] = [
   { label: 'Portfolio Orchestrator regression', command: 'npm', args: ['run', 'test:orchestrator'], requiresDatabase: true },
   { label: 'Portfolio Orchestrator HTTP regression', command: 'npm', args: ['run', 'test:orchestrator:http'], requiresDatabase: true },
   { label: 'Portfolio Orchestrator bundle regression', command: 'npm', args: ['run', 'test:orchestrator:bundle'], requiresDatabase: true },
+  { label: 'Production security HTTP regression', command: 'npm', args: ['run', 'test:security:http'], requiresDatabase: true },
+  { label: 'Shared PostgreSQL rate-limit regression', command: 'npm', args: ['run', 'test:rate-limit'], requiresDatabase: true },
+  { label: 'Managed artifact storage regression', command: 'npm', args: ['run', 'test:artifact-storage'], requiresDatabase: true },
+  { label: 'Deployment and graceful-shutdown regression', command: 'npm', args: ['run', 'test:deployment'], requiresDatabase: true },
 ];
 
 const buildSteps: Step[] = [
@@ -153,9 +159,20 @@ function execute(step: Step, prefix = 'VERIFY'): number {
   console.log(`\n[${prefix}] ${step.label}`);
 
   const command = resolveCommand(step);
+  const isTestScript = step.command === 'npm' && step.args[0] === 'run' && step.args[1]?.startsWith('test:');
+  const childEnvironment = isTestScript
+    ? {
+        ...process.env,
+        NODE_ENV: 'test',
+        RATE_LIMIT_ENABLED: 'false',
+        SECURITY_ENFORCEMENT: 'false',
+        CSRF_ENFORCEMENT: 'false',
+        REQUIRE_HTTPS: 'false',
+      }
+    : process.env;
   const result = spawnSync(command.executable, command.args, {
     stdio: 'inherit',
-    env: process.env,
+    env: childEnvironment,
     shell: command.shell,
   });
 

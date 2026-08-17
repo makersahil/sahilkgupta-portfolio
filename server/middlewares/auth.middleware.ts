@@ -42,6 +42,23 @@ export const authenticateToken: RequestHandler = (request, _response, next) => {
   })().catch(next);
 };
 
+export const optionalAuthenticateToken: RequestHandler = (request, _response, next) => {
+  const req = request as AuthenticatedRequest;
+  void (async () => {
+    const token = extractAuthToken(req);
+    if (!token) { next(); return; }
+    try {
+      const tokenPayload = verifySessionToken(token);
+      const authenticated = await authService.authenticateSession(tokenPayload.userId, tokenPayload.sessionId);
+      req.user = authenticated.user;
+      req.authSessionId = authenticated.sessionId;
+    } catch (error) {
+      if (!(error instanceof UnauthorizedError)) throw error;
+    }
+    next();
+  })().catch(next);
+};
+
 export function requireRole(...roles: AuthRole[]): RequestHandler {
   return (request: Request, _response: Response, next: NextFunction): void => {
     const req = request as AuthenticatedRequest;

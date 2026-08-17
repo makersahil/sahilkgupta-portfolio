@@ -31,7 +31,7 @@ async function main(): Promise<void> {
   ] = await Promise.all([
     text('prisma/schema.prisma'),
     text('prisma/migrations/20260816120000_phase_8_portfolio_orchestrator/migration.sql'),
-    text('server.ts'),
+    text('server/app.ts'),
     text('server/routes/orchestrator.routes.ts'),
     text('server/routes/projects.routes.ts'),
     text('server/routes/labs.routes.ts'),

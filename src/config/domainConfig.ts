@@ -72,7 +72,7 @@ export const DOMAIN_CONFIGS: Record<DomainSlug, DomainExperienceConfig> = {
     primaryActionTarget: '#linux-workspace-section',
     secondaryActionLabel: 'VIEW LINUX PROJECTS',
     secondaryActionTarget: '#projects-section',
-    consoleLabel: 'OPEN LINUX SHELL',
+    consoleLabel: 'OPEN RECORDED-STATE CLI',
     accentColor: '#00ff41',
     systemCapabilities: ['RHEL 9', 'SYSTEMD', 'SELINUX', 'LVM', 'FIREWALLD', 'PODMAN'],
     statusLabel: 'SYSTEM CONSOLE READY',
@@ -80,7 +80,7 @@ export const DOMAIN_CONFIGS: Record<DomainSlug, DomainExperienceConfig> = {
       {
         step: '01',
         title: 'INSPECT HOST',
-        description: 'Review RHEL 9 system specifications, kernel status, and uptime.',
+        description: 'Review persisted RHEL 9 host identity, release, kernel, services, storage, and security state.',
       },
       {
         step: '02',

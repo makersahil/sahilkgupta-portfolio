@@ -1,7 +1,9 @@
 import { Prisma, type PrismaClient } from '@prisma/client';
 
 import { ConflictError, ValidationError } from '../../lib/errors.js';
+import { log } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
+import { managedArtifactStorage } from '../../services/media/managed-artifact-storage.js';
 import type {
   ArtifactAdminQuery,
   ArtifactAdminUpdate,
@@ -1287,7 +1289,8 @@ export class PrismaPortfolioOrchestratorRepository implements PortfolioOrchestra
   }
 
   async deleteArtifact(artifactId: string): Promise<'DELETED' | 'NOT_FOUND' | 'CONFLICT'> {
-    return this.client.$transaction(async (tx) => {
+    let managedStorageKey: string | null = null;
+    const result = await this.client.$transaction(async (tx) => {
       const row = await tx.artifact.findUnique({
         where: { id: artifactId },
         include: { _count: { select: { labInputs: true, evidence: true } } },
@@ -1297,8 +1300,22 @@ export class PrismaPortfolioOrchestratorRepository implements PortfolioOrchestra
       await tx.artifact.delete({ where: { id: artifactId } });
       if (row.labId) await tx.lab.update({ where: { id: row.labId }, data: { revision: { increment: 1 } } });
       if (row.projectId) await tx.project.update({ where: { id: row.projectId }, data: { revision: { increment: 1 } } });
+      if (row.storageProvider === 'LOCAL_MANAGED') {
+        const privateKey = row.storageKey;
+        const remaining = await tx.artifact.count({
+          where: { storageProvider: row.storageProvider, storageKey: privateKey },
+        });
+        if (remaining === 0) managedStorageKey = privateKey;
+      }
       return 'DELETED' as const;
     });
+
+    if (result === 'DELETED' && managedStorageKey) {
+      await managedArtifactStorage.delete(managedStorageKey).catch((error) => {
+        log('error', 'orchestrator_managed_artifact_cleanup_failed', { artifactId, error });
+      });
+    }
+    return result;
   }
 }
 

@@ -9,7 +9,7 @@ async function main(): Promise<void> {
     readFile('server/services/scenarios/scenario-mutators.ts', 'utf8'),
     readFile('server/services/scenarios/scenario-state.service.ts', 'utf8'),
     readFile('server/routes/scenario.routes.ts', 'utf8'),
-    readFile('server.ts', 'utf8'),
+    readFile('server/app.ts', 'utf8'),
     readFile('src/lib/api.ts', 'utf8'),
     readFile('src/components/scenarios/ScenarioControlPanel.tsx', 'utf8'),
     readFile('server/services/cli/unified-cli.service.ts', 'utf8'),

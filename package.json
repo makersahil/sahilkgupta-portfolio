@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
@@ -63,10 +63,19 @@
     "test:cli:http": "tsx server/scripts/cli-http-regression.ts",
     "test:scenarios:static": "tsx server/scripts/scenario-static-audit.ts",
     "test:scenarios": "tsx server/scripts/scenario-regression.ts",
-    "test:scenarios:http": "tsx server/scripts/scenario-http-regression.ts"
+    "test:scenarios:http": "tsx server/scripts/scenario-http-regression.ts",
+    "test:phase9:static": "tsx server/scripts/phase9-static-audit.ts",
+    "test:security:http": "tsx server/scripts/security-http-regression.ts",
+    "test:rate-limit": "tsx server/scripts/rate-limit-regression.ts",
+    "test:artifact-storage": "tsx server/scripts/artifact-storage-regression.ts",
+    "test:deployment": "tsx server/scripts/deployment-regression.ts",
+    "test:performance": "tsx server/scripts/performance-budget.ts",
+    "rate-limits:cleanup": "tsx server/scripts/cleanup-rate-limits.ts",
+    "artifacts:verify": "tsx server/scripts/verify-managed-artifacts.ts",
+    "deployment:smoke": "tsx server/scripts/deployment-smoke.ts",
+    "maintenance:cleanup": "tsx server/scripts/cleanup-runtime-state.ts"
   },
   "dependencies": {
-    "@google/genai": "^2.4.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@tailwindcss/vite": "^4.1.14",

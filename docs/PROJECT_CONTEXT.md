@@ -465,7 +465,7 @@ Browser HttpOnly cookie
 
 The browser no longer stores an authentication token in `localStorage`. Runtime login validates the persisted bcrypt password hash; it does not compare passwords to `ADMIN_PASSWORD`. Normal portfolio seeding creates no users. Administrator creation/rotation is explicit through `npm run auth:bootstrap-admin`, which also revokes existing sessions for that administrator.
 
-Phase 2C includes basic process-local failed-login throttling. Distributed/shared rate limiting remains a Phase 9 deployment concern if the application is horizontally scaled.
+Phase 2C introduced failed-login throttling. Phase 9 replaces process-local enforcement with HMAC-hashed PostgreSQL buckets shared across Node processes for login and other protected flows; raw IP/email/session selectors are not persisted.
 
 Persistent roles are `SUPER_ADMIN`, `ADMIN`, and `EDITOR`. Account deactivation and role changes take effect on the next protected request because authorization state is reloaded from PostgreSQL.
 
@@ -727,7 +727,7 @@ The repository is authoritative.
 
 **Phase 6 — Unified Context-Aware CLI is COMPLETE and exit-verified.** `UnifiedCliService` resolves `NETOPS/...`, `RHEL/...`, and `GITOPS/...` contexts and reads the same state as the domain workspaces. The legacy hard-coded terminal runtime is retired. External shell/provider execution remains disabled.
 
-**Phase 7 — Session-Scoped Scenario Engine is code-complete in the current closeout candidate.** `LabScenarioRuntime`, `ScenarioEngineService`, safe mutation adapters, `/api/scenarios/*`, the shared Scenario Runtime UI, and Unified CLI lifecycle commands synchronize session simulation across Networking, Linux, and DevOps while keeping canonical Lab state immutable. Final checkpoint requires a fresh canonical 45-step verifier pass and the browser/session-isolation runbook after the closeout patch.
+**Phase 7 — Session-Scoped Scenario Engine is COMPLETE and exit-verified.** `LabScenarioRuntime`, `ScenarioEngineService`, safe mutation adapters, `/api/scenarios/*`, the shared Scenario Runtime UI, and Unified CLI lifecycle commands synchronize session simulation across Networking, Linux, and DevOps while keeping canonical Lab state immutable. The canonical verifier and browser/session-isolation closeout passed before merge.
 
 Routine validation is consolidated under `npm run verify`; targeted domain/CLI/scenario scripts remain durable debugging/regression tools.
 
@@ -774,7 +774,7 @@ Truthfulness boundary: Phase 7 is a session-scoped simulation engine, not a remo
 
 ---
 
-# 25. Phase 8 Portfolio Orchestrator Candidate
+# 25. Phase 8 Portfolio Orchestrator
 
 Phase 8 extends the existing persistent Admin and canonical Lab Platform rather than replacing them.
 
@@ -803,6 +803,15 @@ Implemented candidate capabilities:
 - bounded persisted AuditLog events;
 - four durable Orchestrator regressions and a derived 49-step verifier.
 
-The implementation remains a **code-complete candidate** until the additive migration is deployed in the target database, the canonical 49-step verifier passes from step 1, and `docs/PHASE8_VALIDATION_RUNBOOK.md` is completed. Do not mark Phase 8 COMPLETE or make Phase 9 active before that evidence exists.
+Phase 8 is COMPLETE and merged. The additive migration, canonical 49-step verifier, and Orchestrator validation closeout passed before the Phase 8 merge.
 
 The multi-project principle remains unchanged: a supported Project and Lab should be publishable from persisted data and registered domain contracts, not project-specific React components or flagship slug checks.
+
+
+---
+
+# 26. Phase 9 Production Hardening Candidate
+
+Phase 9 extends the verified Phase 8 platform with strict production configuration, trusted-proxy-aware HTTPS/host/origin policy, signed CSRF, shared PostgreSQL rate limits, structured redacted logs, bounded liveness/readiness, graceful HTTP shutdown, private content-addressed artifact bytes with calculated SHA-256, performance budgets, CI/deployment assets, and backup/restore procedures.
+
+The implementation does not change the recorded-state truthfulness boundary or introduce shell/provider execution. Phase 9 is a code-complete candidate until the canonical 55-step verifier, target-environment `docs/PHASE9_VALIDATION_RUNBOOK.md`, deployment smoke, two-process throttling proof, managed artifact integrity test, graceful shutdown check, and disposable restore drill pass.

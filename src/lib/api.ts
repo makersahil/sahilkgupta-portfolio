@@ -134,6 +134,36 @@ const getServerCode = (payload: unknown): string | undefined => {
   return undefined;
 };
 
+const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+let csrfTokenPromise: Promise<string | null> | null = null;
+
+function csrfCookieToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  for (const part of document.cookie.split(';')) {
+    const [name, ...rest] = part.trim().split('=');
+    if (name === 'portfolio_csrf') return decodeURIComponent(rest.join('='));
+  }
+  return null;
+}
+
+async function ensureCsrfToken(): Promise<string | null> {
+  const existing = csrfCookieToken();
+  if (existing) return existing;
+  if (typeof window === 'undefined') return null;
+  csrfTokenPromise ??= fetch('/api/security/csrf', { credentials: 'same-origin' })
+    .then(async (response) => {
+      if (!response.ok) return null;
+      const payload = await response.json() as unknown;
+      if (isRecord(payload) && isRecord(payload.data) && typeof payload.data.token === 'string') {
+        return payload.data.token;
+      }
+      return csrfCookieToken();
+    })
+    .finally(() => { csrfTokenPromise = null; });
+  return csrfTokenPromise;
+}
+
+
 
 let volatileLabSessionId: string | null = null;
 const LAB_SESSION_STORAGE_KEY = 'portfolio-lab-session-v1';
@@ -176,6 +206,10 @@ class ApiClient {
     try {
       const headers = new Headers(init.headers);
       headers.set('X-Lab-Session', getLabSessionId());
+      if (UNSAFE_METHODS.has(method.toUpperCase())) {
+        const csrfToken = await ensureCsrfToken();
+        if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
+      }
       response = await fetch(endpoint, {
         credentials: 'same-origin',
         ...init,
@@ -543,6 +577,29 @@ class ApiClient {
       headers: this.getHeaders(),
       body: JSON.stringify(data),
     });
+  }
+
+  async uploadManagedMedia(
+    file: Blob,
+    options: { fileName: string; mimeType?: string; projectId?: string; labId?: string; isPublic?: boolean },
+  ): Promise<MediaAsset> {
+    const headers = new Headers({
+      'Content-Type': 'application/octet-stream',
+      'X-File-Name': options.fileName,
+      'X-Artifact-Mime-Type': options.mimeType || file.type || 'application/octet-stream',
+      'X-Artifact-Public': String(options.isPublic ?? false),
+    });
+    if (options.projectId) headers.set('X-Project-Id', options.projectId);
+    if (options.labId) headers.set('X-Lab-Id', options.labId);
+    return this.requestData<MediaAsset>('/api/media/managed', {
+      method: 'POST',
+      headers,
+      body: file,
+    });
+  }
+
+  async verifyManagedMedia(id: string): Promise<{ valid: boolean; actualSha256: string; expectedSha256: string; sizeBytes: number }> {
+    return this.requestData(`/api/media/${id}/verify-integrity`, { method: 'POST' });
   }
 
   async deleteMedia(id: string): Promise<boolean> {

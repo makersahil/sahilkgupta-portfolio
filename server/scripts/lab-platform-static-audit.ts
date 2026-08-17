@@ -8,7 +8,7 @@ async function source(path: string): Promise<string> {
 async function main(): Promise<void> {
   const [schema, server, routes, service, manifest, registry, seed, repository, migration] = await Promise.all([
     source('prisma/schema.prisma'),
-    source('server.ts'),
+    source('server/app.ts'),
     source('server/routes/labs.routes.ts'),
     source('server/services/labs/lab.service.ts'),
     source('server/services/labs/lab-manifest.service.ts'),
