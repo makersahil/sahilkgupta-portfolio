@@ -7,6 +7,8 @@ export type ApplicationErrorCode =
   | 'PERSISTENCE_UNAVAILABLE'
   | 'CONFIGURATION_ERROR'
   | 'RATE_LIMITED'
+  | 'PAYLOAD_TOO_LARGE'
+  | 'INTEGRITY_ERROR'
   | 'SERVER_ERROR';
 
 export class ApplicationError extends Error {
@@ -67,8 +69,20 @@ export class PersistenceUnavailableError extends ApplicationError {
 
 
 export class TooManyRequestsError extends ApplicationError {
-  constructor(message = 'Too many requests') {
-    super(message, 429, 'RATE_LIMITED');
+  constructor(message = 'Too many requests', details?: Record<string, unknown>) {
+    super(message, 429, 'RATE_LIMITED', details);
+  }
+}
+
+export class PayloadTooLargeError extends ApplicationError {
+  constructor(message = 'Request payload is too large', details?: Record<string, unknown>) {
+    super(message, 413, 'PAYLOAD_TOO_LARGE', details);
+  }
+}
+
+export class IntegrityError extends ApplicationError {
+  constructor(message = 'Stored artifact failed integrity verification', details?: Record<string, unknown>) {
+    super(message, 409, 'INTEGRITY_ERROR', details);
   }
 }
 
@@ -129,6 +143,14 @@ export function normalizeApplicationError(error: unknown): ApplicationError {
     return new NotFoundError('The requested record was not found');
   }
 
+  if (errorName === 'PayloadTooLargeError' || errorCode === 'LIMIT_FILE_SIZE' || errorCode === 'entity.too.large') {
+    return new PayloadTooLargeError();
+  }
+
+  if (errorName === 'SyntaxError' && typeof candidate?.message === 'string' && candidate.message.includes('JSON')) {
+    return new ValidationError('Request body contains invalid JSON');
+  }
+
   if (
     (errorCode && PRISMA_UNAVAILABLE_CODES.has(errorCode)) ||
     errorName === 'PrismaClientInitializationError' ||
@@ -145,7 +167,9 @@ export function normalizeApplicationError(error: unknown): ApplicationError {
         : undefined;
 
   if (httpStatus && httpStatus >= 400 && httpStatus <= 599) {
-    const message = typeof candidate?.message === 'string' ? candidate.message : 'Request failed';
+    const message = httpStatus >= 500
+      ? 'Internal Server Error'
+      : typeof candidate?.message === 'string' ? candidate.message : 'Request failed';
     return new ApplicationError(message, httpStatus, 'SERVER_ERROR');
   }
 

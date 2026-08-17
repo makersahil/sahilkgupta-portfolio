@@ -1,13 +1,18 @@
 import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middlewares/auth.middleware.js';
 import { asyncHandler } from '../middlewares/async-handler.js';
+import { createRateLimitMiddleware } from '../middlewares/rate-limit.middleware.js';
 import { contentServices } from '../services/content/index.js';
 import { recordAdminAudit } from './admin-audit.js';
 import { optionalQueryString, parseInquiryCreate, parseInquiryStatus } from './content-input.js';
 
 const router = Router();
+const contactLimiter = createRateLimitMiddleware({
+  policy: { scope: 'contact.submit', limit: 5, windowMs: 10 * 60 * 1_000 },
+  message: 'Too many contact submissions. Try again later.',
+});
 
-router.post('/', asyncHandler(async (request, response) => {
+router.post('/', contactLimiter, asyncHandler(async (request, response) => {
   const inquiry = await contentServices.inquiries.create(parseInquiryCreate(request.body, request.ip));
   response.status(201).json({
     success: true,

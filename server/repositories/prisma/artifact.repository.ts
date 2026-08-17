@@ -1,7 +1,8 @@
-import type { Artifact } from '@prisma/client';
+import type { Artifact, PrismaClient } from '@prisma/client';
 
 import { prisma } from '../../lib/prisma.js';
 import type {
+  ArtifactAssociation,
   ArtifactListQuery,
   ArtifactRecord,
   ArtifactRepository,
@@ -29,12 +30,15 @@ function mapArtifact(row: Artifact): ArtifactRecord {
 }
 
 export class PrismaArtifactRepository implements ArtifactRepository {
+  constructor(private readonly client: PrismaClient = prisma) {}
+
   async findMany(query: ArtifactListQuery = {}): Promise<ArtifactRecord[]> {
-    const rows = await prisma.artifact.findMany({
+    const rows = await this.client.artifact.findMany({
       where: {
         ...(query.isPublic === undefined ? {} : { isPublic: query.isPublic }),
         ...(query.projectId ? { projectId: query.projectId } : {}),
         ...(query.labId ? { labId: query.labId } : {}),
+        ...(query.storageProvider ? { storageProvider: query.storageProvider } : {}),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -42,12 +46,12 @@ export class PrismaArtifactRepository implements ArtifactRepository {
   }
 
   async findById(id: string): Promise<ArtifactRecord | null> {
-    const row = await prisma.artifact.findUnique({ where: { id } });
+    const row = await this.client.artifact.findUnique({ where: { id } });
     return row ? mapArtifact(row) : null;
   }
 
   async create(input: CreateArtifactInput): Promise<ArtifactRecord> {
-    const row = await prisma.artifact.create({
+    const row = await this.client.artifact.create({
       data: {
         fileName: input.fileName,
         originalName: input.originalName ?? null,
@@ -66,8 +70,25 @@ export class PrismaArtifactRepository implements ArtifactRepository {
     return mapArtifact(row);
   }
 
+  async resolveAssociation(projectId?: string | null, labId?: string | null): Promise<ArtifactAssociation | null> {
+    if (labId) {
+      const lab = await this.client.lab.findUnique({ where: { id: labId }, select: { projectId: true } });
+      if (!lab || (projectId && projectId !== lab.projectId)) return null;
+      return { projectId: lab.projectId, labId };
+    }
+    if (projectId) {
+      const project = await this.client.project.findUnique({ where: { id: projectId }, select: { id: true } });
+      return project ? { projectId: project.id, labId: null } : null;
+    }
+    return { projectId: null, labId: null };
+  }
+
+  countByStorageKey(storageProvider: string, storageKey: string): Promise<number> {
+    return this.client.artifact.count({ where: { storageProvider, storageKey } });
+  }
+
   async delete(id: string): Promise<boolean> {
-    const result = await prisma.artifact.deleteMany({ where: { id } });
+    const result = await this.client.artifact.deleteMany({ where: { id } });
     return result.count > 0;
   }
 }

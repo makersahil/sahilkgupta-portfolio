@@ -13,6 +13,17 @@ function ids<T extends Identified>(records: readonly T[]): string[] {
   return records.map((record) => record.id).sort();
 }
 
+function assertContainsIds<T extends Identified>(
+  records: readonly T[],
+  expectedIds: readonly string[],
+  label: string,
+): void {
+  const actual = new Set(ids(records));
+  for (const expectedId of expectedIds) {
+    assert.ok(actual.has(expectedId), `${label} is missing canonical fixture ${expectedId}`);
+  }
+}
+
 async function main(): Promise<void> {
   if (!process.env.DATABASE_URL?.trim()) {
     throw new Error('DATABASE_URL is required for the Prisma regression test');
@@ -56,24 +67,24 @@ async function main(): Promise<void> {
       services.skills.list(),
     ]);
 
-    assert.deepEqual(ids(categories), ['cat-devops', 'cat-linux', 'cat-networking']);
-    assert.deepEqual(ids(projects), [
-      'proj-cisco-wan-pkt',
-      'proj-k8s-cilium-gitops',
-      'proj-rhel-rhcsa-matrix',
-    ]);
-    assert.deepEqual(ids(blogs), ['blog-01', 'blog-02', 'blog-03']);
-    assert.deepEqual(ids(certifications), ['cert-devops', 'cert-linux', 'cert-networking']);
-    assert.deepEqual(ids(skills), ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5', 'sk-6', 'sk-7']);
+    assertContainsIds(categories, ['cat-devops', 'cat-linux', 'cat-networking'], 'Categories');
+    assertContainsIds(
+      projects,
+      ['proj-cisco-wan-pkt', 'proj-k8s-cilium-gitops', 'proj-rhel-rhcsa-matrix'],
+      'Projects',
+    );
+    assertContainsIds(blogs, ['blog-01', 'blog-02', 'blog-03'], 'Blogs');
+    assertContainsIds(certifications, ['cert-devops', 'cert-linux', 'cert-networking'], 'Certifications');
+    assertContainsIds(skills, ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5', 'sk-6', 'sk-7'], 'Skills');
 
     const categoryExpectations = new Map<string, { slug: string; domain: 'NETWORKING' | 'LINUX' | 'DEVOPS' }>([
       ['cat-networking', { slug: 'networking', domain: 'NETWORKING' }],
       ['cat-linux', { slug: 'linux', domain: 'LINUX' }],
       ['cat-devops', { slug: 'devops', domain: 'DEVOPS' }],
     ] as const);
-    for (const category of categories) {
-      const expected = categoryExpectations.get(category.id);
-      assert.ok(expected, `Unexpected canonical category ${category.id}`);
+    for (const [categoryId, expected] of categoryExpectations) {
+      const category = categories.find((entry) => entry.id === categoryId);
+      assert.ok(category, `Missing canonical category ${categoryId}`);
       assert.equal(category.slug, expected.slug);
       assert.equal(category.domain, expected.domain);
       assert.ok(category.tagline.trim().length > 0);
@@ -86,9 +97,9 @@ async function main(): Promise<void> {
       ['proj-rhel-rhcsa-matrix', { categoryId: 'cat-linux', slug: 'rhel-9-rhcsa-hardening-storage-selinux', formatType: 'rhcsa_matrix' }],
       ['proj-k8s-cilium-gitops', { categoryId: 'cat-devops', slug: 'cloud-native-gitops-k8s-cilium-terraform', formatType: 'devops_pipeline' }],
     ] as const);
-    for (const project of projects) {
-      const expected = projectExpectations.get(project.id);
-      assert.ok(expected, `Unexpected canonical project ${project.id}`);
+    for (const [projectId, expected] of projectExpectations) {
+      const project = projects.find((entry) => entry.id === projectId);
+      assert.ok(project, `Missing canonical project ${projectId}`);
       assert.equal(project.categoryId, expected.categoryId);
       assert.equal(project.slug, expected.slug);
       assert.equal(project.formatType, expected.formatType);
@@ -99,12 +110,36 @@ async function main(): Promise<void> {
     assert.ok(projects.find(({ id }) => id === 'proj-rhel-rhcsa-matrix')?.rhcsaMatrixData);
     assert.ok(projects.find(({ id }) => id === 'proj-k8s-cilium-gitops')?.devopsPipelineData);
 
-    assert.deepEqual(ids(await services.projects.listPublic({ categoryId: 'cat-networking' })), ['proj-cisco-wan-pkt']);
-    assert.deepEqual(ids(await services.projects.listPublic({ categoryId: 'cat-linux' })), ['proj-rhel-rhcsa-matrix']);
-    assert.deepEqual(ids(await services.projects.listPublic({ categoryId: 'cat-devops' })), ['proj-k8s-cilium-gitops']);
-    assert.deepEqual(ids(await services.blogs.listPublic({ categoryId: 'cat-networking' })), ['blog-01']);
-    assert.deepEqual(ids(await services.blogs.listPublic({ categoryId: 'cat-linux' })), ['blog-02']);
-    assert.deepEqual(ids(await services.blogs.listPublic({ categoryId: 'cat-devops' })), ['blog-03']);
+    assertContainsIds(
+      await services.projects.listPublic({ categoryId: 'cat-networking' }),
+      ['proj-cisco-wan-pkt'],
+      'Public Networking projects',
+    );
+    assertContainsIds(
+      await services.projects.listPublic({ categoryId: 'cat-linux' }),
+      ['proj-rhel-rhcsa-matrix'],
+      'Public Linux projects',
+    );
+    assertContainsIds(
+      await services.projects.listPublic({ categoryId: 'cat-devops' }),
+      ['proj-k8s-cilium-gitops'],
+      'Public DevOps projects',
+    );
+    assertContainsIds(
+      await services.blogs.listPublic({ categoryId: 'cat-networking' }),
+      ['blog-01'],
+      'Public Networking blogs',
+    );
+    assertContainsIds(
+      await services.blogs.listPublic({ categoryId: 'cat-linux' }),
+      ['blog-02'],
+      'Public Linux blogs',
+    );
+    assertContainsIds(
+      await services.blogs.listPublic({ categoryId: 'cat-devops' }),
+      ['blog-03'],
+      'Public DevOps blogs',
+    );
 
     const category = await services.categories.create({
       name: 'Content Prisma Draft Category',

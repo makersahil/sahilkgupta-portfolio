@@ -158,7 +158,7 @@ export interface Project {
   devopsStack: string[];
   tags: string[];
   metrics?: Record<string, string | number>;
-  
+
   // Multi-Format Specialized Payloads
   ciscoLabData?: CiscoLabData;
   rhcsaMatrixData?: RhcsaMatrixData;
@@ -225,6 +225,10 @@ export interface MediaAsset {
   mimeType: string;
   sizeBytes: number;
   url: string;
+  storageProvider?: string;
+  sha256?: string;
+  managed?: boolean;
+  isPublic?: boolean;
   s3Key?: string;
   uploaderId?: string;
   createdAt: string;

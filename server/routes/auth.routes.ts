@@ -5,22 +5,30 @@ import {
   signSessionToken,
   verifySessionToken,
 } from '../lib/auth-token.js';
+import { env } from '../config/env.js';
 import { UnauthorizedError } from '../lib/errors.js';
 import { asyncHandler } from '../middlewares/async-handler.js';
+import { createRateLimitMiddleware } from '../middlewares/rate-limit.middleware.js';
 import {
   authenticateToken,
   extractAuthToken,
   type AuthenticatedRequest,
 } from '../middlewares/auth.middleware.js';
 import { loginRateLimiter } from '../security/login-rate-limiter.js';
+import { setCsrfToken } from '../security/csrf.js';
 import { authService, normalizeAuthEmail } from '../services/auth/auth.service.js';
 
 const router = Router();
+const loginAttemptLimit = createRateLimitMiddleware({
+  policy: { scope: 'auth.login-attempt', limit: 20, windowMs: 15 * 60 * 1_000 },
+  key: (request) => request.ip ?? 'unknown',
+  message: 'Too many login attempts. Try again later.',
+});
 
 function cookieOptions(expiresAt?: Date) {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     sameSite: 'lax' as const,
     path: '/',
     ...(expiresAt ? { expires: expiresAt } : {}),
@@ -29,17 +37,19 @@ function cookieOptions(expiresAt?: Date) {
 
 router.post(
   '/login',
+  loginAttemptLimit,
   asyncHandler(async (req, res) => {
     const rawEmail = typeof req.body?.email === 'string' ? req.body.email : '';
     const normalizedEmail = normalizeAuthEmail(rawEmail);
-    loginRateLimiter.assertAllowed(req.ip, normalizedEmail);
+    await loginRateLimiter.assertAllowed(req.ip, normalizedEmail);
 
     try {
       const result = await authService.login(req.body?.email, req.body?.password);
-      loginRateLimiter.clear(req.ip, normalizedEmail);
+      await loginRateLimiter.clear(req.ip, normalizedEmail);
 
       const token = signSessionToken(result.user.id, result.session.id, result.session.expiresAt);
       res.cookie(AUTH_COOKIE_NAME, token, cookieOptions(result.session.expiresAt));
+      setCsrfToken(res, env.NODE_ENV === 'production', token);
       res.json({
         success: true,
         message: 'Authentication successful',
@@ -47,7 +57,7 @@ router.post(
       });
     } catch (error) {
       if (error instanceof UnauthorizedError) {
-        loginRateLimiter.recordFailure(req.ip, normalizedEmail);
+        await loginRateLimiter.recordFailure(req.ip, normalizedEmail);
       }
       throw error;
     }
@@ -90,6 +100,7 @@ router.post(
       }
     } finally {
       res.clearCookie(AUTH_COOKIE_NAME, cookieOptions());
+      setCsrfToken(res, env.NODE_ENV === 'production');
     }
 
     if (deferredError) throw deferredError;

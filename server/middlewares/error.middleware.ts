@@ -1,22 +1,30 @@
-import { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
+
 import { normalizeApplicationError } from '../lib/errors.js';
+import { log } from '../lib/logger.js';
 
-export function errorHandler(err: unknown, req: Request, res: Response, next: NextFunction): void {
+export function errorHandler(err: unknown, request: Request, response: Response, _next: NextFunction): void {
   const applicationError = normalizeApplicationError(err);
-  const original = err as { name?: unknown; code?: unknown; message?: unknown; stack?: unknown } | null;
+  const retryAfterSeconds = applicationError.details?.retryAfterSeconds;
+  if (typeof retryAfterSeconds === 'number') response.setHeader('Retry-After', String(retryAfterSeconds));
 
-  console.error('[Portfolio Error Handler]', {
-    name: typeof original?.name === 'string' ? original.name : 'UnknownError',
-    code: typeof original?.code === 'string' ? original.code : applicationError.code,
+  log(applicationError.statusCode >= 500 ? 'error' : 'warn', 'request_error', {
+    requestId: request.requestId,
+    method: request.method,
+    path: request.path,
+    statusCode: applicationError.statusCode,
+    code: applicationError.code,
     message: applicationError.message,
+    error: err instanceof Error ? err : undefined,
   });
 
-  res.status(applicationError.statusCode).json({
+  response.status(applicationError.statusCode).json({
     success: false,
     error: {
       message: applicationError.message,
       code: applicationError.code,
       ...(applicationError.details && { details: applicationError.details }),
+      ...(request.requestId && { requestId: request.requestId }),
     },
   });
 }

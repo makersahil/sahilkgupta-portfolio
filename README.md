@@ -10,7 +10,7 @@ The dark cyber-terminal/control-plane visual language is intentional. Representa
 
 ## Current architecture
 
-Phase 2 through Phase 6 are established platform/domain baselines. The uploaded Phase 7 source provides the session-scoped Scenario Engine. Phase 8 now adds the Portfolio Orchestrator implementation as a closeout candidate. Do not mark Phase 8 complete until the additive migration, canonical 49-step verifier, and `docs/PHASE8_VALIDATION_RUNBOOK.md` pass in the real repository environment.
+Phases 2 through 8 are merged and exit-verified platform baselines. Phase 9 adds a production-hardening candidate: strict environment and proxy policy, signed CSRF, shared PostgreSQL throttling, structured redacted logging, liveness/readiness, graceful shutdown, managed artifact bytes with server-calculated SHA-256, performance budgets, CI, deployment checks, and backup/restore procedures. Do not mark Phase 9 complete until the canonical 55-step verifier and `docs/PHASE9_VALIDATION_RUNBOOK.md` pass in the target environment.
 
 ```text
 Browser / React
@@ -20,7 +20,8 @@ Browser / React
   ├─ admin → Portfolio Orchestrator → validation/preview/publication → Prisma transactions → PostgreSQL
   ├─ unified CLI → /api/terminal/* → UnifiedCliService → domain engines → recorded/session state
   ├─ scenarios → /api/scenarios/* → ScenarioEngineService → LabScenarioRuntime → session overlay
-  ├─ media references → MediaService → PrismaArtifactRepository → Artifact
+  ├─ media → reference metadata or private content-addressed managed bytes → Artifact
+  ├─ security/runtime → host/origin/HTTPS, signed CSRF, shared limits, request IDs, readiness and graceful shutdown
   └─ architecture metrics → SystemMetricsService → PrismaSystemRepository → PostgreSQL counts
 ```
 
@@ -53,7 +54,7 @@ server/services/content/              content application services
 server/services/auth/                 persistent authentication service/bootstrap logic
 server/services/labs/                 canonical lab validation, input registry, Manifest v1
 server/services/admin/                persisted Admin audit service
-server/services/media/                persisted artifact-reference service
+server/services/media/                reference metadata + private managed artifact-byte storage
 server/services/system/               truthful runtime metrics service
 server/services/networking/           dynamic Networking adapter, engine, and operations services
 server/services/linux/                dynamic Linux adapter and core host-state engine
@@ -63,8 +64,8 @@ server/services/scenarios/            session-scoped scenario lifecycle and safe
 server/services/orchestrator/          revision-safe validation, preview, lifecycle, bundle and artifact orchestration
 server/repositories/contracts/        repository contracts
 server/repositories/prisma/           PostgreSQL/Prisma repositories
-server/middlewares/                   persisted auth, async, and error middleware
-server/security/                      login abuse controls
+server/middlewares/                   persisted auth, request context, shared limits, async and errors
+server/security/                      signed CSRF, host/origin policy and PostgreSQL-backed abuse controls
 server/scripts/                       durable verification/regression/maintenance scripts
 prisma/schema.prisma                  canonical persistence schema
 prisma/migrations/                    immutable migrations
@@ -119,11 +120,20 @@ npm run verify:quick
 npm run verify:tests
 ```
 
-The full Phase 8 verifier contains 49 derived steps and covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin audit behavior, persistence, all three dynamic domain engines and operations layers, Unified CLI, Phase 7 scenarios, plus the Phase 8 Orchestrator static/service/HTTP/bundle regressions.
+The full Phase 9 verifier contains 55 derived steps and covers schema generation/validation, typecheck/build, migration status, auth, content, canonical labs, Admin audit behavior, persistence, all three dynamic domain engines and operations layers, Unified CLI, Phase 7 scenarios, the Phase 8 Orchestrator regressions, and six Phase 9 security/performance/rate-limit/artifact/deployment checks.
+
+
+## Phase 9 production hardening
+
+The shared `createPortfolioApp()` factory installs request IDs, exact production host/origin/HTTPS policy, security headers, signed double-submit CSRF for browser mutations, bounded body parsing, and the existing application routes. Shared rate limits use HMAC-hashed identities in PostgreSQL so multiple Node processes enforce the same windows. `/api/live` is process-only; `/api/ready` checks PostgreSQL and required managed storage with a bounded timeout.
+
+Managed artifact bytes are private, content-addressed, integrity-verifiable, and served only through authorization-aware routes. Reference metadata remains reference-only. The Node server applies explicit request/header/keep-alive limits and graceful SIGTERM/SIGINT shutdown. See `docs/PRODUCTION_SECURITY_ARCHITECTURE.md`, `docs/ARTIFACT_STORAGE.md`, `docs/DEPLOYMENT_RUNBOOK.md`, and `docs/BACKUP_RESTORE_RUNBOOK.md`.
+
+Phase 9 commands include `test:phase9:static`, `test:security:http`, `test:rate-limit`, `test:artifact-storage`, `test:deployment`, `test:performance`, `maintenance:cleanup`, `artifacts:verify`, and `deployment:smoke`.
 
 ## Media and Packet Tracer truthfulness
 
-`POST /api/media/upload` is retained as a compatibility API name, but it **registers metadata for an already-stored media/artifact reference**. It does not claim to upload bytes to S3/Cloudinary/local disk.
+`POST /api/media/upload` registers truthful external/S3 reference metadata. `POST /api/media/managed` stores actual bytes in a private content-addressed directory, calculates SHA-256 server-side, and records the resulting managed reference. The two workflows remain visibly distinct.
 
 The old synthetic `/api/network/upload-pkt` parser has been retired. Packet Tracer files/references belong in the canonical Lab Builder using the `PACKET_TRACER` input type. Arbitrary `.pkt` binary parsing is not claimed.
 
@@ -196,4 +206,4 @@ Git is the source of truth.
 - Run `npm run verify` and inspect `git diff` before committing.
 - Read `AGENTS.md` and `docs/DEFERRED_IMPLEMENTATION_REGISTER.md` before every phase.
 
-Phase 2 through Phase 6 are complete and exit-verified. Phase 7 is code-complete in this closeout candidate but must be revalidated after closeout changes; do not start Phase 8 until the canonical `npm run verify` and `docs/PHASE7_VALIDATION_RUNBOOK.md` browser/session-isolation checks pass.
+Phases 2 through 8 are complete and merged. Phase 9 remains a code-complete candidate until the full 55-step gate, target-environment security/browser checks, deployment smoke, and disposable restore drill pass.

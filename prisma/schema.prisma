@@ -111,6 +111,21 @@ model AuthSession {
   @@index([expiresAt])
 }
 
+model RateLimitBucket {
+  id          String   @id @default(cuid())
+  scope       String
+  keyHash     String
+  windowStart DateTime
+  count       Int      @default(0)
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([scope, keyHash, windowStart])
+  @@index([scope, keyHash])
+  @@index([expiresAt])
+}
+
 model Category {
   id            String        @id @default(cuid())
   name          String

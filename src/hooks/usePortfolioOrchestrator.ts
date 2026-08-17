@@ -148,6 +148,11 @@ export function usePortfolioOrchestrator() {
     exportNetworkingCompanion: (labId: string) => api.exportNetworkingCompanion(labId),
     importDryRun: async (bundle: unknown, conflictMode: 'REJECT' | 'RENAME', targetProjectId?: string): Promise<OrchestratorImportDryRunResult> => api.orchestratorImportDryRun(bundle, conflictMode, targetProjectId),
     importBundle: (bundle: unknown, conflictMode: 'REJECT' | 'RENAME', targetProjectId?: string): Promise<OrchestratorImportResult> => mutate(() => api.orchestratorImport(bundle, conflictMode, targetProjectId), null),
+    uploadArtifact: (file: File, options: { projectId?: string; labId?: string; isPublic?: boolean }) => mutate(
+      () => api.uploadManagedMedia(file, { fileName: file.name, mimeType: file.type || 'application/octet-stream', ...options }),
+      state.selectedProjectId,
+    ),
+    verifyArtifact: (artifactId: string) => api.verifyManagedMedia(artifactId),
     updateArtifact: (artifactId: string, input: Record<string, unknown>) => mutate(() => api.updateOrchestratorArtifact(artifactId, input), state.selectedProjectId),
     deleteArtifact: (artifactId: string) => mutate(() => api.deleteOrchestratorArtifact(artifactId), state.selectedProjectId),
   }), [fail, loadProject, mutate, refresh, state.selectedProjectId]);

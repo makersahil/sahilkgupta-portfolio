@@ -170,3 +170,16 @@ If a requirement conflicts with repository state, stop and explain instead of gu
 - Export excludes users, sessions, audit rows, scenario runtimes, credentials, storage keys, environment values, and unsupported claims about stored bytes or verified hashes.
 - Packet Tracer companion JSON is supported as a canonical data format; arbitrary `.pkt` binary parsing remains unsupported and reference-only.
 - `PH2A-DEFER-004` remains OPEN unless genuine byte storage, calculated hashes, retrieval, deletion, and access control are implemented and verified.
+
+
+## Phase 9 production-hardening invariants
+
+- Production startup fails closed when required database, origin, host, HTTPS, secret, or private storage configuration is missing or unsafe.
+- Trust only the configured reverse-proxy hop count and require the proxy to overwrite forwarding headers; never expose the Node listener as an alternate public path.
+- Browser mutations use signed CSRF tokens, exact Origin policy, SameSite cookies, and Fetch Metadata defense in depth. Public GET/HEAD routes remain usable without CSRF.
+- Rate-limit keys are HMAC-hashed and stored in PostgreSQL. Never persist raw IP/email/session selectors or reintroduce process-local-only enforcement for protected production flows.
+- Logs are bounded JSON with request IDs and redaction. Never log credentials, cookies, JWTs, CSRF values, database URLs, raw private Lab payloads, session keys, or storage keys.
+- `/api/live` proves process response only. `/api/ready` may claim readiness only after PostgreSQL and required managed storage checks pass within the configured bound.
+- Managed artifact hashes are verified only when calculated from actual stored bytes. Storage paths stay private and outside `public`/`dist`; external/S3 metadata remains reference-only.
+- Graceful shutdown must stop new work and close HTTP, Vite, Prisma, and pg resources. Deployment and restore evidence is required before production-readiness claims.
+- Never commit `.env`, generated artifact bytes, backups, logs, production packages, private keys, `dist`, `node_modules`, or temporary verifier scripts.

@@ -96,7 +96,7 @@ model Artifact {
 }
 
 // PostgreSQL/Prisma is the only supported runtime persistence path.
-// Managed artifact byte storage remains a later production/orchestration phase.`;
+// Phase 9 managed storage keeps bytes private and content-addressed, with server-calculated SHA-256 integrity metadata.`;
 
   const directoryTreeCode = `infra-portfolio-cms/
 ├── prisma/
@@ -104,7 +104,7 @@ model Artifact {
 │   ├── migrations/
 │   └── seed.ts
 ├── server/
-│   ├── middlewares/              # auth, async, error handling
+│   ├── middlewares/              # auth, CSRF/rate-limit, request context, errors
 │   ├── repositories/
 │   │   ├── contracts/            # content/auth/lab/audit/artifact/system contracts
 │   │   └── prisma/               # PostgreSQL implementations
@@ -117,7 +117,7 @@ model Artifact {
 │   │   ├── admin/
 │   │   ├── media/
 │   │   └── system/
-│   ├── security/
+│   ├── security/                 # host/origin policy, signed CSRF, shared rate limits
 │   └── scripts/                  # durable verification/regression tools
 ├── src/
 │   ├── components/

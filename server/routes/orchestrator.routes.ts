@@ -2,6 +2,8 @@ import { Router } from 'express';
 
 import { authenticateToken, requireRole } from '../middlewares/auth.middleware.js';
 import { asyncHandler } from '../middlewares/async-handler.js';
+import { createRateLimitMiddleware } from '../middlewares/rate-limit.middleware.js';
+import type { AuthenticatedRequest } from '../middlewares/auth.middleware.js';
 import { portfolioOrchestratorService } from '../services/orchestrator/index.js';
 import {
   parseArtifactQuery,
@@ -22,6 +24,11 @@ import {
 import { recordAdminAudit } from './admin-audit.js';
 
 const router = Router();
+const importLimiter = createRateLimitMiddleware({
+  policy: { scope: 'orchestrator.import', limit: 20, windowMs: 60 * 60 * 1_000 },
+  key: (request) => `${(request as AuthenticatedRequest).user?.id ?? 'anonymous'}|${request.ip ?? 'unknown'}`,
+  message: 'Too many portfolio import attempts',
+});
 
 router.use(authenticateToken, requireRole('SUPER_ADMIN', 'ADMIN'));
 
@@ -290,7 +297,7 @@ router.delete('/labs/:labId', requireRole('SUPER_ADMIN'), asyncHandler(async (re
   response.json({ success: true, message: 'Lab permanently deleted' });
 }));
 
-router.post('/import/dry-run', asyncHandler(async (request, response) => {
+router.post('/import/dry-run', importLimiter, asyncHandler(async (request, response) => {
   const parsed = parseImport(request.body);
   const data = await portfolioOrchestratorService.importDryRun(parsed);
   await recordAdminAudit(request, {
@@ -307,7 +314,7 @@ router.post('/import/dry-run', asyncHandler(async (request, response) => {
   response.json({ success: true, data });
 }));
 
-router.post('/import', asyncHandler(async (request, response) => {
+router.post('/import', importLimiter, asyncHandler(async (request, response) => {
   const parsed = parseImport(request.body);
   const data = await portfolioOrchestratorService.importBundle(parsed);
   await recordAdminAudit(request, {

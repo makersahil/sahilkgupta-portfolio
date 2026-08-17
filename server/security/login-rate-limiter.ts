@@ -1,51 +1,33 @@
+import { env } from '../config/env.js';
 import { TooManyRequestsError } from '../lib/errors.js';
+import { databaseRateLimitService, type DatabaseRateLimitService } from './rate-limit.service.js';
 
-interface FailureBucket {
-  failures: number;
-  resetAt: number;
-}
-
-const MAX_FAILURES = 5;
-const WINDOW_MS = 15 * 60 * 1000;
+const POLICY = { scope: 'auth.failed-login', limit: 5, windowMs: 15 * 60 * 1_000 } as const;
 
 class LoginRateLimiter {
-  private readonly failures = new Map<string, FailureBucket>();
+  constructor(private readonly service: DatabaseRateLimitService = databaseRateLimitService) {}
 
   private key(ipAddress: string | undefined, email: string): string {
     return `${ipAddress || 'unknown'}|${email.trim().toLowerCase()}`;
   }
 
-  assertAllowed(ipAddress: string | undefined, email: string): void {
-    const key = this.key(ipAddress, email);
-    const bucket = this.failures.get(key);
-    if (!bucket) return;
-
-    const now = Date.now();
-    if (bucket.resetAt <= now) {
-      this.failures.delete(key);
-      return;
-    }
-
-    if (bucket.failures >= MAX_FAILURES) {
-      throw new TooManyRequestsError('Too many failed login attempts. Try again later.');
+  async assertAllowed(ipAddress: string | undefined, email: string): Promise<void> {
+    if (!env.RATE_LIMIT_ENABLED) return;
+    const result = await this.service.inspect(POLICY, this.key(ipAddress, email));
+    if (!result.allowed) {
+      throw new TooManyRequestsError('Too many failed login attempts. Try again later.', {
+        retryAfterSeconds: result.retryAfterSeconds,
+      });
     }
   }
 
-  recordFailure(ipAddress: string | undefined, email: string): void {
-    const key = this.key(ipAddress, email);
-    const now = Date.now();
-    const current = this.failures.get(key);
-
-    if (!current || current.resetAt <= now) {
-      this.failures.set(key, { failures: 1, resetAt: now + WINDOW_MS });
-      return;
-    }
-
-    current.failures += 1;
+  async recordFailure(ipAddress: string | undefined, email: string): Promise<void> {
+    if (!env.RATE_LIMIT_ENABLED) return;
+    await this.service.consume(POLICY, this.key(ipAddress, email));
   }
 
-  clear(ipAddress: string | undefined, email: string): void {
-    this.failures.delete(this.key(ipAddress, email));
+  async clear(ipAddress: string | undefined, email: string): Promise<void> {
+    await this.service.clear(POLICY, this.key(ipAddress, email));
   }
 }
 

@@ -81,3 +81,9 @@ If an administrator is locked out because credentials were intentionally changed
 4. Sign in again. Existing sessions for that administrator will have been revoked.
 
 Do not insert plaintext passwords directly into PostgreSQL and do not add administrator credentials to `prisma/seed.ts`.
+
+## Phase 9 browser-request protections
+
+Production browser mutations require a signed double-submit CSRF token delivered in the host-only `portfolio_csrf` cookie and `X-CSRF-Token` header. The token is HMAC-signed and bound to the current session-cookie value when authenticated. Login rotates the token to the new session binding; logout rotates it back to an anonymous binding. SameSite cookies, exact Origin checks, and Fetch Metadata rejection remain defense in depth rather than substitutes for CSRF validation.
+
+Failed-login and general login-attempt limits are shared through PostgreSQL `RateLimitBucket` rows using HMAC-hashed identities. Raw email/IP values are not stored. Production maintenance should run `npm run maintenance:cleanup` on a schedule.
